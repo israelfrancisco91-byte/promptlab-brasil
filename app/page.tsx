@@ -5,7 +5,6 @@ import { jsPDF } from "jspdf"
 
 export default function PromptLabPage() {
   const [showInstructions, setShowInstructions] = useState(false)
-  
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
@@ -18,11 +17,15 @@ export default function PromptLabPage() {
 
   const processPDF = async (action: 'download' | 'share') => {
     try {
-      const doc = new jsPDF();
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
       const watermark = "PromptLab Brasil";
       
-      if (!repertoire.trim()) return alert("O campo de letras e cifras está vazio!");
+      if (!repertoire.trim()) {
+        alert("O campo está vazio!");
+        return;
+      }
 
+      // Separação por Hífen (-) para nova página
       const pages = repertoire.split(/\n\s*-\s*\n/);
 
       pages.forEach((pageContent, index) => {
@@ -30,92 +33,104 @@ export default function PromptLabPage() {
         if (!trimmedPage) return;
         if (index > 0) doc.addPage();
 
+        // Cabeçalho
         if (repertoireHeader) {
-          doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(100, 116, 139);
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(100, 116, 139);
           doc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
-          doc.setDrawColor(220, 220, 220); doc.line(15, 15, 195, 15);
+          doc.setDrawColor(220, 220, 220);
+          doc.line(15, 15, 195, 15);
         }
 
-        doc.setFontSize(10); doc.setTextColor(150, 150, 150); doc.setFont("helvetica", "bold");
+        // Marca d'água fixa no rodapé (290mm)
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.setFont("helvetica", "bold");
         doc.text(watermark, 105, 290, { align: "center" });
 
         const lines = trimmedPage.split('\n');
-        
-        let currentY = 35; 
+        let currentY = 30; 
         let currentX = 15; 
-        
         let emptyLineCount = 0;
         let isNextLineTitle = true; 
 
-        lines.forEach((line) => {
+        for (let line of lines) {
           const trimmedLine = line.trim();
           
           if (trimmedLine === "") {
             emptyLineCount++;
-            currentY += 2.5;
-            return; 
+            currentY += 4;
+            continue; 
           }
 
-          // Ajuste de colunas conforme solicitado na última interação
-          if (currentX === 15 && currentY > 282) {
-              currentY = 35; 
-              currentX = 110; 
+          // LÓGICA DE COLUNAS (RIGOROSA)
+          // Coluna Esquerda: Desce até 280mm
+          if (currentX === 15 && currentY > 280) {
+            currentX = 110;
+            currentY = 30;
+          } 
+          // Coluna Direita: Recua em 272mm (para não bater na marca d'água)
+          else if (currentX === 110 && currentY > 272) {
+            continue; // Se estourar a direita, ignora o resto da página
           }
 
-          // Limite da direita recuado para livrar a marca d'água
-          if (currentX === 110 && currentY > 275) return;
-
+          // REGRA: Título (Primeira linha ou após 2 linhas em branco / 3 Enters)
           if (isNextLineTitle || emptyLineCount >= 2) {
             doc.setFontSize(14); 
             doc.setTextColor(0, 0, 0); 
             doc.setFont("helvetica", "bold");
             doc.text(trimmedLine.toUpperCase(), currentX, currentY);
-            currentY += 7; 
+            currentY += 8; 
             isNextLineTitle = false;
           } else {
             doc.setFontSize(10); 
             doc.setFont("courier", "bold");
             
+            // Cores estáveis (RGB individual)
             if (isChordLine(line)) {
-              doc.setTextColor(37, 99, 235); 
+              doc.setTextColor(37, 99, 235); // Azul
             } else {
-              doc.setTextColor(0, 0, 0); 
+              doc.setTextColor(0, 0, 0); // Preto
             }
             doc.text(line, currentX, currentY);
             currentY += 5.5;
           }
           
           emptyLineCount = 0;
-        });
+        }
       });
 
-      const fileName = "repertorio.pdf";
+      // Nome de arquivo simples para evitar erro no WhatsApp
+      const fileName = "musica.pdf";
+
       if (action === 'download') {
         doc.save(fileName);
       } else {
         const pdfBlob = doc.output('blob');
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-        
+
         if (navigator.share) {
           try {
-            await navigator.share({ 
-              files: [file], 
-              title: 'Meu Repertório', 
-              text: 'Gerado por promptlabbrasil.com.br' 
+            await navigator.share({
+              files: [file],
+              title: 'Repertório',
             });
           } catch (shareErr: any) {
-            // CORREÇÃO: Ignora o erro se o usuário apenas cancelou o menu de compartilhar
+            // Ignora apenas o erro de cancelamento, avisa sobre outros
             if (shareErr.name !== 'AbortError') {
-              alert("Erro ao compartilhar: " + shareErr.message);
+              console.error(shareErr);
+              doc.save(fileName);
+              alert("Ocorreu um problema no envio. O PDF foi baixado para você enviar manualmente.");
             }
           }
         } else {
           doc.save(fileName);
-          alert("Navegador não suporta compartilhamento direto. PDF baixado!");
+          alert("Navegador incompatível. PDF baixado!");
         }
       }
-    } catch (err) { 
-      alert("Erro ao processar PDF: " + err); 
+    } catch (err) {
+      alert("Erro ao gerar PDF: Verifique se há muito texto em uma única página.");
     }
   };
 
