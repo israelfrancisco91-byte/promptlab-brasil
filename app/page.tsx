@@ -43,8 +43,6 @@ export default function PromptLabPage() {
         
         let currentY = 35; 
         let currentX = 15; 
-        let lineCount = 0;
-        const maxLinesPerCol = 38;
         
         let emptyLineCount = 0;
         let isNextLineTitle = true; 
@@ -58,15 +56,15 @@ export default function PromptLabPage() {
             return; 
           }
 
-          if (lineCount >= maxLinesPerCol) { 
-            if (currentX === 15) {
+          // AJUSTE DE COLUNAS: Troca para a direita se a esquerda passar de 282mm
+          if (currentX === 15 && currentY > 282) {
               currentY = 35; 
               currentX = 110; 
-              lineCount = 0;
-            }
           }
 
-          // Título na 1ª linha ou após 2 linhas em branco (Enter 3 vezes)
+          // LIMITE DA DIREITA: Recua para 275mm para livrar a marca d'água
+          if (currentX === 110 && currentY > 275) return;
+
           if (isNextLineTitle || emptyLineCount >= 2) {
             doc.setFontSize(14); 
             doc.setTextColor(0, 0, 0); 
@@ -87,7 +85,6 @@ export default function PromptLabPage() {
             currentY += 5.5;
           }
           
-          lineCount++;
           emptyLineCount = 0;
         });
       });
