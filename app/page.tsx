@@ -15,13 +15,12 @@ export default function PromptLabPage() {
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
-  // --- FUNÇÕES DE UTILIDADE ---
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     alert("Copiado com sucesso!")
   }
 
-  // DETECTOR DE CIFRAS (Versão Estável)
+  // DETECTOR DE CIFRAS
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 80) return false;
@@ -34,13 +33,9 @@ export default function PromptLabPage() {
     try {
       const doc = new jsPDF();
       const watermark = "PromptLab Brasil";
-      
-      if (!content.trim()) {
-        alert("O campo está vazio!");
-        return;
-      }
+      if (!content.trim()) return alert("O campo está vazio!");
 
-      // Regra: Separa por apenas UM hífen (-) sozinho na linha
+      // REGRA: Separa por apenas UM hífen (-) sozinho na linha
       const songs = isRepertoire ? content.split(/\n\s*-\s*\n/) : [content];
 
       songs.forEach((song, index) => {
@@ -48,87 +43,104 @@ export default function PromptLabPage() {
         if (!trimmedSong) return;
         if (index > 0) doc.addPage();
 
-        // Cabeçalho
+        // Cabeçalho (Se houver)
         if (repertoireHeader) {
-          doc.setFontSize(10);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(100, 116, 139);
+          doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(100, 116, 139);
           doc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
-          doc.setDrawColor(220, 220, 220);
-          doc.line(15, 15, 195, 15);
+          doc.setDrawColor(220, 220, 220); doc.line(15, 15, 195, 15);
         }
 
-        // Marca d'água no Rodapé
-        doc.setFontSize(10);
-        doc.setTextColor(150, 150, 150);
-        doc.setFont("helvetica", "bold");
+        // Marca d'água (Rodapé)
+        doc.setFontSize(10); doc.setTextColor(150, 150, 150); doc.setFont("helvetica", "bold");
         doc.text(watermark, 105, 290, { align: "center" });
 
         const lines = trimmedSong.split('\n');
-        const firstLine = lines[0].trim();
         
-        let title = isChordLine(firstLine) ? (isRepertoire ? "MÚSICA SEM TÍTULO" : "COMPOSIÇÃO AI") : firstLine;
-        let body = isChordLine(firstLine) ? lines : lines.slice(1);
+        // FILTRO: Remove linhas de metadados como [Tema: ...] ou [Estilo: ...]
+        const cleanLines = lines.filter(line => !line.trim().startsWith('[Tema:') && !line.trim().startsWith('[Estilo:'));
+        
+        const firstLine = cleanLines[0]?.trim() || "";
+        let title = isChordLine(firstLine) ? (isRepertoire ? "MÚSICA SEM TÍTULO" : "COMPOSIÇÃO PROMPTLAB") : firstLine;
+        let body = isChordLine(firstLine) ? cleanLines : cleanLines.slice(1);
 
-        // Título da Música
-        doc.setFontSize(15);
-        doc.setTextColor(0, 0, 0);
-        doc.setFont("helvetica", "bold");
+        // Renderiza Título
+        doc.setFontSize(15); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
         doc.text(title.toUpperCase(), 15, 25);
 
-        // Corpo com Courier Bold para alinhamento absoluto
-        doc.setFontSize(10);
-        doc.setFont("courier", "bold");
-
-        let currentY = 35;
-        let currentX = 15;
-        let lineCount = 0;
+        // Renderiza Corpo (Courier Bold para alinhamento)
+        doc.setFontSize(10); doc.setFont("courier", "bold");
+        let currentY = 35; let currentX = 15; let lineCount = 0;
         const maxLinesPerCol = 38;
 
         body.forEach((line) => {
-          if (lineCount === maxLinesPerCol) {
-            currentY = 35;
-            currentX = 110;
-          }
+          if (lineCount === maxLinesPerCol) { currentY = 35; currentX = 110; }
           if (lineCount >= maxLinesPerCol * 2) return;
 
-          if (isChordLine(line)) {
-            doc.setTextColor(37, 99, 235); // Azul para cifras
-          } else {
-            doc.setTextColor(0, 0, 0); // Preto para letras
-          }
-
+          doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
           doc.text(line, currentX, currentY);
-          currentY += 5.5;
-          lineCount++;
+          currentY += 5.5; lineCount++;
         });
       });
 
+      const fileName = isRepertoire ? "repertorio.pdf" : "composicao.pdf";
       if (action === 'download') {
-        doc.save(isRepertoire ? "repertorio.pdf" : "composicao.pdf");
+        doc.save(fileName);
       } else {
         const pdfBlob = doc.output('blob');
-        const file = new File([pdfBlob], "repertorio.pdf", { type: 'application/pdf' });
-
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'PromptLab Brasil',
-            text: 'Crie o seu repertório em promptlabbrasil.com.br',
-          });
+        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        if (navigator.share) {
+          await navigator.share({ files: [file], title: 'PromptLab', text: 'Crie o seu repertório em promptlabbrasil.com.br' });
         } else {
-          doc.save("repertorio.pdf");
-          alert("Seu navegador não suporta o envio direto. O PDF foi baixado, anexe-o manualmente!");
+          doc.save(fileName); alert("PDF baixado! Anexe manualmente no WhatsApp.");
         }
       }
-    } catch (err) {
-      alert("Erro ao processar PDF: " + err);
-    }
+    } catch (err) { alert("Erro: " + err); }
   };
 
+  // COMPOSITOR COM ESTRUTURA COMPLETA
   const handleCompose = () => {
-    if (!musicTheme) return alert("Digite um tema para a música!");
-    const result = `SUA NOVA MÚSICA\n\n[Tema: ${musicTheme}]\n[Estilo: ${musicStyle} | Vibe: ${musicVibe}]\n\nC          G          Am\nNo silêncio do meu peito floresceu\nF          C          G\nUm rastro de luz que o céu me deu`;
+    if (!musicTheme) return alert("Digite um tema!");
+    
+    const result = `[Tema: ${musicTheme} | Estilo: ${musicStyle}]\n\n` + 
+      `O CAMINHO DA LUZ\n\n` +
+      `INTRO: G  D/F#  Em7  C9\n\n` +
+      `(Verso 1)\n` +
+      `G              D/F#\n` +
+      `Neste ${musicTheme} que invade o olhar\n` +
+      `Em7            C9\n` +
+      `Sinto a paz que vem me guiar\n` +
+      `G              D/F#\n` +
+      `No estilo ${musicStyle} a canção vai fluir\n` +
+      `Em7            C9\n` +
+      `Com essa vibe ${musicVibe} a sorrir\n\n` +
+      `(Refrão)\n` +
+      `D              C9\n` +
+      `Oh, luz que brilha na escuridão\n` +
+      `G              D/F#\n` +
+      `Traz o ${musicTheme} pro meu coração\n` +
+      `Em7            C9\n` +
+      `Em cada nota, um novo sentido\n` +
+      `D              G\n` +
+      `Pelo Teu amor, sinto-me fortalecido\n\n` +
+      `(Verso 2)\n` +
+      `G              D/F#\n` +
+      `As pedras do caminho ficaram pra trás\n` +
+      `Em7            C9\n` +
+      `Onde havia guerra, hoje reina a paz\n` +
+      `G              D/F#\n` +
+      `A melodia ${musicVibe} ecoa no ar\n` +
+      `Em7            C9\n` +
+      `Ensinando a gente a sempre amar\n\n` +
+      `(Refrão Final)\n` +
+      `D              C9\n` +
+      `Oh, luz que brilha na escuridão\n` +
+      `G              D/F#\n` +
+      `Traz o ${musicTheme} pro meu coração\n` +
+      `Em7            C9\n` +
+      `Canto a vida, canto a esperança\n` +
+      `D              G\n` +
+      `Como o sorriso de uma criança`;
+      
     setCompositionResult(result);
   };
 
@@ -139,7 +151,6 @@ export default function PromptLabPage() {
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: block; }
         input, select, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
         .btn { padding: 14px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
         .btn-primary { background: #9333ea; color: white; }
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-blue { background: #2563eb; color: white; }
@@ -158,68 +169,43 @@ export default function PromptLabPage() {
         {activeTab === "music" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-8">
-              {/* COMPOSITOR AI */}
               <section className="panel border-l-4 border-purple-500">
                 <h2 className="text-xl font-black mb-6 flex items-center gap-2">✨ Compositor AI</h2>
                 <label>Tema da música</label>
-                <input value={musicTheme} onChange={(e) => setMusicTheme(e.target.value)} placeholder="Ex: Amor de verão, Saudade..." />
-                
+                <input value={musicTheme} onChange={(e) => setMusicTheme(e.target.value)} placeholder="Ex: Amor de verão..." />
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label>Estilo</label>
                     <select value={musicStyle} onChange={(e) => setMusicStyle(e.target.value)}>
                       <option>Worship</option><option>Sertanejo</option><option>Samba</option>
-                      <option>Pagode</option><option>MPB</option><option>Rock</option>
-                      <option>Pop</option><option>Trap</option><option>Funk</option>
-                      <option>Forró</option><option>Reggae</option><option>Jazz</option>
+                      <option>MPB</option><option>Rock</option><option>Pop</option>
                     </select>
                   </div>
                   <div>
                     <label>Vibe</label>
                     <select value={musicVibe} onChange={(e) => setMusicVibe(e.target.value)}>
                       <option>Inspiradora</option><option>Animada</option><option>Melancólica</option>
-                      <option>Relaxante</option><option>Épica</option><option>Romântica</option>
                     </select>
                   </div>
                 </div>
                 <button onClick={handleCompose} className="btn btn-primary">🚀 Gerar Composição</button>
               </section>
 
-              {/* REPERTÓRIO DIGITAL */}
               <section className="panel border-l-4 border-green-500">
                 <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório Digital</h2>
-                
-                <div className="mb-4">
-                  <button 
-                    onClick={() => setShowInstructions(!showInstructions)}
-                    className="text-xs font-bold text-green-400 hover:text-green-300 underline flex items-center gap-1 mb-2"
-                  >
-                    {showInstructions ? "🔼 Ocultar Instruções" : "🔽 Instruções de Uso"}
-                  </button>
-                  {showInstructions && (
-                    <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
-                      <p className="mb-2"><strong>1. Título:</strong> Primeira linha = Nome da música.</p>
-                      <p><strong>2. Divisão:</strong> Use apenas um hífen (<strong>-</strong>) sozinho na linha para nova página.</p>
-                    </div>
-                  )}
-                </div>
-
-                <label>Título do Cabeçalho</label>
-                <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo" />
-                
-                <label>Cole aqui as letras e cifras</label>
+                <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline mb-4 block">Instruções</button>
+                {showInstructions && <div className="bg-black/30 p-4 rounded text-xs mb-4">1. Título na 1ª linha. 2. Use "-" para nova página.</div>}
+                <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Título do Cabeçalho..." />
                 <textarea rows={10} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Título da música..." />
-                
-                <button onClick={() => processPDF(repertoire, true, 'download')} className="btn btn-green">📄 Gerar PDF do Repertório (Tablet)</button>
+                <button onClick={() => processPDF(repertoire, true, 'download')} className="btn btn-green">📄 Gerar PDF (Tablet)</button>
                 <button onClick={() => processPDF(repertoire, true, 'share')} className="btn btn-blue">📱 Compartilhar no WhatsApp</button>
               </section>
             </div>
 
-            {/* ÁREA DE RESULTADO */}
             <div className="space-y-6">
               <section className="panel h-full flex flex-col sticky top-4">
                 <label>Resultado da Composição</label>
-                <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-serif text-lg leading-relaxed text-slate-300 min-h-[400px] whitespace-pre-wrap">
+                <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-serif text-lg text-slate-300 min-h-[400px] whitespace-pre-wrap">
                   {compositionResult || "As letras e cifras aparecerão aqui..."}
                 </div>
                 {compositionResult && (
