@@ -45,7 +45,6 @@ export default function PromptLabPage() {
         doc.setFontSize(10); doc.setTextColor(150, 150, 150); doc.setFont("helvetica", "bold");
         doc.text(watermark, 105, 290, { align: "center" });
 
-        // Quebra o conteúdo da página em linhas
         const lines = trimmedPage.split('\n');
         
         let currentY = 35; 
@@ -53,27 +52,28 @@ export default function PromptLabPage() {
         let lineCount = 0;
         const maxLinesPerCol = 38;
         
-        // Lógica de "Nova Música" (Double Enter)
-        let isNextLineTitle = true; 
+        let emptyLineCount = 0;
+        let isNextLineTitle = true; // A primeira linha da página é sempre título
 
-        lines.forEach((line, idx) => {
+        lines.forEach((line) => {
           const trimmedLine = line.trim();
           
-          // Se a linha estiver vazia, a próxima será tratada como título
           if (trimmedLine === "") {
-            isNextLineTitle = true;
-            currentY += 2; // Pequeno respiro visual entre músicas
+            emptyLineCount++;
+            currentY += 2.5; // Espaço visual para linhas em branco
             return; 
           }
 
-          if (lineCount === maxLinesPerCol) { 
+          // Troca de coluna
+          if (lineCount >= maxLinesPerCol && currentX === 15) { 
             currentY = 35; 
             currentX = 110; 
+            lineCount = 0;
           }
-          if (lineCount >= maxLinesPerCol * 2) return;
+          if (lineCount >= maxLinesPerCol && currentX === 110) return;
 
-          if (isNextLineTitle) {
-            // RENDERIZA COMO TÍTULO
+          // REGRA CORRIGIDA: Título apenas no início ou após DUAS ou mais linhas em branco
+          if (isNextLineTitle || emptyLineCount >= 2) {
             doc.setFontSize(14); 
             doc.setTextColor(0, 0, 0); 
             doc.setFont("helvetica", "bold");
@@ -81,20 +81,15 @@ export default function PromptLabPage() {
             currentY += 7; 
             isNextLineTitle = false;
           } else {
-            // RENDERIZA COMO CORPO (CIFRA OU LETRA)
             doc.setFontSize(10); 
             doc.setFont("courier", "bold");
-            
-            if (isChordLine(line)) {
-              doc.setTextColor(37, 99, 235); // Azul
-            } else {
-              doc.setTextColor(0, 0, 0); // Preto
-            }
+            doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
             doc.text(line, currentX, currentY);
             currentY += 5.5;
           }
           
           lineCount++;
+          emptyLineCount = 0; // Reseta o contador ao encontrar texto
         });
       });
 
@@ -105,12 +100,12 @@ export default function PromptLabPage() {
         const pdfBlob = doc.output('blob');
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
         if (navigator.share) {
-          await navigator.share({ files: [file], title: 'Repertório PromptLab', text: 'Crie o seu repertório em promptlabbrasil.com.br' });
+          await navigator.share({ files: [file], title: 'PromptLab', text: 'Crie o seu repertório em promptlabbrasil.com.br' });
         } else {
-          doc.save(fileName); alert("PDF baixado! Anexe manualmente no WhatsApp.");
+          doc.save(fileName); alert("PDF baixado!");
         }
       }
-    } catch (err) { alert("Erro ao processar PDF: " + err); }
+    } catch (err) { alert("Erro: " + err); }
   };
 
   return (
@@ -147,9 +142,9 @@ export default function PromptLabPage() {
                 </button>
                 {showInstructions && (
                   <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed animate-in fade-in slide-in-from-top-1">
-                    <p className="mb-2"><strong>1. Título:</strong> A primeira linha de cada música será o título no PDF.</p>
-                    <p className="mb-2"><strong>2. Nova Página:</strong> Coloque um hífen (<strong>-</strong>) sozinho em uma linha entre as músicas.</p>
-                    <p><strong>3. Nova Música:</strong> Entre uma música e outra tecle "Enter" duas vezes.</p>
+                    <p className="mb-2"><strong>1. Título:</strong> A primeira linha de cada página é sempre um título.</p>
+                    <p className="mb-2"><strong>2. Nova Página:</strong> Use um hífen (<strong>-</strong>) sozinho em uma linha para pular de página.</p>
+                    <p><strong>3. Nova Música:</strong> Para destacar um novo título na mesma página, deixe duas linhas em branco (tecle Enter 3 vezes).</p>
                   </div>
                 )}
               </div>
@@ -168,7 +163,7 @@ export default function PromptLabPage() {
           <div className="space-y-6">
             <section className="panel h-full flex flex-col sticky top-6">
               <label>Visualização em Tempo Real</label>
-              <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-mono text-sm leading-relaxed text-slate-300 min-h-[450px] whitespace-pre-wrap overflow-y-auto">
+              <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-mono text-sm leading-relaxed text-slate-300 min-h-[450px] whitespace-pre-wrap overflow-y-auto text-left">
                 {repertoire || "Digite suas músicas para visualizar..."}
               </div>
               <div className="mt-4 pt-4 border-t border-slate-800 text-center">
