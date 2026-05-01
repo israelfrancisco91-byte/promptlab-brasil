@@ -17,7 +17,6 @@ export default function PromptLabPage() {
 
   const processPDF = async (action: 'download' | 'share') => {
     try {
-      // Configuração inicial rigorosa para A4
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
       
@@ -30,14 +29,12 @@ export default function PromptLabPage() {
         if (!trimmedPage) return;
         if (index > 0) doc.addPage();
 
-        // Cabeçalho (Topo)
         if (repertoireHeader) {
           doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(100, 116, 139);
           doc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
           doc.setDrawColor(220, 220, 220); doc.line(15, 15, 195, 15);
         }
 
-        // Marca d'água (Rodapé fixo)
         doc.setFontSize(10); doc.setTextColor(150, 150, 150); doc.setFont("helvetica", "bold");
         doc.text(watermark, 105, 290, { align: "center" });
 
@@ -49,20 +46,17 @@ export default function PromptLabPage() {
 
         lines.forEach((line) => {
           const trimmedLine = line.trim();
-          
           if (trimmedLine === "") {
             emptyLineCount++;
             currentY += 2.5;
             return; 
           }
 
-          // AJUSTE DE COLUNAS (Solicitado: Esquerda desce mais, Direita recua antes)
-          if (currentX === 15 && currentY > 282) { // Limite da Esquerda
+          if (currentX === 15 && currentY > 282) {
               currentY = 32; 
               currentX = 110; 
           }
-
-          if (currentX === 110 && currentY > 275) return; // Limite da Direita (livra marca d'água)
+          if (currentX === 110 && currentY > 275) return;
 
           if (isNextLineTitle || emptyLineCount >= 2) {
             doc.setFontSize(14); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
@@ -71,11 +65,7 @@ export default function PromptLabPage() {
             isNextLineTitle = false;
           } else {
             doc.setFontSize(10); doc.setFont("courier", "bold");
-            if (isChordLine(line)) {
-              doc.setTextColor(37, 99, 235); 
-            } else {
-              doc.setTextColor(0, 0, 0); 
-            }
+            doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
             doc.text(line, currentX, currentY);
             currentY += 5.5;
           }
@@ -83,7 +73,8 @@ export default function PromptLabPage() {
         });
       });
 
-      const fileName = "meu-repertorio.pdf";
+      // Nome bem simples para não dar erro no iOS/WhatsApp
+      const fileName = "repertorio.pdf";
 
       if (action === 'download') {
         doc.save(fileName);
@@ -91,24 +82,22 @@ export default function PromptLabPage() {
         const pdfBlob = doc.output('blob');
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-        // BLINDAGEM MOBILE PARA COMPARTILHAMENTO
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({
-              files: [file],
-              title: 'Repertório PromptLab',
-            });
-          } catch (err: any) {
-            if (err.name !== 'AbortError') alert("Erro ao enviar: " + err.message);
-          }
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          // Tentativa de compartilhamento direto
+          navigator.share({
+            files: [file],
+            title: 'Repertório',
+          }).catch(() => {
+            // Se der erro ou cancelar, baixa o arquivo como segurança
+            doc.save(fileName);
+          });
         } else {
-          // Fallback para quando o compartilhamento falha ou não é suportado
           doc.save(fileName);
-          alert("Compartilhamento direto não disponível. O PDF foi baixado para você anexar manualmente.");
+          alert("Compartilhamento não suportado. O PDF foi baixado para você enviar manualmente.");
         }
       }
     } catch (err) {
-      alert("Houve um erro técnico ao gerar o PDF no celular. Tente reduzir o texto por página.");
+      alert("Houve um erro. Tente reduzir o texto da página.");
     }
   };
 
@@ -132,7 +121,7 @@ export default function PromptLabPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
             <section className="panel border-l-4 border-green-500">
-              <h2 className="text-xl font-black mb-4">📚 Repertório</h2>
+              <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório</h2>
               <div className="mb-4">
                 <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline mb-2 block">
                   {showInstructions ? "🔼 Ocultar Instruções" : "🔽 Instruções de Uso"}
@@ -149,10 +138,17 @@ export default function PromptLabPage() {
               <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo" />
               <label>Letras e Cifras</label>
               <textarea rows={10} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Cole aqui..." className="text-sm font-mono" />
-              <button onClick={() => processPDF('download')} className="btn btn-green">📄 Gerar PDF (Download)</button>
-              <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Compartilhar WhatsApp</button>
+              
+              <button onClick={() => processPDF('download')} className="btn btn-green">
+                📄 Gerar PDF (Download)
+              </button>
+              
+              <button onClick={() => processPDF('share')} className="btn btn-blue">
+                📱 Compartilhar WhatsApp
+              </button>
             </section>
           </div>
+          
           <div className="hidden lg:block">
             <section className="panel h-full sticky top-6">
               <label>Visualização</label>
