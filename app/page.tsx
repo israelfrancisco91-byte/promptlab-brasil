@@ -1,71 +1,40 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useEffect } from "react"
 
-// --- BIBLIOTECA DE ESTILOS (IMAGEM) ---
+// --- BIBLIOTECA COMPLETA DE ESTILOS ---
 const LIBRARY = [
   {
     key: "style",
     title: "Estilo visual",
-    description: "Direção estética principal da imagem.",
-    limit: 3,
     options: [
-      { id: "realismo", label: "Realismo", en: "photorealistic, realistic textures, lifelike details" },
-      { id: "cyberpunk", label: "Cyberpunk", en: "cyberpunk aesthetic, futuristic dystopian atmosphere, neon-soaked scene" },
-      { id: "pixar", label: "Pixar", en: "3D animated style, pixar-inspired, charming character design" },
-      { id: "vangogh", label: "Van Gogh", en: "van gogh-inspired brushwork, expressive strokes, painterly texture" },
-      { id: "editorial", label: "Editorial de moda", en: "fashion editorial, luxury magazine aesthetic, premium styling" },
-      { id: "surreal", label: "Surrealismo", en: "surreal visual storytelling, dreamlike atmosphere, imaginative composition" },
-      { id: "anime", label: "Anime", en: "anime-inspired, cel-shaded aesthetics, cinematic illustration" },
-      { id: "minimalista", label: "Minimalista", en: "minimalist visual language, clean negative space, elegant simplicity" },
-      { id: "fantasia", label: "Fantasia épica", en: "epic fantasy atmosphere, majestic storytelling, mythical aesthetic" }
+      { id: "realismo", label: "Realismo", en: "photorealistic, 8k, highly detailed" },
+      { id: "cyberpunk", label: "Cyberpunk", en: "cyberpunk aesthetic, neon lights" },
+      { id: "pixar", label: "Pixar 3D", en: "3D animated style, disney pixar inspired" },
+      { id: "anime", label: "Anime", en: "anime style, studio ghibli aesthetic" },
+      { id: "minimalista", label: "Minimalista", en: "minimalist, clean lines" }
     ]
   },
   {
     key: "lighting",
     title: "Iluminação",
-    description: "Escolha a assinatura de luz da cena.",
-    limit: 3,
     options: [
-      { id: "golden", label: "Golden Hour", en: "golden hour lighting, warm sunlight, soft cinematic glow" },
-      { id: "neon", label: "Neon", en: "vibrant neon lighting, colorful reflections, high contrast glow" },
-      { id: "dramatic", label: "Luz dramática", en: "dramatic lighting, deep shadows, moody contrast" },
-      { id: "softstudio", label: "Estúdio suave", en: "soft studio lighting, diffused highlights, polished skin tones" },
-      { id: "rim", label: "Rim light", en: "rim light, edge highlights, subject separation" },
-      { id: "volumetric", label: "Luz volumétrica", en: "volumetric light beams, atmospheric haze, cinematic depth" },
-      { id: "moonlight", label: "Luar", en: "moonlit atmosphere, cool blue highlights, nocturnal mood" }
+      { id: "golden", label: "Golden Hour", en: "golden hour, warm sunlight" },
+      { id: "neon", label: "Neon", en: "vibrant neon glow" },
+      { id: "dramatic", label: "Luz Dramática", en: "dramatic lighting, cinematic shadows" },
+      { id: "soft", label: "Suave", en: "soft studio lighting" }
     ]
   },
   {
     key: "lens",
-    title: "Lente e câmera",
-    description: "Termos técnicos fotográficos.",
-    limit: 3,
+    title: "Lente/Câmera",
     options: [
-      { id: "35mm", label: "35mm", en: "35mm lens, cinematic perspective, natural environmental framing" },
-      { id: "50mm", label: "50mm", en: "50mm lens, balanced perspective, realistic depth" },
-      { id: "85mm", label: "85mm Retrato", en: "85mm portrait lens, flattering compression, creamy background blur" },
-      { id: "anamorphic", label: "Anamórfica", en: "anamorphic lens, cinematic oval bokeh, filmic lens character" },
-      { id: "macro", label: "Macro", en: "macro lens, extreme detail, close-up focus" },
-      { id: "wide", label: "Grande angular", en: "wide-angle lens, immersive perspective, dynamic scale" },
-      { id: "bokeh", label: "Bokeh", en: "shallow depth of field, creamy bokeh, soft background separation" }
+      { id: "85mm", label: "85mm (Retrato)", en: "85mm lens, bokeh background" },
+      { id: "wide", label: "Grande Angular", en: "wide angle lens, expansive view" },
+      { id: "macro", label: "Macro", en: "macro lens, extreme close-up detail" }
     ]
   }
 ]
-
-// --- LÓGICA DE TRADUÇÃO MELHORADA ---
-function translateToEnglish(text: string): string {
-  if (!text) return ""
-  let translated = text.toLowerCase()
-    .replace(/um gato/g, "a cat")
-    .replace(/herói/g, "hero")
-    .replace(/em cima de/g, "on top of")
-    .replace(/prédio futurista/g, "futuristic building")
-    .replace(/astronauta/g, "astronaut")
-    .replace(/floresta/g, "forest")
-    // Adicione mais mapeamentos conforme necessário ou use uma API futuramente
-  return translated
-}
 
 export default function PromptLabPage() {
   const [activeTab, setActiveTab] = useState<"image" | "music">("image")
@@ -78,166 +47,124 @@ export default function PromptLabPage() {
   
   // States Música
   const [musicTheme, setMusicTheme] = useState("")
-  const [musicStyle, setMusicStyle] = useState("sertanejo")
+  const [musicStyle, setMusicStyle] = useState("Worship")
+  const [musicVibe, setMusicVibe] = useState("Inspiradora")
+  const [repertoire, setRepertoire] = useState("")
   const [generatedMusic, setGeneratedMusic] = useState<{lyrics: string, chords: string} | null>(null)
 
-  // Resetar campos ao carregar
-  useEffect(() => {
-    setIdea("")
-    setMusicTheme("")
-  }, [])
-
-  const copyToClipboard = async (text: string) => {
-    await navigator.clipboard.writeText(text)
-    alert("Copiado com sucesso!")
+  const toggleSelection = (category: string, id: string) => {
+    setSelections(prev => {
+      const current = prev[category] || []
+      return { ...prev, [category]: current.includes(id) ? current.filter(i => i !== id) : [...current, id] }
+    })
   }
 
-  // --- COMPONENTE DE IMAGEM ---
-  const ImageGenerator = () => {
-    const finalPrompt = `${translateToEnglish(idea)}, ${platform === 'midjourney' ? '--ar ' + aspectRatio : ''}`
-    
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.9fr] gap-[22px]">
-        <section className="panel p-6">
-          <p className="eyebrow">Construtor Visual</p>
-          <h2 className="text-[1.4rem] mb-4">Monte seu Prompt</h2>
-          
-          <div className="field mb-4">
-            <label>Ideia Central (Português)</label>
-            <textarea 
-              className="w-full bg-[#0f172a] border border-white/10 rounded-md p-3 text-white"
-              rows={4}
-              value={idea}
-              onChange={(e) => setIdea(e.target.value)}
-              placeholder="Ex: Um astronauta tocando violão na lua"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="field">
-              <label>Plataforma</label>
-              <select 
-                className="w-full bg-[#1a2333] text-white border border-white/10 p-2 rounded-md appearance-none"
-                style={{ backgroundColor: '#1a2333', color: 'white' }}
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-              >
-                <option value="midjourney">Midjourney</option>
-                <option value="leonardo">Leonardo.ai</option>
-                <option value="sdxl">SDXL</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>Formato (AR)</label>
-              <select 
-                className="w-full bg-[#1a2333] text-white border border-white/10 p-2 rounded-md"
-                style={{ backgroundColor: '#1a2333', color: 'white' }}
-                value={aspectRatio}
-                onChange={(e) => setAspectRatio(e.target.value)}
-              >
-                <option value="16:9">16:9 (Youtube/TV)</option>
-                <option value="9:16">9:16 (Reels/TikTok)</option>
-                <option value="1:1">1:1 (Instagram)</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        <aside className="panel p-6 sticky top-5 h-fit">
-          <p className="eyebrow">Resultado</p>
-          <div className="result-card bg-[#0f172a] p-4 rounded-lg border border-white/5">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs text-blue-400 font-bold uppercase">Prompt Final (Inglês)</span>
-              <button onClick={() => copyToClipboard(finalPrompt)} className="text-xs bg-blue-600 px-2 py-1 rounded">Copiar</button>
-            </div>
-            <pre className="text-sm whitespace-pre-wrap break-words text-gray-300">{finalPrompt}</pre>
-          </div>
-        </aside>
-      </div>
+  const buildFinalPrompt = () => {
+    const selectedEn = Object.entries(selections).flatMap(([cat, ids]) => 
+      LIBRARY.find(c => c.key === cat)?.options.filter(o => ids.includes(o.id)).map(o => o.en) || []
     )
-  }
-
-  // --- COMPONENTE DE MÚSICA (MUSICLAB) ---
-  const MusicLab = () => {
-    const handleCompose = () => {
-      setGeneratedMusic({
-        lyrics: `(Verao 1)\nNo brilho do ${musicTheme}\nEu encontrei meu lugar\n(Refrão)\nOh ${musicTheme}, luz do meu caminhar...`,
-        chords: "G | D | Em | C"
-      })
-    }
-
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.9fr] gap-[22px]">
-        <section className="panel p-6">
-          <p className="eyebrow">MusicLab</p>
-          <h2 className="text-[1.4rem] mb-4">Compositor de Letras e Cifras</h2>
-          <div className="field mb-4">
-            <label>Sobre o que é a música?</label>
-            <input 
-              className="w-full bg-[#0f172a] border border-white/10 rounded-md p-3 text-white"
-              value={musicTheme}
-              onChange={(e) => setMusicTheme(e.target.value)}
-              placeholder="Ex: Saudade, Amor, Natureza..."
-            />
-          </div>
-          <button onClick={handleCompose} className="btn btn-primary w-full">Compor Música</button>
-        </section>
-
-        <aside className="panel p-6">
-          {generatedMusic ? (
-            <div className="result-card bg-[#0f172a] p-4 rounded-lg">
-              <h3 className="text-blue-400 mb-2">Letra e Cifras</h3>
-              <pre className="text-gray-300 mb-4">{generatedMusic.lyrics}</pre>
-              <div className="p-3 bg-white/5 rounded border border-white/10">
-                <span className="text-xs block text-gray-500 mb-1">Acordes Sugeridos:</span>
-                <code className="text-lg text-orange-400 font-bold">{generatedMusic.chords}</code>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button className="text-xs bg-green-600 p-2 rounded">WhatsApp</button>
-                <button className="text-xs bg-gray-600 p-2 rounded">Gerar PDF</button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center">Sua composição aparecerá aqui.</p>
-          )}
-        </aside>
-      </div>
-    )
+    const base = idea || "A creative concept"
+    const suffix = platform === "midjourney" ? ` --ar ${aspectRatio} --v 6.0` : `, aspect ratio ${aspectRatio}`
+    return `${base}, ${selectedEn.join(", ")}, high quality, cinematic${suffix}`
   }
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#020617] text-white font-sans p-4">
       <style jsx global>{`
-        .panel { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; backdrop-filter: blur(10px); }
-        .eyebrow { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: #6366f1; font-weight: 800; margin-bottom: 8px; }
-        .btn { padding: 12px 24px; border-radius: 8px; font-weight: 600; transition: all 0.2s; cursor: pointer; }
-        .btn-primary { background: #4f46e5; color: white; border: none; }
-        .btn-primary:hover { background: #4338ca; }
-        label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px; font-weight: 500; }
-        select option { background-color: #1a2333; color: white; }
+        .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; }
+        .option-btn { padding: 8px 12px; border-radius: 6px; border: 1px solid #374151; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
+        .option-btn.active { background: #3b82f6; border-color: #60a5fa; }
+        label { color: #94a3b8; font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; display: block; }
+        select, textarea, input { background: #0f172a; border: 1px solid #1f2937; color: white; padding: 10px; border-radius: 8px; width: 100%; }
       `}</style>
 
-      <header className="max-w-[1240px] mx-auto px-5 pt-12 text-center">
-        <h1 className="text-4xl font-black tracking-tight mb-4">PromptLab BR</h1>
-        
-        <nav className="flex justify-center gap-4 mb-8">
-          <button 
-            onClick={() => setActiveTab("image")}
-            className={`px-4 py-2 rounded-full text-sm font-bold transition ${activeTab === 'image' ? 'bg-blue-600' : 'bg-white/5'}`}
-          >
-            🖼️ Imagens
-          </button>
-          <button 
-            onClick={() => setActiveTab("music")}
-            className={`px-4 py-2 rounded-full text-sm font-bold transition ${activeTab === 'music' ? 'bg-purple-600' : 'bg-white/5'}`}
-          >
-            🎸 MusicLab
-          </button>
-        </nav>
+      <header className="max-w-5xl mx-auto text-center py-10">
+        <h1 className="text-4xl font-black mb-6">PromptLab BR</h1>
+        <div className="flex justify-center gap-4">
+          <button onClick={() => setActiveTab("image")} className={`px-6 py-2 rounded-full font-bold ${activeTab === 'image' ? 'bg-blue-600' : 'bg-gray-800'}`}>🖼️ Imagens</button>
+          <button onClick={() => setActiveTab("music")} className={`px-6 py-2 rounded-full font-bold ${activeTab === 'music' ? 'bg-purple-600' : 'bg-gray-800'}`}>🎸 MusicLab</button>
+        </div>
       </header>
 
-      <main className="max-w-[1240px] mx-auto px-5 pb-20">
-        {activeTab === "image" ? <ImageGenerator /> : <MusicLab />}
+      <main className="max-w-6xl mx-auto">
+        {activeTab === "image" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="panel">
+              <label>Ideia Central</label>
+              <textarea rows={3} value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="Descreva sua imagem..." />
+              
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div><label>Plataforma</label>
+                  <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
+                    <option value="midjourney">Midjourney</option>
+                    <option value="leonardo">Leonardo.ai</option>
+                  </select>
+                </div>
+                <div><label>Formato</label>
+                  <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)}>
+                    <option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option>
+                  </select>
+                </div>
+              </div>
+
+              {LIBRARY.map(cat => (
+                <div key={cat.key} className="mt-6">
+                  <label>{cat.title}</label>
+                  <div className="flex flex-wrap gap-2">
+                    {cat.options.map(opt => (
+                      <button key={opt.id} onClick={() => toggleSelection(cat.key, opt.id)} className={`option-btn ${selections[cat.key].includes(opt.id) ? 'active' : ''}`}>{opt.label}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="panel h-fit sticky top-4">
+              <label>Prompt Final</label>
+              <div className="bg-black/50 p-4 rounded-lg border border-white/10 break-words text-blue-300 font-mono text-sm">{buildFinalPrompt()}</div>
+              <button onClick={() => navigator.clipboard.writeText(buildFinalPrompt())} className="w-full bg-blue-600 mt-4 py-3 rounded-lg font-bold">Copiar Prompt</button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="panel">
+              <h2 className="text-xl font-bold mb-4">Compositor AI</h2>
+              <label>Tema da Música</label>
+              <input value={musicTheme} onChange={(e) => setMusicTheme(e.target.value)} placeholder="Ex: Amor incondicional" className="mb-4" />
+              
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div><label>Estilo</label>
+                  <select value={musicStyle} onChange={(e) => setMusicStyle(e.target.value)}>
+                    <option value="Worship">Worship</option><option value="Sertanejo">Sertanejo</option><option value="Rock">Rock</option><option value="Pop">Pop</option>
+                  </select>
+                </div>
+                <div><label>Vibe</label>
+                  <select value={musicVibe} onChange={(e) => setMusicVibe(e.target.value)}>
+                    <option value="Inspiradora">Inspiradora</option><option value="Animada">Animada</option><option value="Melancólica">Melancólica</option>
+                  </select>
+                </div>
+              </div>
+
+              <h2 className="text-xl font-bold mt-8 mb-4">Repertório Digital (PDF)</h2>
+              <label>Cole aqui as letras e cifras (uma após a outra)</label>
+              <textarea rows={8} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Música 1... Música 2..." />
+              <button className="w-full bg-green-600 mt-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2">📄 Gerar PDF para Tablet</button>
+            </div>
+            
+            <div className="panel">
+              <label>Prévia da Composição</label>
+              <div className="bg-black/50 p-6 rounded-lg border border-white/10 min-h-[300px]">
+                {musicTheme ? (
+                  <div>
+                    <h3 className="text-purple-400 font-bold mb-2">Sugestão AI:</h3>
+                    <p className="text-gray-300 italic whitespace-pre-wrap">
+                      [Introdução: {musicStyle}]\nEstilo {musicVibe}...\nLetra sobre {musicTheme} vindo aqui...
+                    </p>
+                  </div>
+                ) : <p className="text-gray-500 italic">Preencha o tema para compor...</p>}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
