@@ -29,6 +29,7 @@ export default function PromptLabPage() {
   const [musicVibe, setMusicVibe] = useState("Inspiradora")
   const [compositionResult, setCompositionResult] = useState("")
   const [repertoire, setRepertoire] = useState("")
+  const [repertoireHeader, setRepertoireHeader] = useState("") // Novo campo para o cabeçalho
 
   // --- FUNÇÕES DE UTILIDADE ---
   const copyToClipboard = (text: string) => {
@@ -41,56 +42,88 @@ export default function PromptLabPage() {
     window.open(url, '_blank')
   }
 
-  // --- GERADOR DE PDF (COMPOSIÇÃO OU REPERTÓRIO) ---
- const generatePDF = (content: string, isRepertoire: boolean) => {
+  // --- GERADOR DE PDF ---
+  const generatePDF = (content: string, isRepertoire: boolean) => {
     const doc = new jsPDF();
     const watermark = "PromptLab Brasil";
     
-    // Separa as músicas pelo sinal de três traços ---
+    // Função para detectar se a linha é uma cifra
+    const isChordLine = (line: string) => {
+      // Regex que identifica notas (A-G), sustenidos, bemóis e variações de acordes
+      const chordPattern = /^[A-G](?:maj|min|maj7|m7|m|add|dim|sus|[\d\#\b\/])*(\s+[A-G](?:maj|min|maj7|m7|m|add|dim|sus|[\d\#\b\/])*)*\s*$/;
+      const trimmed = line.trim();
+      return trimmed.length > 0 && chordPattern.test(trimmed);
+    };
+
     const songs = isRepertoire ? content.split(/---+\n?/) : [content];
 
     songs.forEach((song, index) => {
       const trimmedSong = song.trim();
-      if (!trimmedSong) return; 
+      if (!trimmedSong) return;
 
       if (index > 0) doc.addPage();
-      
-      // Marca d'água no rodapé
-      doc.setFontSize(8);
-      doc.setTextColor(200);
-      doc.text(watermark, 105, 290, { align: "center" });
 
-      // Título da Música
-      doc.setFontSize(14);
-      doc.setTextColor(60, 80, 250); 
-      doc.setFont("helvetica", "bold");
-      
-      const linesAll = trimmedSong.split('\n');
-      const title = isRepertoire ? linesAll[0] : "Composição PromptLab";
-      const body = isRepertoire ? linesAll.slice(1).join('\n') : trimmedSong;
-
-      doc.text(title.toUpperCase(), 10, 20);
-
-      // Corpo da música com fonte Courier (fixa para cifras não correrem)
-      doc.setFontSize(10);
-      doc.setTextColor(0);
-      doc.setFont("courier", "normal"); 
-      
-      const col1Lines = doc.splitTextToSize(body, 90);
-      
-      // Lógica de duas colunas: se passar de 50 linhas, pula para a coluna 2
-      if (col1Lines.length > 50) {
-        doc.text(col1Lines.slice(0, 50), 10, 35);
-        doc.text(col1Lines.slice(50, 100), 110, 35);
-      } else {
-        doc.text(col1Lines, 10, 35);
+      // 1. CABEÇALHO PERSONALIZADO (Topo e Centralizado)
+      if (repertoireHeader) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(100, 116, 139); 
+        doc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
+        doc.setDrawColor(200);
+        doc.line(10, 15, 200, 15); // Linha divisória
       }
+
+      // 2. MARCA D'ÁGUA (Rodapé Centralizado e mais forte)
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60); 
+      doc.setFont("helvetica", "bold");
+      doc.text(watermark, 105, 292, { align: "center" });
+
+      // 3. TÍTULO DA MÚSICA (Primeira linha)
+      const lines = trimmedSong.split('\n');
+      const songTitle = isRepertoire ? lines[0].trim() : "Minha Composição AI";
+      const songBody = isRepertoire ? lines.slice(1) : lines;
+
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(songTitle.toUpperCase(), 10, 25);
+
+      // 4. CORPO DA MÚSICA (Letras e Cifras)
+      doc.setFontSize(11);
+      let currentY = 35;
+      let currentX = 10;
+      let lineCount = 0;
+
+      songBody.forEach((line) => {
+        // Lógica de duas colunas
+        if (lineCount === 50) {
+          currentY = 35;
+          currentX = 110;
+        }
+        if (lineCount > 100) return; 
+
+        if (isChordLine(line)) {
+          // CIFRA: Azul e Negrito
+          doc.setTextColor(37, 99, 235); 
+          doc.setFont("helvetica", "bold");
+        } else {
+          // LETRA: Preto e Normal
+          doc.setTextColor(0, 0, 0);
+          doc.setFont("helvetica", "normal");
+        }
+
+        doc.text(line, currentX, currentY);
+        currentY += 5.5; 
+        lineCount++;
+      });
     });
 
     doc.save(isRepertoire ? "repertorio-digital.pdf" : "composicao.pdf");
   }
+
   const handleCompose = () => {
-    const result = `[Tema: ${musicTheme}]\n[Estilo: ${musicStyle} | Vibe: ${musicVibe}]\n\n(Verso 1)\nNo silêncio do meu peito, o ${musicTheme} floresceu\nComo um raio de esperança que o destino me deu...\n\n(Refrão)\nOh, esse ${musicTheme} que me faz cantar\nNo ritmo do ${musicStyle}, sigo a te buscar!`
+    const result = `SUA NOVA MÚSICA\n\n[Tema: ${musicTheme}]\n[Estilo: ${musicStyle} | Vibe: ${musicVibe}]\n\nC          G          Am\nNo silêncio do meu peito floresceu\nF          C          G\nUm rastro de luz que o céu me deu\n\n(Refrão)\nC          G\nOh esse ${musicTheme}\nAm         F\nQue faz a gente sonhar`
     setCompositionResult(result)
   }
 
@@ -118,18 +151,16 @@ export default function PromptLabPage() {
 
       <main className="max-w-6xl mx-auto space-y-8">
         {activeTab === "image" ? (
-           <div className="text-center p-10 panel">Em desenvolvimento... (Aguardando Biblioteca completa)</div>
+           <div className="text-center p-10 panel">Em desenvolvimento...</div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* --- COLUNA DA ESQUERDA: FERRAMENTAS --- */}
             <div className="space-y-8">
-              {/* COMPOSITOR AI */}
               <section className="panel border-l-4 border-purple-500">
                 <h2 className="text-xl font-black mb-6 flex items-center gap-2">✨ Compositor AI</h2>
                 <div className="space-y-4">
                   <div>
                     <label>Tema da música</label>
-                    <input value={musicTheme} onChange={(e) => setMusicTheme(e.target.value)} placeholder="Ex: Amor de verão, Saudade da infância..." />
+                    <input value={musicTheme} onChange={(e) => setMusicTheme(e.target.value)} placeholder="Ex: Amor de verão..." />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -138,14 +169,12 @@ export default function PromptLabPage() {
                         <option>Worship</option><option>Sertanejo</option><option>Samba</option>
                         <option>Pagode</option><option>MPB</option><option>Rock</option>
                         <option>Pop</option><option>Trap</option><option>Funk</option>
-                        <option>Forró</option><option>Reggae</option><option>Jazz</option>
                       </select>
                     </div>
                     <div>
                       <label>Vibe</label>
                       <select value={musicVibe} onChange={(e) => setMusicVibe(e.target.value)}>
                         <option>Inspiradora</option><option>Animada</option><option>Melancólica</option>
-                        <option>Relaxante</option><option>Épica</option><option>Romântica</option>
                       </select>
                     </div>
                   </div>
@@ -153,25 +182,33 @@ export default function PromptLabPage() {
                 </div>
               </section>
 
-              {/* REPERTÓRIO DIGITAL */}
               <section className="panel border-l-4 border-green-500">
                 <h2 className="text-xl font-black mb-6 flex items-center gap-2">📚 Repertório Digital</h2>
-                <label>Cole aqui as letras e cifras (Uma abaixo da outra)</label>
+                
+                <div className="mb-4">
+                  <label>Título do Cabeçalho (Topo do PDF)</label>
+                  <input 
+                    value={repertoireHeader} 
+                    onChange={(e) => setRepertoireHeader(e.target.value)} 
+                    placeholder="Ex: Repertório da Igreja - Maio 2026" 
+                  />
+                </div>
+
+                <label>Músicas (Use --- entre elas)</label>
                 <textarea 
                   rows={10} 
                   value={repertoire} 
                   onChange={(e) => setRepertoire(e.target.value)} 
-                  placeholder="Música 1... &#10;&#10;Música 2..." 
+                  placeholder="Título da Música&#10;C   G   Am&#10;Letra aqui...&#10;&#10;---&#10;&#10;Próxima Música..." 
                   className="text-sm font-mono"
                 />
                 <button onClick={() => generatePDF(repertoire, true)} className="btn btn-whatsapp w-full mt-4">📄 Gerar PDF do Repertório (Tablet)</button>
               </section>
             </div>
 
-            {/* --- COLUNA DA DIREITA: RESULTADO --- */}
             <div className="space-y-6">
               <section className="panel h-full flex flex-col">
-                <label>Prévia da Composição</label>
+                <label>Resultado da Composição</label>
                 <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-serif text-lg leading-relaxed text-slate-300 min-h-[400px] whitespace-pre-wrap">
                   {compositionResult || "As letras e acordes aparecerão aqui..."}
                 </div>
