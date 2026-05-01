@@ -15,7 +15,7 @@ export default function PromptLabPage() {
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
-  // --- FUNÇÕES ---
+  // --- FUNÇÕES DE UTILIDADE ---
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     alert("Copiado com sucesso!")
@@ -26,16 +26,17 @@ export default function PromptLabPage() {
     window.open(url, '_blank')
   }
 
+  // --- GERADOR DE PDF (VERSÃO CORRIGIDA) ---
   const generatePDF = (content: string, isRepertoire: boolean) => {
     const doc = new jsPDF();
     const watermark = "PromptLab Brasil";
     
-    // Detector de cifras robusto: aceita espaços, notas A-G, #, b, m, números e símbolos
+    // Detector de Cifras Refinado (Consertado o erro de sintaxe)
     const isChordLine = (line: string) => {
       const trimmed = line.trim();
-      if (!trimmed) return false;
-      // Expressão que busca padrões de acordes e evita frases longas de texto
-      const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(/[A-G][b#]?)?)(\s+|$))+$/;
+      if (!trimmed || trimmed.length > 25) return false;
+      // Regex corrigido com as barras escapadas (\/)
+      const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?)(\s+|$))+$/;
       return chordPattern.test(line);
     };
 
@@ -75,19 +76,20 @@ export default function PromptLabPage() {
         songBody = lines.slice(1);
       }
 
+      // TÍTULO DA MÚSICA (Sempre em negrito e preto)
       doc.setFontSize(15);
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text(songTitle.toUpperCase(), 15, 25);
 
-      // FONTE COURIER BOLD PARA TUDO (Garante alinhamento perfeito)
+      // CORPO (Tudo em negrito para facilitar a leitura)
       doc.setFontSize(9.5); 
       doc.setFont("courier", "bold"); 
       
       let currentY = 35;
       let currentX = 15;
       let lineCount = 0;
-      const maxLinesPerCol = 40; 
+      const maxLinesPerCol = 38; 
 
       songBody.forEach((line) => {
         if (lineCount === maxLinesPerCol) {
@@ -98,9 +100,9 @@ export default function PromptLabPage() {
         if (lineCount >= maxLinesPerCol * 2) return; 
 
         if (isChordLine(line)) {
-          doc.setTextColor(37, 99, 235); // Azul Cifra
+          doc.setTextColor(37, 99, 235); // AZUL PARA CIFRAS
         } else {
-          doc.setTextColor(0, 0, 0); // Preto Letra
+          doc.setTextColor(0, 0, 0); // PRETO PARA LETRAS
         }
 
         doc.text(line, currentX, currentY);
@@ -159,14 +161,12 @@ export default function PromptLabPage() {
                         <option>Worship</option><option>Sertanejo</option><option>Samba</option>
                         <option>Pagode</option><option>MPB</option><option>Rock</option>
                         <option>Pop</option><option>Trap</option><option>Funk</option>
-                        <option>Forró</option><option>Reggae</option><option>Jazz</option>
                       </select>
                     </div>
                     <div>
                       <label>Vibe</label>
                       <select value={musicVibe} onChange={(e) => setMusicVibe(e.target.value)}>
                         <option>Inspiradora</option><option>Animada</option><option>Melancólica</option>
-                        <option>Relaxante</option><option>Épica</option><option>Romântica</option>
                       </select>
                     </div>
                   </div>
@@ -202,7 +202,7 @@ export default function PromptLabPage() {
                   />
                 </div>
 
-                <label>Músicas (Use --- entre elas)</label>
+                <label>Cole aqui as letras e cifras</label>
                 <textarea 
                   rows={10} 
                   value={repertoire} 
