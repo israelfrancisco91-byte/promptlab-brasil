@@ -3,25 +3,12 @@
 import { useState } from "react"
 import { jsPDF } from "jspdf"
 
-const IMAGE_LIBRARY = [
-  {
-    key: "style",
-    title: "Estilo visual",
-    options: [
-      { id: "realismo", label: "Realismo", en: "photorealistic, 8k" },
-      { id: "cyberpunk", label: "Cyberpunk", en: "cyberpunk aesthetic" },
-      { id: "pixar", label: "Pixar 3D", en: "3D animated pixar style" },
-      { id: "anime", label: "Anime", en: "anime style" }
-    ]
-  }
-]
-
 export default function PromptLabPage() {
   const [activeTab, setActiveTab] = useState<"image" | "music">("image")
+  const [showInstructions, setShowInstructions] = useState(false)
   
   // --- STATES IMAGEM ---
   const [idea, setIdea] = useState("")
-  const [selections, setSelections] = useState<Record<string, string[]>>({ style: [] })
 
   // --- STATES MUSICLAB ---
   const [musicTheme, setMusicTheme] = useState("")
@@ -29,7 +16,7 @@ export default function PromptLabPage() {
   const [musicVibe, setMusicVibe] = useState("Inspiradora")
   const [compositionResult, setCompositionResult] = useState("")
   const [repertoire, setRepertoire] = useState("")
-  const [repertoireHeader, setRepertoireHeader] = useState("") // Novo campo para o cabeçalho
+  const [repertoireHeader, setRepertoireHeader] = useState("")
 
   // --- FUNÇÕES DE UTILIDADE ---
   const copyToClipboard = (text: string) => {
@@ -47,9 +34,7 @@ export default function PromptLabPage() {
     const doc = new jsPDF();
     const watermark = "PromptLab Brasil";
     
-    // Função para detectar se a linha é uma cifra
     const isChordLine = (line: string) => {
-      // Regex que identifica notas (A-G), sustenidos, bemóis e variações de acordes
       const chordPattern = /^[A-G](?:maj|min|maj7|m7|m|add|dim|sus|[\d\#\b\/])*(\s+[A-G](?:maj|min|maj7|m7|m|add|dim|sus|[\d\#\b\/])*)*\s*$/;
       const trimmed = line.trim();
       return trimmed.length > 0 && chordPattern.test(trimmed);
@@ -63,40 +48,50 @@ export default function PromptLabPage() {
 
       if (index > 0) doc.addPage();
 
-      // 1. CABEÇALHO PERSONALIZADO (Topo e Centralizado)
+      // CABEÇALHO
       if (repertoireHeader) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(100, 116, 139); 
         doc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
         doc.setDrawColor(200);
-        doc.line(10, 15, 200, 15); // Linha divisória
+        doc.line(10, 15, 200, 15);
       }
 
-      // 2. MARCA D'ÁGUA (Rodapé Centralizado e mais forte)
+      // MARCA D'ÁGUA
       doc.setFontSize(9);
       doc.setTextColor(60, 60, 60); 
       doc.setFont("helvetica", "bold");
       doc.text(watermark, 105, 292, { align: "center" });
 
-      // 3. TÍTULO DA MÚSICA (Primeira linha)
       const lines = trimmedSong.split('\n');
-      const songTitle = isRepertoire ? lines[0].trim() : "Minha Composição AI";
-      const songBody = isRepertoire ? lines.slice(1) : lines;
+      const firstLine = lines[0].trim();
+      
+      let songTitle = "";
+      let songBody = [];
 
+      // NOVO: Se a primeira linha for cifra, ela não é título!
+      if (isChordLine(firstLine)) {
+        songTitle = isRepertoire ? "MÚSICA SEM TÍTULO" : "SUA COMPOSIÇÃO";
+        songBody = lines;
+      } else {
+        songTitle = firstLine;
+        songBody = lines.slice(1);
+      }
+
+      // DESENHAR TÍTULO
       doc.setFontSize(16);
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text(songTitle.toUpperCase(), 10, 25);
 
-      // 4. CORPO DA MÚSICA (Letras e Cifras)
+      // DESENHAR CORPO
       doc.setFontSize(11);
       let currentY = 35;
       let currentX = 10;
       let lineCount = 0;
 
       songBody.forEach((line) => {
-        // Lógica de duas colunas
         if (lineCount === 50) {
           currentY = 35;
           currentX = 110;
@@ -104,11 +99,9 @@ export default function PromptLabPage() {
         if (lineCount > 100) return; 
 
         if (isChordLine(line)) {
-          // CIFRA: Azul e Negrito
           doc.setTextColor(37, 99, 235); 
           doc.setFont("helvetica", "bold");
         } else {
-          // LETRA: Preto e Normal
           doc.setTextColor(0, 0, 0);
           doc.setFont("helvetica", "normal");
         }
@@ -155,6 +148,7 @@ export default function PromptLabPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-8">
+              {/* COMPOSITOR */}
               <section className="panel border-l-4 border-purple-500">
                 <h2 className="text-xl font-black mb-6 flex items-center gap-2">✨ Compositor AI</h2>
                 <div className="space-y-4">
@@ -182,9 +176,27 @@ export default function PromptLabPage() {
                 </div>
               </section>
 
+              {/* REPERTÓRIO */}
               <section className="panel border-l-4 border-green-500">
-                <h2 className="text-xl font-black mb-6 flex items-center gap-2">📚 Repertório Digital</h2>
+                <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório Digital</h2>
                 
+                {/* MENU DE INSTRUÇÕES */}
+                <div className="mb-4">
+                  <button 
+                    onClick={() => setShowInstructions(!showInstructions)}
+                    className="text-xs font-bold text-green-400 hover:text-green-300 underline flex items-center gap-1 mb-2"
+                  >
+                    {showInstructions ? "🔼 Fechar Instruções" : "🔽 Instruções de Uso"}
+                  </button>
+                  
+                  {showInstructions && (
+                    <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed animate-in fade-in slide-in-from-top-1">
+                      <p className="mb-2"><strong>1 - Título:</strong> Adicione o nome da música na primeira linha de cada bloco.</p>
+                      <p><strong>2 - Divisão:</strong> Entre uma música e outra, coloque três hifens (<strong>---</strong>) para criar uma nova página no PDF.</p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="mb-4">
                   <label>Título do Cabeçalho (Topo do PDF)</label>
                   <input 
@@ -199,7 +211,7 @@ export default function PromptLabPage() {
                   rows={10} 
                   value={repertoire} 
                   onChange={(e) => setRepertoire(e.target.value)} 
-                  placeholder="Título da Música&#10;C   G   Am&#10;Letra aqui...&#10;&#10;---&#10;&#10;Próxima Música..." 
+                  placeholder="Título da Música&#10;C   G   Am&#10;Letra aqui..." 
                   className="text-sm font-mono"
                 />
                 <button onClick={() => generatePDF(repertoire, true)} className="btn btn-whatsapp w-full mt-4">📄 Gerar PDF do Repertório (Tablet)</button>
