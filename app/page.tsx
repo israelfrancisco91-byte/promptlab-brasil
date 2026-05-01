@@ -4,23 +4,13 @@ import { useState } from "react"
 import { jsPDF } from "jspdf"
 
 export default function PromptLabPage() {
-  const [activeTab, setActiveTab] = useState<"image" | "music">("music")
   const [showInstructions, setShowInstructions] = useState(false)
   
-  // --- STATES ---
-  const [musicTheme, setMusicTheme] = useState("")
-  const [musicStyle, setMusicStyle] = useState("Worship")
-  const [musicVibe, setMusicVibe] = useState("Inspiradora")
-  const [compositionResult, setCompositionResult] = useState("")
+  // --- STATES (Apenas o necessário para o Repertório) ---
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    alert("Copiado com sucesso!")
-  }
-
-  // DETECTOR DE CIFRAS
+  // DETECTOR DE CIFRAS (A alma do alinhamento azul)
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 80) return false;
@@ -28,116 +18,98 @@ export default function PromptLabPage() {
     return chordPattern.test(line);
   };
 
-  // GERADOR E COMPARTILHADOR DE PDF (LIMPO)
-  const processPDF = async (content: string, isRepertoire: boolean, action: 'download' | 'share') => {
+  // GERADOR E COMPARTILHADOR DE PDF
+  const processPDF = async (action: 'download' | 'share') => {
     try {
       const doc = new jsPDF();
       const watermark = "PromptLab Brasil";
-      if (!content.trim()) return alert("O campo está vazio!");
+      
+      if (!repertoire.trim()) return alert("O campo de letras e cifras está vazio!");
 
-      const songs = isRepertoire ? content.split(/\n\s*-\s*\n/) : [content];
+      // Regra: Separa por apenas UM hífen (-) sozinho na linha
+      const songs = repertoire.split(/\n\s*-\s*\n/);
 
       songs.forEach((song, index) => {
         const trimmedSong = song.trim();
         if (!trimmedSong) return;
         if (index > 0) doc.addPage();
 
+        // Cabeçalho do PDF
         if (repertoireHeader) {
-          doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(100, 116, 139);
+          doc.setFontSize(10); 
+          doc.setFont("helvetica", "bold"); 
+          doc.setTextColor(100, 116, 139);
           doc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
-          doc.setDrawColor(220, 220, 220); doc.line(15, 15, 195, 15);
+          doc.setDrawColor(220, 220, 220); 
+          doc.line(15, 15, 195, 15);
         }
 
-        doc.setFontSize(10); doc.setTextColor(150, 150, 150); doc.setFont("helvetica", "bold");
+        // Marca d'água (Rodapé)
+        doc.setFontSize(10); 
+        doc.setTextColor(150, 150, 150); 
+        doc.setFont("helvetica", "bold");
         doc.text(watermark, 105, 290, { align: "center" });
 
         const lines = trimmedSong.split('\n');
+        const firstLine = lines[0]?.trim() || "";
         
-        // FILTRO: Garante que o PDF ignore informações de tema/vibe/estilo
-        const cleanLines = lines.filter(line => 
-          !line.trim().startsWith('[Tema:') && 
-          !line.trim().startsWith('[Estilo:') &&
-          !line.trim().startsWith('[Vibe:')
-        );
-        
-        const firstLine = cleanLines[0]?.trim() || "";
-        let title = isChordLine(firstLine) ? (isRepertoire ? "MÚSICA SEM TÍTULO" : "COMPOSIÇÃO PROMPTLAB") : firstLine;
-        let body = isChordLine(firstLine) ? cleanLines : cleanLines.slice(1);
+        // Define título e corpo
+        let title = isChordLine(firstLine) ? "MÚSICA SEM TÍTULO" : firstLine;
+        let body = isChordLine(firstLine) ? lines : lines.slice(1);
 
-        doc.setFontSize(15); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+        // Desenha Título
+        doc.setFontSize(15); 
+        doc.setTextColor(0, 0, 0); 
+        doc.setFont("helvetica", "bold");
         doc.text(title.toUpperCase(), 15, 25);
 
-        doc.setFontSize(10); doc.setFont("courier", "bold");
-        let currentY = 35; let currentX = 15; let lineCount = 0;
+        // Desenha Corpo (Courier Bold para alinhamento perfeito)
+        doc.setFontSize(10); 
+        doc.setFont("courier", "bold");
+        let currentY = 35; 
+        let currentX = 15; 
+        let lineCount = 0;
         const maxLinesPerCol = 38;
 
         body.forEach((line) => {
-          if (lineCount === maxLinesPerCol) { currentY = 35; currentX = 110; }
+          if (lineCount === maxLinesPerCol) { 
+            currentY = 35; 
+            currentX = 110; 
+          }
           if (lineCount >= maxLinesPerCol * 2) return;
-          doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
+
+          // Se for cifra, azul. Se for letra, preto.
+          if (isChordLine(line)) {
+            doc.setTextColor(37, 99, 235); // Azul Royal
+          } else {
+            doc.setTextColor(0, 0, 0); // Preto
+          }
+
           doc.text(line, currentX, currentY);
-          currentY += 5.5; lineCount++;
+          currentY += 5.5; 
+          lineCount++;
         });
       });
 
-      const fileName = isRepertoire ? "repertorio.pdf" : "composicao.pdf";
       if (action === 'download') {
-        doc.save(fileName);
+        doc.save("meu-repertorio.pdf");
       } else {
         const pdfBlob = doc.output('blob');
-        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        const file = new File([pdfBlob], "repertorio.pdf", { type: 'application/pdf' });
         if (navigator.share) {
-          await navigator.share({ files: [file], title: 'PromptLab', text: 'Crie o seu repertório em promptlabbrasil.com.br' });
+          await navigator.share({ 
+            files: [file], 
+            title: 'PromptLab Brasil', 
+            text: 'Crie o seu repertório em promptlabbrasil.com.br' 
+          });
         } else {
-          doc.save(fileName); alert("PDF baixado! Anexe manualmente no WhatsApp.");
+          doc.save("repertorio.pdf"); 
+          alert("PDF baixado! Agora é só anexar no WhatsApp.");
         }
       }
-    } catch (err) { alert("Erro: " + err); }
-  };
-
-  // COMPOSITOR COM ESTRUTURA COMPLETA
-  const handleCompose = () => {
-    if (!musicTheme) return alert("Digite um tema!");
-    const result = `[Tema: ${musicTheme} | Estilo: ${musicStyle} | Vibe: ${musicVibe}]\n\n` + 
-      `LUZ NO MEU CAMINHO\n\n` +
-      `INTRO: G  D/F#  Em7  C9\n\n` +
-      `(Verso 1)\n` +
-      `G              D/F#\n` +
-      `Neste ${musicTheme} que invade o olhar\n` +
-      `Em7            C9\n` +
-      `Sinto a paz que vem me guiar\n` +
-      `G              D/F#\n` +
-      `No estilo ${musicStyle} a canção vai fluir\n` +
-      `Em7            C9\n` +
-      `Com essa vibe ${musicVibe} a sorrir\n\n` +
-      `(Refrão)\n` +
-      `D              C9\n` +
-      `Oh, luz que brilha na escuridão\n` +
-      `G              D/F#\n` +
-      `Traz o ${musicTheme} pro meu coração\n` +
-      `Em7            C9\n` +
-      `Em cada nota, um novo sentido\n` +
-      `D              G\n` +
-      `Pelo Teu amor, sinto-me fortalecido\n\n` +
-      `(Verso 2)\n` +
-      `G              D/F#\n` +
-      `As pedras do caminho ficaram pra trás\n` +
-      `Em7            C9\n` +
-      `Onde havia guerra, hoje reina a paz\n` +
-      `G              D/F#\n` +
-      `A melodia ${musicVibe} ecoa no ar\n` +
-      `Em7            C9\n` +
-      `Ensinando a gente a sempre amar\n\n` +
-      `(Refrão Final)\n` +
-      `D              C9\n` +
-      `Oh, luz que brilha na escuridão\n` +
-      `G              D/F#\n` +
-      `Traz o ${musicTheme} pro meu coração\n` +
-      `Em7            C9\n` +
-      `Canto a vida, canto a esperança\n` +
-      `D              G\n` +
-      `Como o sorriso de uma criança`;
-    setCompositionResult(result);
+    } catch (err) { 
+      alert("Erro ao processar PDF: " + err); 
+    }
   };
 
   return (
@@ -145,101 +117,88 @@ export default function PromptLabPage() {
       <style jsx global>{`
         .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
-        input, select, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
-        .btn { padding: 14px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
-        .btn-primary { background: #9333ea; color: white; }
+        input, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
+        input:focus, textarea:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+        .btn { padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; }
+        .btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-blue { background: #2563eb; color: white; }
-        .btn-copy { background: #64748b; color: white; }
       `}</style>
 
-      <header className="max-w-5xl mx-auto text-center py-10">
-        <h1 className="text-5xl font-black tracking-tighter mb-8 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
-        <div className="flex justify-center gap-3">
-          <button onClick={() => setActiveTab("image")} className={`px-8 py-3 rounded-full font-bold transition ${activeTab === 'image' ? 'bg-blue-600' : 'bg-slate-800'}`}>🖼️ Imagens</button>
-          <button onClick={() => setActiveTab("music")} className={`px-8 py-3 rounded-full font-bold transition ${activeTab === 'music' ? 'bg-purple-600' : 'bg-slate-800'}`}>🎸 MusicLab</button>
-        </div>
+      <header className="max-w-5xl mx-auto text-center py-12">
+        <h1 className="text-5xl font-black tracking-tighter mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
+        <p className="text-slate-400 font-medium">O seu organizador de repertório digital para tablet</p>
       </header>
 
-      <main className="max-w-6xl mx-auto space-y-8">
-        {activeTab === "music" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-8">
-              {/* COMPOSITOR AI */}
-              <section className="panel border-l-4 border-purple-500">
-                <h2 className="text-xl font-black mb-6 flex items-center gap-2">✨ Compositor AI</h2>
-                <label>Tema da música</label>
-                <input value={musicTheme} onChange={(e) => setMusicTheme(e.target.value)} placeholder="Ex: Amor de verão..." />
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label>Estilo</label>
-                    <select value={musicStyle} onChange={(e) => setMusicStyle(e.target.value)}>
-                      <option>Worship</option><option>Sertanejo</option><option>Samba</option>
-                      <option>MPB</option><option>Rock</option><option>Pop</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label>Vibe</label>
-                    <select value={musicVibe} onChange={(e) => setMusicVibe(e.target.value)}>
-                      <option>Inspiradora</option><option>Animada</option><option>Melancólica</option>
-                    </select>
-                  </div>
-                </div>
-                <button onClick={handleCompose} className="btn btn-primary">🚀 Gerar Composição</button>
-              </section>
-
-              {/* REPERTÓRIO DIGITAL - LAYOUT RESTAURADO */}
-              <section className="panel border-l-4 border-green-500">
-                <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório Digital</h2>
-                
-                <div className="mb-4">
-                  <button 
-                    onClick={() => setShowInstructions(!showInstructions)}
-                    className="text-xs font-bold text-green-400 hover:text-green-300 underline flex items-center gap-1 mb-2"
-                  >
-                    {showInstructions ? "🔼 Ocultar Instruções" : "🔽 Instruções de Uso"}
-                  </button>
-                  {showInstructions && (
-                    <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
-                      <p className="mb-2"><strong>1. Título:</strong> Primeira linha = Nome da música.</p>
-                      <p><strong>2. Divisão:</strong> Use apenas um hífen (<strong>-</strong>) sozinho na linha para nova página.</p>
-                    </div>
-                  )}
-                </div>
-
-                <label>Título do Cabeçalho (Topo do PDF)</label>
-                <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo..." />
-                
-                <label>Cole aqui as letras e cifras</label>
-                <textarea rows={10} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Título da música..." />
-                
-                <button onClick={() => processPDF(repertoire, true, 'download')} className="btn btn-green">📄 Gerar PDF do Repertório (Tablet)</button>
-                <button onClick={() => processPDF(repertoire, true, 'share')} className="btn btn-blue">📱 Compartilhar no WhatsApp</button>
-              </section>
-            </div>
-
-            {/* ÁREA DE RESULTADO */}
-            <div className="space-y-6">
-              <section className="panel h-full flex flex-col sticky top-4">
-                <label>Resultado Final da Composição</label>
-                <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-serif text-lg leading-relaxed text-slate-300 min-h-[400px] whitespace-pre-wrap">
-                  {compositionResult || "As letras e cifras aparecerão aqui..."}
-                </div>
-                {compositionResult && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-                    <button onClick={() => copyToClipboard(compositionResult)} className="btn btn-copy text-xs">📋 Copiar</button>
-                    <button onClick={() => processPDF(compositionResult, false, 'share')} className="btn btn-blue text-xs">📱 WhatsApp</button>
-                    <button onClick={() => processPDF(compositionResult, false, 'download')} className="btn btn-primary text-xs">📕 Gerar PDF</button>
+      <main className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* COLUNA ESQUERDA: ENTRADA DE DADOS */}
+          <div className="space-y-6">
+            <section className="panel border-l-4 border-green-500">
+              <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório Digital</h2>
+              
+              <div className="mb-6">
+                <button 
+                  onClick={() => setShowInstructions(!showInstructions)}
+                  className="text-xs font-bold text-green-400 hover:text-green-300 underline flex items-center gap-1 mb-2"
+                >
+                  {showInstructions ? "🔼 Ocultar Instruções" : "🔽 Instruções de Uso"}
+                </button>
+                {showInstructions && (
+                  <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed animate-in fade-in slide-in-from-top-1">
+                    <p className="mb-2"><strong>1. Título:</strong> A primeira linha de cada música será o título no PDF.</p>
+                    <p><strong>2. Nova Página:</strong> Coloque um hífen (<strong>-</strong>) sozinho em uma linha entre as músicas.</p>
                   </div>
                 )}
-                <div className="mt-4 text-center">
-                   <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">PromptLab Brasil - Marca D'água Ativa</span>
-                </div>
-              </section>
-            </div>
+              </div>
+
+              <label>Título do Cabeçalho (Topo do PDF)</label>
+              <input 
+                value={repertoireHeader} 
+                onChange={(e) => setRepertoireHeader(e.target.value)} 
+                placeholder="Ex: Repertório da Igreja - Maio 2026" 
+              />
+              
+              <label>Cole aqui as letras e cifras</label>
+              <textarea 
+                rows={12} 
+                value={repertoire} 
+                onChange={(e) => setRepertoire(e.target.value)} 
+                placeholder="Título da Música&#10;C   G   Am&#10;Letra da música aqui..." 
+                className="text-sm font-mono"
+              />
+              
+              <button onClick={() => processPDF('download')} className="btn btn-green">
+                📄 Gerar PDF do Repertório
+              </button>
+              <button onClick={() => processPDF('share')} className="btn btn-blue">
+                📱 Compartilhar no WhatsApp
+              </button>
+            </section>
           </div>
-        )}
+
+          {/* COLUNA DIREITA: PRÉ-VISUALIZAÇÃO EM TEMPO REAL */}
+          <div className="space-y-6">
+            <section className="panel h-full flex flex-col sticky top-6">
+              <label>Visualização em Tempo Real</label>
+              <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-mono text-sm leading-relaxed text-slate-300 min-h-[450px] whitespace-pre-wrap overflow-y-auto">
+                {repertoire || "A estrutura do seu repertório aparecerá aqui conforme você digita..."}
+              </div>
+              <div className="mt-4 pt-4 border-t border-slate-800 text-center">
+                 <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">
+                   PromptLab Brasil - Sistema de Cifras Inteligentes
+                 </span>
+              </div>
+            </section>
+          </div>
+
+        </div>
       </main>
+
+      <footer className="max-w-5xl mx-auto text-center py-12 text-slate-500 text-xs">
+        © 2026 PromptLab Brasil - Todos os direitos reservados.
+      </footer>
     </div>
   )
 }
