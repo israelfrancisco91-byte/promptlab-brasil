@@ -56,13 +56,13 @@ export default function PromptLabPage() {
             return; 
           }
 
-          // AJUSTE DE COLUNAS: Troca para a direita se a esquerda passar de 282mm
+          // Ajuste de colunas conforme solicitado na última interação
           if (currentX === 15 && currentY > 282) {
               currentY = 35; 
               currentX = 110; 
           }
 
-          // LIMITE DA DIREITA: Recua para 275mm para livrar a marca d'água
+          // Limite da direita recuado para livrar a marca d'água
           if (currentX === 110 && currentY > 275) return;
 
           if (isNextLineTitle || emptyLineCount >= 2) {
@@ -89,19 +89,34 @@ export default function PromptLabPage() {
         });
       });
 
-      const fileName = "repertorio-promptlab.pdf";
+      const fileName = "repertorio.pdf";
       if (action === 'download') {
         doc.save(fileName);
       } else {
         const pdfBlob = doc.output('blob');
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        
         if (navigator.share) {
-          await navigator.share({ files: [file], title: 'Repertório PromptLab', text: 'Crie o seu repertório em promptlabbrasil.com.br' });
+          try {
+            await navigator.share({ 
+              files: [file], 
+              title: 'Meu Repertório', 
+              text: 'Gerado por promptlabbrasil.com.br' 
+            });
+          } catch (shareErr: any) {
+            // CORREÇÃO: Ignora o erro se o usuário apenas cancelou o menu de compartilhar
+            if (shareErr.name !== 'AbortError') {
+              alert("Erro ao compartilhar: " + shareErr.message);
+            }
+          }
         } else {
-          doc.save(fileName); alert("PDF baixado!");
+          doc.save(fileName);
+          alert("Navegador não suporta compartilhamento direto. PDF baixado!");
         }
       }
-    } catch (err) { alert("Erro: " + err); }
+    } catch (err) { 
+      alert("Erro ao processar PDF: " + err); 
+    }
   };
 
   return (
@@ -110,6 +125,7 @@ export default function PromptLabPage() {
         .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
         input, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
+        input:focus, textarea:focus { border-color: #3b82f6; outline: none; }
         .btn { padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; }
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-blue { background: #2563eb; color: white; }
