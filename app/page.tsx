@@ -66,7 +66,7 @@ export default function PromptLabPage() {
             }
           }
 
-          // REGRA: Título na 1ª linha ou após 2 linhas em branco (Enter 3 vezes)
+          // Título na 1ª linha ou após 2 linhas em branco (Enter 3 vezes)
           if (isNextLineTitle || emptyLineCount >= 2) {
             doc.setFontSize(14); 
             doc.setTextColor(0, 0, 0); 
@@ -78,7 +78,6 @@ export default function PromptLabPage() {
             doc.setFontSize(10); 
             doc.setFont("courier", "bold");
             
-            // CORREÇÃO DO ERRO f3: Cores passadas individualmente
             if (isChordLine(line)) {
               doc.setTextColor(37, 99, 235); 
             } else {
@@ -137,7 +136,7 @@ export default function PromptLabPage() {
                   <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
                     <p className="mb-2"><strong>1. Título:</strong> A primeira linha de cada página é sempre um título.</p>
                     <p className="mb-2"><strong>2. Nova Página:</strong> Use um hífen (<strong>-</strong>) sozinho em uma linha para pular de página.</p>
-                    <p><strong>3. Nova Música:</strong> Entre uma música e outra tecle "Enter" duas vezes.</p>
+                    <p><strong>3. Nova Música:</strong> Para destacar um novo título na mesma página, deixe duas linhas em branco (tecle Enter 3 vezes).</p>
                   </div>
                 )}
               </div>
