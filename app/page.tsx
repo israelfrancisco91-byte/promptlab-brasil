@@ -34,10 +34,13 @@ export default function PromptLabPage() {
     const doc = new jsPDF();
     const watermark = "PromptLab Brasil";
     
+    // Detector de cifras aprimorado
     const isChordLine = (line: string) => {
-      const chordPattern = /^[A-G](?:maj|min|maj7|m7|m|add|dim|sus|[\d\#\b\/])*(\s+[A-G](?:maj|min|maj7|m7|m|add|dim|sus|[\d\#\b\/])*)*\s*$/;
       const trimmed = line.trim();
-      return trimmed.length > 0 && chordPattern.test(trimmed);
+      if (!trimmed) return false;
+      // Padrão que identifica notas musicais e variações comuns de acordes
+      const chordPattern = /^[A-G](?:maj|min|maj7|m7|m|add|dim|sus|[\d\#\b\/])*(\s+[A-G](?:maj|min|maj7|m7|m|add|dim|sus|[\d\#\b\/])*)*\s*$/;
+      return chordPattern.test(trimmed);
     };
 
     const songs = isRepertoire ? content.split(/---+\n?/) : [content];
@@ -48,7 +51,7 @@ export default function PromptLabPage() {
 
       if (index > 0) doc.addPage();
 
-      // CABEÇALHO
+      // CABEÇALHO (Fonte Helvetica para o título geral)
       if (repertoireHeader) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
@@ -58,11 +61,11 @@ export default function PromptLabPage() {
         doc.line(10, 15, 200, 15);
       }
 
-      // MARCA D'ÁGUA
-      doc.setFontSize(9);
-      doc.setTextColor(60, 60, 60); 
+      // MARCA D'ÁGUA (Mais visível e centralizada)
+      doc.setFontSize(10);
+      doc.setTextColor(50, 50, 50); 
       doc.setFont("helvetica", "bold");
-      doc.text(watermark, 105, 292, { align: "center" });
+      doc.text(watermark, 105, 288, { align: "center" });
 
       const lines = trimmedSong.split('\n');
       const firstLine = lines[0].trim();
@@ -70,7 +73,7 @@ export default function PromptLabPage() {
       let songTitle = "";
       let songBody = [];
 
-      // NOVO: Se a primeira linha for cifra, ela não é título!
+      // Identifica se a primeira linha é título ou já começa com cifra
       if (isChordLine(firstLine)) {
         songTitle = isRepertoire ? "MÚSICA SEM TÍTULO" : "SUA COMPOSIÇÃO";
         songBody = lines;
@@ -79,35 +82,43 @@ export default function PromptLabPage() {
         songBody = lines.slice(1);
       }
 
-      // DESENHAR TÍTULO
-      doc.setFontSize(16);
+      // DESENHAR TÍTULO DA MÚSICA (Helvetica Bold)
+      doc.setFontSize(14);
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text(songTitle.toUpperCase(), 10, 25);
 
-      // DESENHAR CORPO
-      doc.setFontSize(11);
+      // DESENHAR CORPO (Courier para manter alinhamento das cifras)
+      doc.setFontSize(9.5); // Fonte levemente menor para caber mais e alinhar melhor
+      doc.setFont("courier", "normal"); 
+      
       let currentY = 35;
       let currentX = 10;
       let lineCount = 0;
+      const maxLinesPerCol = 43; // Limite rigoroso para não bater na marca d'água
 
       songBody.forEach((line) => {
-        if (lineCount === 50) {
+        // Troca para a segunda coluna se atingir o limite
+        if (lineCount === maxLinesPerCol) {
           currentY = 35;
           currentX = 110;
         }
-        if (lineCount > 100) return; 
+        
+        // Se passar da segunda coluna, ignora (ou poderia criar nova página)
+        if (lineCount >= maxLinesPerCol * 2) return; 
 
         if (isChordLine(line)) {
+          // CIFRA EM AZUL
           doc.setTextColor(37, 99, 235); 
-          doc.setFont("helvetica", "bold");
+          doc.setFont("courier", "bold");
         } else {
+          // LETRA EM PRETO
           doc.setTextColor(0, 0, 0);
-          doc.setFont("helvetica", "normal");
+          doc.setFont("courier", "normal");
         }
 
         doc.text(line, currentX, currentY);
-        currentY += 5.5; 
+        currentY += 5.2; 
         lineCount++;
       });
     });
@@ -148,7 +159,6 @@ export default function PromptLabPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-8">
-              {/* COMPOSITOR */}
               <section className="panel border-l-4 border-purple-500">
                 <h2 className="text-xl font-black mb-6 flex items-center gap-2">✨ Compositor AI</h2>
                 <div className="space-y-4">
@@ -176,11 +186,9 @@ export default function PromptLabPage() {
                 </div>
               </section>
 
-              {/* REPERTÓRIO */}
               <section className="panel border-l-4 border-green-500">
                 <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório Digital</h2>
                 
-                {/* MENU DE INSTRUÇÕES */}
                 <div className="mb-4">
                   <button 
                     onClick={() => setShowInstructions(!showInstructions)}
@@ -190,9 +198,9 @@ export default function PromptLabPage() {
                   </button>
                   
                   {showInstructions && (
-                    <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed animate-in fade-in slide-in-from-top-1">
+                    <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
                       <p className="mb-2"><strong>1 - Título:</strong> Adicione o nome da música na primeira linha de cada bloco.</p>
-                      <p><strong>2 - Divisão:</strong> Entre uma música e outra, coloque três hifens (<strong>---</strong>) para criar uma nova página no PDF.</p>
+                      <p><strong>2 - Divisão:</strong> Entre uma música e outra, coloque três hifens (<strong>---</strong>) para criar uma nova página.</p>
                     </div>
                   )}
                 </div>
