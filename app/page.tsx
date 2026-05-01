@@ -7,7 +7,7 @@ export default function PromptLabPage() {
   const [activeTab, setActiveTab] = useState<"image" | "music">("music")
   const [showInstructions, setShowInstructions] = useState(false)
   
-  // --- STATES ---
+  // --- ESTADOS ---
   const [musicTheme, setMusicTheme] = useState("")
   const [musicStyle, setMusicStyle] = useState("Worship")
   const [musicVibe, setMusicVibe] = useState("Inspiradora")
@@ -15,7 +15,7 @@ export default function PromptLabPage() {
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
-  // --- FUNÇÕES DE UTILIDADE ---
+  // --- FUNÇÕES AUXILIARES ---
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     alert("Copiado com sucesso!")
@@ -26,17 +26,17 @@ export default function PromptLabPage() {
     window.open(url, '_blank')
   }
 
-  // --- GERADOR DE PDF (VERSÃO CORRIGIDA) ---
+  // --- GERADOR DE PDF ---
   const generatePDF = (content: string, isRepertoire: boolean) => {
     const doc = new jsPDF();
     const watermark = "PromptLab Brasil";
     
-    // Detector de Cifras Refinado (Consertado o erro de sintaxe)
+    // Detector de cifras robusto (identifica acordes e marcações de seção)
     const isChordLine = (line: string) => {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.length > 25) return false;
-      // Regex corrigido com as barras escapadas (\/)
-      const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?)(\s+|$))+$/;
+      if (!trimmed || trimmed.length > 60) return false;
+      // Aceita marcas de INTRO/REFRÃO e padrões de acordes (A-G, #, b, m, 7, etc)
+      const chordPattern = /^(\s*(INTRO:|REFRÃO:|PONTE:|[A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?)(\s+|$))+$/i;
       return chordPattern.test(line);
     };
 
@@ -47,7 +47,7 @@ export default function PromptLabPage() {
       if (!trimmedSong) return;
       if (index > 0) doc.addPage();
 
-      // CABEÇALHO
+      // CABEÇALHO PERSONALIZADO
       if (repertoireHeader) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
@@ -57,7 +57,7 @@ export default function PromptLabPage() {
         doc.line(15, 15, 195, 15);
       }
 
-      // MARCA D'ÁGUA
+      // MARCA D'ÁGUA NO RODAPÉ
       doc.setFontSize(10);
       doc.setTextColor(80, 80, 80); 
       doc.setFont("helvetica", "bold");
@@ -68,28 +68,29 @@ export default function PromptLabPage() {
       let songTitle = "";
       let songBody = [];
 
+      // Define se a primeira linha é título ou cifra
       if (isChordLine(firstLine)) {
-        songTitle = isRepertoire ? "MÚSICA SEM TÍTULO" : "COMPOSIÇÃO AI";
+        songTitle = isRepertoire ? "MÚSICA SEM TÍTULO" : "COMPOSIÇÃO PROMPTLAB";
         songBody = lines;
       } else {
         songTitle = firstLine;
         songBody = lines.slice(1);
       }
 
-      // TÍTULO DA MÚSICA (Sempre em negrito e preto)
+      // RENDERIZA TÍTULO DA MÚSICA
       doc.setFontSize(15);
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text(songTitle.toUpperCase(), 15, 25);
 
-      // CORPO (Tudo em negrito para facilitar a leitura)
-      doc.setFontSize(9.5); 
+      // RENDERIZA CORPO (Courier Bold para alinhamento e visibilidade)
+      doc.setFontSize(10); 
       doc.setFont("courier", "bold"); 
       
       let currentY = 35;
       let currentX = 15;
       let lineCount = 0;
-      const maxLinesPerCol = 38; 
+      const maxLinesPerCol = 38; // Zona de segurança para o rodapé
 
       songBody.forEach((line) => {
         if (lineCount === maxLinesPerCol) {
@@ -115,7 +116,7 @@ export default function PromptLabPage() {
   }
 
   const handleCompose = () => {
-    const result = `SUA NOVA MÚSICA\n\n[Tema: ${musicTheme}]\n[Estilo: ${musicStyle} | Vibe: ${musicVibe}]\n\nC          G          Am\nNo silêncio do meu peito floresceu\nF          C          G\nUm rastro de luz que o céu me deu`
+    const result = `SUA NOVA MÚSICA\n\n[Tema: ${musicTheme}]\n[Estilo: ${musicStyle} | Vibe: ${musicVibe}]\n\nINTRO: C  G  Am  F\n\nC          G          Am\nNo silêncio do meu peito floresceu\nF          C          G\nUm rastro de luz que o céu me deu`
     setCompositionResult(result)
   }
 
@@ -152,7 +153,7 @@ export default function PromptLabPage() {
                 <div className="space-y-4">
                   <div>
                     <label>Tema da música</label>
-                    <input value={musicTheme} onChange={(e) => setMusicTheme(e.target.value)} placeholder="Ex: Amor de verão..." />
+                    <input value={musicTheme} onChange={(e) => setMusicTheme(e.target.value)} placeholder="Ex: Amor de verão, Saudade..." />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -161,12 +162,14 @@ export default function PromptLabPage() {
                         <option>Worship</option><option>Sertanejo</option><option>Samba</option>
                         <option>Pagode</option><option>MPB</option><option>Rock</option>
                         <option>Pop</option><option>Trap</option><option>Funk</option>
+                        <option>Forró</option><option>Reggae</option><option>Jazz</option>
                       </select>
                     </div>
                     <div>
                       <label>Vibe</label>
                       <select value={musicVibe} onChange={(e) => setMusicVibe(e.target.value)}>
                         <option>Inspiradora</option><option>Animada</option><option>Melancólica</option>
+                        <option>Relaxante</option><option>Épica</option><option>Romântica</option>
                       </select>
                     </div>
                   </div>
@@ -188,7 +191,7 @@ export default function PromptLabPage() {
                   {showInstructions && (
                     <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
                       <p className="mb-2"><strong>1. Título:</strong> Primeira linha = Nome da música.</p>
-                      <p><strong>2. Divisão:</strong> Use <strong>---</strong> entre as músicas para criar novas páginas.</p>
+                      <p><strong>2. Divisão:</strong> Use <strong>---</strong> entre as músicas para separar as páginas.</p>
                     </div>
                   )}
                 </div>
@@ -207,7 +210,7 @@ export default function PromptLabPage() {
                   rows={10} 
                   value={repertoire} 
                   onChange={(e) => setRepertoire(e.target.value)} 
-                  placeholder="Título da Música&#10;C   G   Am&#10;Letra aqui..." 
+                  placeholder="Título da Música&#10;C   G   Am&#10;Letra..." 
                   className="text-sm font-mono"
                 />
                 <button onClick={() => generatePDF(repertoire, true)} className="btn btn-whatsapp w-full mt-4">📄 Gerar PDF do Repertório (Tablet)</button>
@@ -218,7 +221,7 @@ export default function PromptLabPage() {
               <section className="panel h-full flex flex-col">
                 <label>Resultado da Composição</label>
                 <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-serif text-lg leading-relaxed text-slate-300 min-h-[400px] whitespace-pre-wrap">
-                  {compositionResult || "As letras e acordes aparecerão aqui..."}
+                  {compositionResult || "A letra da música aparecerá aqui..."}
                 </div>
                 
                 {compositionResult && (
