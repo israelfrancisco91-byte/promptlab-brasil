@@ -42,41 +42,53 @@ export default function PromptLabPage() {
   }
 
   // --- GERADOR DE PDF (COMPOSIÇÃO OU REPERTÓRIO) ---
-  const generatePDF = (content: string, isRepertoire: boolean) => {
-    const doc = new jsPDF()
-    const watermark = "PromptLab Brasil"
+ const generatePDF = (content: string, isRepertoire: boolean) => {
+    const doc = new jsPDF();
+    const watermark = "PromptLab Brasil";
     
-    // Se for repertório, separa por músicas (considerando que o usuário pula linha)
-    const songs = isRepertoire ? content.split(/\n\n+/) : [content]
+    // Separa as músicas pelo sinal de três traços ---
+    const songs = isRepertoire ? content.split(/---+\n?/) : [content];
 
     songs.forEach((song, index) => {
-      if (index > 0) doc.addPage()
-      
-      doc.setFontSize(8)
-      doc.setTextColor(150)
-      doc.text(watermark, 10, 285) // Marca d'água no rodapé
+      const trimmedSong = song.trim();
+      if (!trimmedSong) return; 
 
-      doc.setFontSize(14)
-      doc.setTextColor(0)
-      doc.setFont("helvetica", "bold")
-      doc.text(isRepertoire ? `Música ${index + 1}` : "Sua Composição AI", 10, 20)
-
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
+      if (index > 0) doc.addPage();
       
-      // Lógica de duas colunas
-      const lines = doc.splitTextToSize(song, 90) // Metade da página
-      if (lines.length > 40) {
-        doc.text(lines.slice(0, 40), 10, 35)
-        doc.text(lines.slice(40), 110, 35)
+      // Marca d'água no rodapé
+      doc.setFontSize(8);
+      doc.setTextColor(200);
+      doc.text(watermark, 105, 290, { align: "center" });
+
+      // Título da Música
+      doc.setFontSize(14);
+      doc.setTextColor(60, 80, 250); 
+      doc.setFont("helvetica", "bold");
+      
+      const linesAll = trimmedSong.split('\n');
+      const title = isRepertoire ? linesAll[0] : "Composição PromptLab";
+      const body = isRepertoire ? linesAll.slice(1).join('\n') : trimmedSong;
+
+      doc.text(title.toUpperCase(), 10, 20);
+
+      // Corpo da música com fonte Courier (fixa para cifras não correrem)
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.setFont("courier", "normal"); 
+      
+      const col1Lines = doc.splitTextToSize(body, 90);
+      
+      // Lógica de duas colunas: se passar de 50 linhas, pula para a coluna 2
+      if (col1Lines.length > 50) {
+        doc.text(col1Lines.slice(0, 50), 10, 35);
+        doc.text(col1Lines.slice(50, 100), 110, 35);
       } else {
-        doc.text(lines, 10, 35)
+        doc.text(col1Lines, 10, 35);
       }
-    })
+    });
 
-    doc.save(isRepertoire ? "meu-repertorio.pdf" : "minha-composicao.pdf")
+    doc.save(isRepertoire ? "repertorio-digital.pdf" : "composicao.pdf");
   }
-
   const handleCompose = () => {
     const result = `[Tema: ${musicTheme}]\n[Estilo: ${musicStyle} | Vibe: ${musicVibe}]\n\n(Verso 1)\nNo silêncio do meu peito, o ${musicTheme} floresceu\nComo um raio de esperança que o destino me deu...\n\n(Refrão)\nOh, esse ${musicTheme} que me faz cantar\nNo ritmo do ${musicStyle}, sigo a te buscar!`
     setCompositionResult(result)
