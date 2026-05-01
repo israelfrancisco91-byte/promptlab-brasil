@@ -21,26 +21,20 @@ export default function PromptLabPage() {
     alert("Copiado com sucesso!")
   }
 
-  const shareWhatsApp = (text: string) => {
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`
-    window.open(url, '_blank')
-  }
-
-  // --- GERADOR DE PDF ---
-  const generatePDF = (content: string, isRepertoire: boolean) => {
+  // --- GERADOR E COMPARTILHADOR DE PDF ---
+  const handlePDF = async (content: string, isRepertoire: boolean, action: 'download' | 'share') => {
     const doc = new jsPDF();
     const watermark = "PromptLab Brasil";
+    const caption = "Crie o seu repertório em promptlabbrasil.com.br";
     
-    // Detector de cifras aprimorado e mais flexível
     const isChordLine = (line: string) => {
       const trimmed = line.trim();
       if (!trimmed || trimmed.length > 80) return false;
-      // Captura notas, variações, barras e marcações como INTRO, REFRÃO, etc.
       const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?|INTRO:|REFRÃO:|PONTE:|SOLO:|VAMP:)(\s+|$))+$/i;
       return chordPattern.test(line);
     };
 
-    // REGRA ALTERADA: Agora separa por APENAS UM hífen (-) sozinho na linha
+    // REGRA: Separa por apenas UM hífen (-) sozinho na linha
     const songs = isRepertoire ? content.split(/\n\s*-\s*\n/) : [content];
 
     songs.forEach((song, index) => {
@@ -48,7 +42,6 @@ export default function PromptLabPage() {
       if (!trimmedSong) return;
       if (index > 0) doc.addPage();
 
-      // CABEÇALHO
       if (repertoireHeader) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
@@ -58,7 +51,6 @@ export default function PromptLabPage() {
         doc.line(15, 15, 195, 15);
       }
 
-      // MARCA D'ÁGUA (Centro do rodapé)
       doc.setFontSize(10);
       doc.setTextColor(80, 80, 80); 
       doc.setFont("helvetica", "bold");
@@ -66,23 +58,14 @@ export default function PromptLabPage() {
 
       const lines = trimmedSong.split('\n');
       const firstLine = lines[0].trim();
-      let songTitle = "";
-      let songBody = [];
-
-      if (isChordLine(firstLine)) {
-        songTitle = isRepertoire ? "MÚSICA SEM TÍTULO" : "COMPOSIÇÃO PROMPTLAB";
-        songBody = lines;
-      } else {
-        songTitle = firstLine;
-        songBody = lines.slice(1);
-      }
+      let songTitle = isChordLine(firstLine) ? (isRepertoire ? "MÚSICA SEM TÍTULO" : "COMPOSIÇÃO PROMPTLAB") : firstLine;
+      let songBody = isChordLine(firstLine) ? lines : lines.slice(1);
 
       doc.setFontSize(15);
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text(songTitle.toUpperCase(), 15, 25);
 
-      // CORPO (Courier Bold para alinhamento absoluto)
       doc.setFontSize(9.5); 
       doc.setFont("courier", "bold"); 
       
@@ -98,19 +81,37 @@ export default function PromptLabPage() {
         }
         if (lineCount >= maxLinesPerCol * 2) return; 
 
-        if (isChordLine(line)) {
-          doc.setTextColor(37, 99, 235); // Azul Cifra
-        } else {
-          doc.setTextColor(0, 0, 0); // Preto Letra
-        }
-
+        doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
         doc.text(line, currentX, currentY);
         currentY += 5.5; 
         lineCount++;
       });
     });
 
-    doc.save(isRepertoire ? "repertorio-digital.pdf" : "composicao.pdf");
+    const fileName = isRepertoire ? "repertorio-digital.pdf" : "composicao.pdf";
+
+    if (action === 'download') {
+      doc.save(fileName);
+    } else {
+      // Lógica de Compartilhamento
+      const pdfBlob = doc.output('blob');
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'Meu Repertório',
+            text: caption,
+          });
+        } catch (error) {
+          console.error('Erro ao compartilhar:', error);
+        }
+      } else {
+        alert("Seu navegador não suporta o compartilhamento direto de arquivos. Por favor, baixe o PDF e envie manualmente pelo WhatsApp com a legenda: " + caption);
+        doc.save(fileName);
+      }
+    }
   }
 
   const handleCompose = () => {
@@ -125,9 +126,10 @@ export default function PromptLabPage() {
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: block; }
         input, select, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; }
         input:focus, select:focus, textarea:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
-        .btn { padding: 12px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; }
+        .btn { padding: 12px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; width: 100%; }
         .btn-primary { background: #3b82f6; color: white; }
-        .btn-whatsapp { background: #22c55e; color: white; }
+        .btn-whatsapp-repertorio { background: #2563eb; color: white; margin-top: 12px; }
+        .btn-green { background: #22c55e; color: white; }
         .btn-pdf { background: #ef4444; color: white; }
         .btn-copy { background: #64748b; color: white; }
       `}</style>
@@ -146,7 +148,6 @@ export default function PromptLabPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-8">
-              {/* COMPOSITOR AI */}
               <section className="panel border-l-4 border-purple-500">
                 <h2 className="text-xl font-black mb-6 flex items-center gap-2">✨ Compositor AI</h2>
                 <div className="space-y-4">
@@ -161,33 +162,26 @@ export default function PromptLabPage() {
                         <option>Worship</option><option>Sertanejo</option><option>Samba</option>
                         <option>Pagode</option><option>MPB</option><option>Rock</option>
                         <option>Pop</option><option>Trap</option><option>Funk</option>
-                        <option>Forró</option><option>Reggae</option><option>Jazz</option>
                       </select>
                     </div>
                     <div>
                       <label>Vibe</label>
                       <select value={musicVibe} onChange={(e) => setMusicVibe(e.target.value)}>
                         <option>Inspiradora</option><option>Animada</option><option>Melancólica</option>
-                        <option>Relaxante</option><option>Épica</option><option>Romântica</option>
                       </select>
                     </div>
                   </div>
-                  <button onClick={handleCompose} className="btn btn-primary w-full mt-2">🚀 Gerar Composição</button>
+                  <button onClick={handleCompose} className="btn btn-primary">🚀 Gerar Composição</button>
                 </div>
               </section>
 
-              {/* REPERTÓRIO DIGITAL */}
               <section className="panel border-l-4 border-green-500">
                 <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório Digital</h2>
                 
                 <div className="mb-4">
-                  <button 
-                    onClick={() => setShowInstructions(!showInstructions)}
-                    className="text-xs font-bold text-green-400 hover:text-green-300 underline flex items-center gap-1 mb-2"
-                  >
+                  <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 hover:text-green-300 underline flex items-center gap-1 mb-2">
                     {showInstructions ? "🔼 Ocultar Instruções" : "🔽 Instruções de Uso"}
                   </button>
-                  
                   {showInstructions && (
                     <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
                       <p className="mb-2"><strong>1. Título:</strong> Primeira linha = Nome da música.</p>
@@ -198,22 +192,18 @@ export default function PromptLabPage() {
 
                 <div className="mb-4">
                   <label>Título do Cabeçalho (Topo do PDF)</label>
-                  <input 
-                    value={repertoireHeader} 
-                    onChange={(e) => setRepertoireHeader(e.target.value)} 
-                    placeholder="Ex: Repertório da Igreja - Maio 2026" 
-                  />
+                  <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Repertório da Igreja - Maio 2026" />
                 </div>
 
                 <label>Cole aqui as letras e cifras</label>
-                <textarea 
-                  rows={10} 
-                  value={repertoire} 
-                  onChange={(e) => setRepertoire(e.target.value)} 
-                  placeholder="Título da Música&#10;C   G   Am&#10;Letra..." 
-                  className="text-sm font-mono"
-                />
-                <button onClick={() => generatePDF(repertoire, true)} className="btn btn-whatsapp w-full mt-4">📄 Gerar PDF do Repertório (Tablet)</button>
+                <textarea rows={10} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Título da Música&#10;C   G   Am&#10;Letra..." className="text-sm font-mono" />
+                
+                <button onClick={() => handlePDF(repertoire, true, 'download')} className="btn btn-green mt-4">📄 Gerar PDF do Repertório (Tablet)</button>
+                
+                {/* NOVO BOTÃO DE COMPARTILHAR */}
+                <button onClick={() => handlePDF(repertoire, true, 'share')} className="btn btn-whatsapp-repertorio">
+                  📱 Compartilhar no WhatsApp
+                </button>
               </section>
             </div>
 
@@ -227,12 +217,12 @@ export default function PromptLabPage() {
                 {compositionResult && (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
                     <button onClick={() => copyToClipboard(compositionResult)} className="btn btn-copy text-xs">📋 Copiar</button>
-                    <button onClick={() => shareWhatsApp(compositionResult)} className="btn btn-whatsapp text-xs">📱 WhatsApp</button>
-                    <button onClick={() => generatePDF(compositionResult, false)} className="btn btn-pdf text-xs">📕 Gerar PDF</button>
+                    <button onClick={() => handlePDF(compositionResult, false, 'share')} className="btn btn-whatsapp-repertorio !m-0 text-xs">📱 WhatsApp</button>
+                    <button onClick={() => handlePDF(compositionResult, false, 'download')} className="btn btn-pdf text-xs">📕 Gerar PDF</button>
                   </div>
                 )}
                 <div className="mt-4 text-center">
-                   <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">PromptLab Brasil - Marca D'água Ativa</span>
+                   <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">PromptLab Brasil - MARCA D'ÁGUA ATIVA</span>
                 </div>
               </section>
             </div>
