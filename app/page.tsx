@@ -7,7 +7,7 @@ export default function PromptLabPage() {
   const [activeTab, setActiveTab] = useState<"image" | "music">("music")
   const [showInstructions, setShowInstructions] = useState(false)
   
-  // --- ESTADOS ---
+  // --- STATES ---
   const [musicTheme, setMusicTheme] = useState("")
   const [musicStyle, setMusicStyle] = useState("Worship")
   const [musicVibe, setMusicVibe] = useState("Inspiradora")
@@ -15,7 +15,7 @@ export default function PromptLabPage() {
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
-  // --- FUNÇÕES AUXILIARES ---
+  // --- FUNÇÕES DE UTILIDADE ---
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     alert("Copiado com sucesso!")
@@ -31,23 +31,24 @@ export default function PromptLabPage() {
     const doc = new jsPDF();
     const watermark = "PromptLab Brasil";
     
-    // Detector de cifras robusto (identifica acordes e marcações de seção)
+    // Detector de cifras aprimorado e mais flexível
     const isChordLine = (line: string) => {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.length > 60) return false;
-      // Aceita marcas de INTRO/REFRÃO e padrões de acordes (A-G, #, b, m, 7, etc)
-      const chordPattern = /^(\s*(INTRO:|REFRÃO:|PONTE:|[A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?)(\s+|$))+$/i;
+      if (!trimmed || trimmed.length > 80) return false;
+      // Captura notas, variações, barras e marcações como INTRO, REFRÃO, etc.
+      const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?|INTRO:|REFRÃO:|PONTE:|SOLO:|VAMP:)(\s+|$))+$/i;
       return chordPattern.test(line);
     };
 
-    const songs = isRepertoire ? content.split(/---+\n?/) : [content];
+    // REGRA ALTERADA: Agora separa por APENAS UM hífen (-) sozinho na linha
+    const songs = isRepertoire ? content.split(/\n\s*-\s*\n/) : [content];
 
     songs.forEach((song, index) => {
       const trimmedSong = song.trim();
       if (!trimmedSong) return;
       if (index > 0) doc.addPage();
 
-      // CABEÇALHO PERSONALIZADO
+      // CABEÇALHO
       if (repertoireHeader) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
@@ -57,7 +58,7 @@ export default function PromptLabPage() {
         doc.line(15, 15, 195, 15);
       }
 
-      // MARCA D'ÁGUA NO RODAPÉ
+      // MARCA D'ÁGUA (Centro do rodapé)
       doc.setFontSize(10);
       doc.setTextColor(80, 80, 80); 
       doc.setFont("helvetica", "bold");
@@ -68,7 +69,6 @@ export default function PromptLabPage() {
       let songTitle = "";
       let songBody = [];
 
-      // Define se a primeira linha é título ou cifra
       if (isChordLine(firstLine)) {
         songTitle = isRepertoire ? "MÚSICA SEM TÍTULO" : "COMPOSIÇÃO PROMPTLAB";
         songBody = lines;
@@ -77,33 +77,31 @@ export default function PromptLabPage() {
         songBody = lines.slice(1);
       }
 
-      // RENDERIZA TÍTULO DA MÚSICA
       doc.setFontSize(15);
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text(songTitle.toUpperCase(), 15, 25);
 
-      // RENDERIZA CORPO (Courier Bold para alinhamento e visibilidade)
-      doc.setFontSize(10); 
+      // CORPO (Courier Bold para alinhamento absoluto)
+      doc.setFontSize(9.5); 
       doc.setFont("courier", "bold"); 
       
       let currentY = 35;
       let currentX = 15;
       let lineCount = 0;
-      const maxLinesPerCol = 38; // Zona de segurança para o rodapé
+      const maxLinesPerCol = 39; 
 
       songBody.forEach((line) => {
         if (lineCount === maxLinesPerCol) {
           currentY = 35;
           currentX = 110;
         }
-        
         if (lineCount >= maxLinesPerCol * 2) return; 
 
         if (isChordLine(line)) {
-          doc.setTextColor(37, 99, 235); // AZUL PARA CIFRAS
+          doc.setTextColor(37, 99, 235); // Azul Cifra
         } else {
-          doc.setTextColor(0, 0, 0); // PRETO PARA LETRAS
+          doc.setTextColor(0, 0, 0); // Preto Letra
         }
 
         doc.text(line, currentX, currentY);
@@ -148,6 +146,7 @@ export default function PromptLabPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-8">
+              {/* COMPOSITOR AI */}
               <section className="panel border-l-4 border-purple-500">
                 <h2 className="text-xl font-black mb-6 flex items-center gap-2">✨ Compositor AI</h2>
                 <div className="space-y-4">
@@ -177,6 +176,7 @@ export default function PromptLabPage() {
                 </div>
               </section>
 
+              {/* REPERTÓRIO DIGITAL */}
               <section className="panel border-l-4 border-green-500">
                 <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório Digital</h2>
                 
@@ -191,7 +191,7 @@ export default function PromptLabPage() {
                   {showInstructions && (
                     <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
                       <p className="mb-2"><strong>1. Título:</strong> Primeira linha = Nome da música.</p>
-                      <p><strong>2. Divisão:</strong> Use <strong>---</strong> entre as músicas para separar as páginas.</p>
+                      <p><strong>2. Divisão:</strong> Use apenas um hífen (<strong>-</strong>) entre as músicas para separar as páginas.</p>
                     </div>
                   )}
                 </div>
