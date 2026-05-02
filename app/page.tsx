@@ -92,7 +92,7 @@ export default function PromptLabPage() {
           let lyricLine = lines[i + 1] || "";
           
           if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
-            // BLOCO SINCRONIZADO (Cifra e Letra juntas)
+            // BLOCO SINCRONIZADO
             while (chordLine.length > 0 || lyricLine.length > 0) {
               checkSpace(12);
               doc.setFont("courier", "bold");
@@ -116,11 +116,11 @@ export default function PromptLabPage() {
               const lChunk = lyricLine.substring(0, breakIdx);
 
               if (cChunk.trim() !== "") {
-                doc.setTextColor(37, 99, 235); // Cor da cifra segura
+                doc.setTextColor(37, 99, 235);
                 doc.text(cChunk, currentX, currentY);
                 currentY += 4.5;
               }
-              doc.setTextColor(0, 0, 0); // Cor da letra segura
+              doc.setTextColor(0, 0, 0);
               doc.text(lChunk, currentX, currentY);
               currentY += 6.5;
 
@@ -129,7 +129,7 @@ export default function PromptLabPage() {
             }
             i += 2; 
           } else {
-            // LINHA AVULSA (Onde o erro estava escondido)
+            // LINHA AVULSA
             let remaining = line;
             while (remaining.length > 0) {
               checkSpace(6);
@@ -148,11 +148,10 @@ export default function PromptLabPage() {
 
               const chunk = remaining.substring(0, breakIdx);
               
-              // O CULPADO ERA ESTA LÓGICA (AGORA 100% CORRIGIDA)
               if (isChordLine(line)) {
-                doc.setTextColor(37, 99, 235); // Sem colchetes!
+                doc.setTextColor(37, 99, 235); 
               } else {
-                doc.setTextColor(0, 0, 0); // Sem colchetes!
+                doc.setTextColor(0, 0, 0); 
               }
               
               doc.text(chunk, currentX, currentY);
@@ -194,45 +193,36 @@ export default function PromptLabPage() {
         .btn-blue { background: #2563eb; color: white; }
       `}</style>
 
-      <header className="max-w-5xl mx-auto text-center py-12">
+      <header className="max-w-3xl mx-auto text-center py-12">
         <h1 className="text-5xl font-black tracking-tighter mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
         <p className="text-slate-400 font-medium">Repertório Digital Profissional</p>
       </header>
 
-      <main className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <section className="panel border-l-4 border-green-500">
-              <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório</h2>
-              <div className="mb-6">
-                <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline mb-2 block">
-                  {showInstructions ? "🔼 Ocultar" : "🔽 Instruções"}
-                </button>
-                {showInstructions && (
-                  <div className="bg-black/30 p-4 rounded text-xs text-slate-300 leading-relaxed">
-                    <p><strong>1. Sincronia:</strong> Cifras e letras quebram juntas sem cortar palavras.</p>
-                    <p><strong>2. Cores:</strong> Títulos saem em preto nítido, mesmo no topo da página.</p>
-                    <p><strong>3. Auto-Página:</strong> Tudo é organizado automaticamente em colunas.</p>
-                  </div>
-                )}
+      <main className="max-w-3xl mx-auto space-y-6">
+        <section className="panel border-l-4 border-green-500">
+          <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório</h2>
+          <div className="mb-6">
+            <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline mb-2 block">
+              {showInstructions ? "🔼 Ocultar" : "🔽 Instruções"}
+            </button>
+            {showInstructions && (
+              <div className="bg-black/30 p-4 rounded text-xs text-slate-300 leading-relaxed space-y-2">
+                <p><strong>1. Sincronia:</strong> Cifras e letras quebram juntas sem cortar palavras.</p>
+                <p><strong>2. Cores:</strong> Títulos saem em preto nítido, mesmo no topo da página.</p>
+                <p><strong>3. Auto-Página:</strong> Tudo é organizado automaticamente em colunas.</p>
+                <p><strong>4. Nova Música:</strong> Para iniciar uma nova música tecle enter 3 vezes e automaticamente a primeira linha da música fica como título.</p>
               </div>
-              <label>Cabeçalho do PDF</label>
-              <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo" />
-              <label>Letras e Cifras</label>
-              <textarea rows={12} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Título da Música..." className="text-sm font-mono" />
-              <button onClick={() => processPDF('download')} className="btn btn-green">📄 Gerar PDF</button>
-              <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Compartilhar WhatsApp</button>
-            </section>
+            )}
           </div>
-          <div className="space-y-6 hidden lg:block">
-            <section className="panel h-full flex flex-col sticky top-6">
-              <label>Visualização</label>
-              <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-mono text-sm leading-relaxed text-slate-300 min-h-[450px] whitespace-pre-wrap overflow-y-auto">
-                {repertoire || "Aguardando conteúdo..."}
-              </div>
-            </section>
+          <label>Cabeçalho do PDF</label>
+          <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo" />
+          <label>Letras e Cifras</label>
+          <textarea rows={16} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Cole o título da música e as letras/cifras aqui..." className="text-sm font-mono" />
+          <div className="pt-2">
+            <button onClick={() => processPDF('download')} className="btn btn-green">📄 Gerar PDF</button>
+            <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Compartilhar WhatsApp</button>
           </div>
-        </div>
+        </section>
       </main>
     </div>
   )
