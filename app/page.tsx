@@ -8,7 +8,6 @@ export default function PromptLabPage() {
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
-  // DETECTOR DE CIFRAS (Versão ultra-compatível)
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 100) return false;
@@ -20,7 +19,7 @@ export default function PromptLabPage() {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
-      const charLimit = 42; // Limite de caracteres para Courier Bold 10pt em 85mm
+      const charLimit = 42; 
       
       if (!repertoire.trim()) return alert("O campo está vazio!");
 
@@ -30,19 +29,24 @@ export default function PromptLabPage() {
       let isNextLineTitle = true;
 
       const drawFixedElements = (pdfDoc: jsPDF) => {
-        pdfDoc.setFont("helvetica", "bold");
-        pdfDoc.setFontSize(10);
+        // Cabeçalho
         if (repertoireHeader) {
+          pdfDoc.setFont("helvetica", "bold");
+          pdfDoc.setFontSize(10);
           pdfDoc.setTextColor(100, 116, 139);
           pdfDoc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
           pdfDoc.setDrawColor(220, 220, 220);
           pdfDoc.line(15, 15, 195, 15);
         }
+        // Marca d'água
+        pdfDoc.setFont("helvetica", "bold");
+        pdfDoc.setFontSize(10);
         pdfDoc.setTextColor(150, 150, 150);
         pdfDoc.text(watermark, 105, 290, { align: "center" });
+        // Reset crucial para evitar transparência/cinza no texto
+        pdfDoc.setTextColor(0, 0, 0);
       };
 
-      // Função de verificação de espaço com "margem de segurança"
       const checkSpace = (needed: number) => {
         if (currentX === 15 && (currentY + needed) > 282) {
           currentX = 110;
@@ -74,9 +78,9 @@ export default function PromptLabPage() {
         const isTitle = isNextLineTitle || emptyLineCount >= 2;
         
         if (isTitle) {
+          doc.setTextColor(0, 0, 0);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
-          doc.setTextColor(0, 0, 0);
           
           const wrappedTitle = doc.splitTextToSize(line, 85);
           wrappedTitle.forEach((t: string) => {
@@ -91,45 +95,65 @@ export default function PromptLabPage() {
         } else {
           doc.setFont("courier", "bold");
           doc.setFontSize(10);
+          doc.setTextColor(0, 0, 0);
 
-          const nextLine = lines[i + 1] || "";
+          let chordLine = line;
+          let lyricLine = lines[i + 1] || "";
           
-          // LÓGICA DE SINCRONIA: Cifra + Letra (Trata como um bloco único)
-          if (isChordLine(line) && nextLine.trim() !== "" && !isChordLine(nextLine)) {
-            const chordLine = line;
-            const lyricLine = nextLine;
-            
-            for (let charIdx = 0; charIdx < Math.max(chordLine.length, lyricLine.length); charIdx += charLimit) {
-              // Verifica se há espaço para o bloco (Cifra + Letra = ~11mm)
+          if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
+            // Bloco Sincronizado
+            while (chordLine.length > 0 || lyricLine.length > 0) {
               checkSpace(11);
               
-              const chordChunk = chordLine.substring(charIdx, charIdx + charLimit);
-              const lyricChunk = lyricLine.substring(charIdx, charIdx + charLimit);
+              // Encontra o ponto de quebra ideal (espaço)
+              let breakIdx = charLimit;
+              if (Math.max(chordLine.length, lyricLine.length) > charLimit) {
+                const tempLyric = lyricLine.substring(0, charLimit + 1);
+                const lastSpace = tempLyric.lastIndexOf(' ');
+                if (lastSpace > 0) breakIdx = lastSpace;
+              } else {
+                breakIdx = Math.max(chordLine.length, lyricLine.length);
+              }
 
-              // Imprime Cifra
-              doc.setTextColor(37, 99, 235);
-              doc.text(chordChunk, currentX, currentY);
-              currentY += 4.5;
+              const chordChunk = chordLine.substring(0, breakIdx);
+              const lyricChunk = lyricLine.substring(0, breakIdx);
+
+              // Desenha Cifra
+              if (chordChunk.trim() !== "") {
+                doc.setTextColor(37, 99, 235);
+                doc.text(chordChunk, currentX, currentY);
+                currentY += 4.5;
+              }
               
-              // Imprime Letra
+              // Desenha Letra
               doc.setTextColor(0, 0, 0);
-              doc.text(lyricChunk, currentX, currentY);
-              currentY += 6; 
+              doc.text(lyricChunk.trimEnd(), currentX, currentY);
+              currentY += 6;
+
+              // Remove o que já foi desenhado
+              chordLine = chordLine.substring(breakIdx).trimStart();
+              lyricLine = lyricLine.substring(breakIdx).trimStart();
             }
             i += 2; 
           } else {
-            // Linha avulsa (Só letra ou só cifra)
-            const wrappedLine = doc.splitTextToSize(line, 85);
-            wrappedLine.forEach((l: string) => {
+            // Linha avulsa com Smart Wrap
+            let remaining = line;
+            while (remaining.length > 0) {
               checkSpace(6);
-              if (isChordLine(line)) {
-                doc.setTextColor(37, 99, 235);
+              let breakIdx = charLimit;
+              if (remaining.length > charLimit) {
+                const lastSpace = remaining.substring(0, charLimit + 1).lastIndexOf(' ');
+                if (lastSpace > 0) breakIdx = lastSpace;
               } else {
-                doc.setTextColor(0, 0, 0);
+                breakIdx = remaining.length;
               }
-              doc.text(l, currentX, currentY);
+
+              const chunk = remaining.substring(0, breakIdx);
+              doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
+              doc.text(chunk.trimEnd(), currentX, currentY);
               currentY += 5.5;
-            });
+              remaining = remaining.substring(breakIdx).trimStart();
+            }
             i++;
           }
           emptyLineCount = 0;
@@ -149,13 +173,12 @@ export default function PromptLabPage() {
         }
       }
     } catch (err) {
-      alert("Houve um erro na geração. Verifique se o texto possui caracteres muito incomuns.");
-      console.error(err);
+      alert("Houve um erro na geração do PDF.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-sans p-4 selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#020617] text-white font-sans p-4">
       <style jsx global>{`
         .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
@@ -181,16 +204,16 @@ export default function PromptLabPage() {
                 </button>
                 {showInstructions && (
                   <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
-                    <p className="mb-2"><strong>1. Alinhamento:</strong> Cifras e letras agora quebram juntas para manter a posição.</p>
-                    <p className="mb-2"><strong>2. Títulos:</strong> Primeira linha e textos após 3 "Enters" viram títulos.</p>
-                    <p><strong>3. Auto-Página:</strong> O sistema organiza as colunas e páginas automaticamente.</p>
+                    <p className="mb-2"><strong>1. Títulos:</strong> O primeiro título da página agora sai sempre em preto sólido.</p>
+                    <p className="mb-2"><strong>2. Quebra de Linha:</strong> Palavras não são mais cortadas ao meio na troca de linha.</p>
+                    <p><strong>3. Sincronia:</strong> Cifras acompanham a quebra das palavras automaticamente.</p>
                   </div>
                 )}
               </div>
               <label>Título do Cabeçalho</label>
               <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo" />
               <label>Letras e Cifras</label>
-              <textarea rows={12} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Cole seu repertório aqui..." className="text-sm font-mono" />
+              <textarea rows={12} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Título da Música..." className="text-sm font-mono" />
               <button onClick={() => processPDF('download')} className="btn btn-green">📄 Gerar PDF do Repertório</button>
               <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Compartilhar no WhatsApp</button>
             </section>
