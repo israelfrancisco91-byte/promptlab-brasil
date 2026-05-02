@@ -8,6 +8,7 @@ export default function PromptLabPage() {
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
+  // DETECTOR DE CIFRAS
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 80) return false;
@@ -19,77 +20,81 @@ export default function PromptLabPage() {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
+      const colWidth = 85; // Limite rigoroso para evitar sobreposição
       
       if (!repertoire.trim()) return alert("O campo está vazio!");
 
-      // Divide por Hífen (-) para novas páginas manuais
-      const pagesInput = repertoire.split(/\n\s*-\s*\n/);
+      let currentX = 15;
+      let currentY = 32;
+      let emptyLineCount = 0;
+      let isNextLineTitle = true;
 
-      pagesInput.forEach((pageContent, pageIdx) => {
-        if (pageIdx > 0) doc.addPage();
+      // Função interna para elementos fixos
+      const drawFixedElements = (pdfDoc: jsPDF) => {
+        if (repertoireHeader) {
+          pdfDoc.setFontSize(10); pdfDoc.setFont("helvetica", "bold"); pdfDoc.setTextColor(100);
+          pdfDoc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
+          pdfDoc.setDrawColor(220); pdfDoc.line(15, 15, 195, 15);
+        }
+        pdfDoc.setFontSize(10); pdfDoc.setTextColor(150); pdfDoc.setFont("helvetica", "bold");
+        pdfDoc.text(watermark, 105, 290, { align: "center" });
+      };
 
-        // Função interna para desenhar o que é fixo em cada página
-        const drawStaticElements = () => {
-          if (repertoireHeader) {
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(100);
-            doc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
-            doc.setDrawColor(220); doc.line(15, 15, 195, 15);
-          }
-          doc.setFontSize(10); doc.setTextColor(150); doc.setFont("helvetica", "bold");
-          doc.text(watermark, 105, 290, { align: "center" });
-        };
+      drawFixedElements(doc);
 
-        drawStaticElements();
+      const allLines = repertoire.split('\n');
 
-        const lines = pageContent.split('\n');
-        let currentY = 32; 
-        let currentX = 15; 
-        let emptyLineCount = 0;
-        let isNextLineTitle = true; // Primeira linha é sempre título
+      allLines.forEach((line) => {
+        const trimmedLine = line.trim();
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const trimmedLine = line.trim();
-          
-          if (trimmedLine === "") {
-            emptyLineCount++;
-            currentY += 2.5;
-            continue; 
-          }
+        if (trimmedLine === "") {
+          emptyLineCount++;
+          currentY += 2.5;
+          return;
+        }
 
-          // LÓGICA DE COLUNAS E PÁGINAS (Rigorosa)
+        // Detecta se a próxima linha deve ser título baseado nos Enters (3 Enters = 2 linhas vazias)
+        const isTitle = isNextLineTitle || emptyLineCount >= 2;
+        
+        // Configura estilo para medição
+        if (isTitle) {
+          doc.setFontSize(14); doc.setFont("helvetica", "bold");
+        } else {
+          doc.setFontSize(10); doc.setFont("courier", "bold");
+        }
+
+        // QUEBRA AUTOMÁTICA: Divide a linha se ela for maior que a largura da coluna
+        const wrappedSubLines = doc.splitTextToSize(line, colWidth);
+
+        wrappedSubLines.forEach((subLine: string) => {
+          // GESTÃO DE ESPAÇO (COLUNAS E PÁGINAS)
           if (currentX === 15 && currentY > 282) {
-            // Estourou a esquerda? Vai para a direita
             currentX = 110;
             currentY = 32;
           } else if (currentX === 110 && currentY > 275) {
-            // Estourou a direita (recuo de segurança)? Cria nova página
             doc.addPage();
-            drawStaticElements();
+            drawFixedElements(doc);
             currentX = 15;
             currentY = 32;
           }
 
-          if (isNextLineTitle || emptyLineCount >= 2) {
-            // Desenha como Título
-            doc.setFontSize(14); doc.setTextColor(0); doc.setFont("helvetica", "bold");
-            doc.text(trimmedLine.toUpperCase(), currentX, currentY);
-            currentY += 7; 
+          if (isTitle) {
+            doc.setTextColor(0);
+            doc.text(subLine.toUpperCase().trim(), currentX, currentY);
+            currentY += 7;
             isNextLineTitle = false;
           } else {
-            // Desenha como Letra ou Cifra
-            doc.setFontSize(10); doc.setFont("courier", "bold");
-            if (isChordLine(line)) {
-              doc.setTextColor(37, 99, 235); // Azul Royal
+            if (isChordLine(subLine)) {
+              doc.setTextColor(37, 99, 235);
             } else {
-              doc.setTextColor(0); // Preto
+              doc.setTextColor(0);
             }
-            doc.text(line, currentX, currentY);
+            doc.text(subLine, currentX, currentY);
             currentY += 5.5;
           }
-          
-          emptyLineCount = 0;
-        }
+        });
+
+        emptyLineCount = 0;
       });
 
       const fileName = "repertorio.pdf";
@@ -98,25 +103,23 @@ export default function PromptLabPage() {
       } else {
         const pdfBlob = doc.output('blob');
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-        
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Repertório' }).catch(() => doc.save(fileName));
+          await navigator.share({ files: [file], title: 'Meu Repertório' }).catch(() => doc.save(fileName));
         } else {
           doc.save(fileName);
         }
       }
     } catch (err) {
-      alert("Houve um erro técnico. Verifique o texto e tente novamente.");
-      console.error(err);
+      alert("Erro na geração. Verifique o conteúdo.");
     }
   };
 
   return (
     <div className="min-h-screen bg-[#020617] text-white font-sans p-4">
       <style jsx global>{`
-        .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
-        label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
-        input, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
+        .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; }
+        label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        input, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 12px; }
         .btn { padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; }
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-blue { background: #2563eb; color: white; }
@@ -124,7 +127,7 @@ export default function PromptLabPage() {
 
       <header className="max-w-5xl mx-auto text-center py-12">
         <h1 className="text-5xl font-black tracking-tighter mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
-        <p className="text-slate-400 font-medium">O seu organizador de repertório digital para tablet</p>
+        <p className="text-slate-400 font-medium">Repertório Digital Inteligente</p>
       </header>
 
       <main className="max-w-6xl mx-auto">
@@ -133,21 +136,21 @@ export default function PromptLabPage() {
             <section className="panel border-l-4 border-green-500">
               <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório</h2>
               <div className="mb-6">
-                <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline flex items-center gap-1 mb-2">
-                  {showInstructions ? "🔼 Ocultar Instruções" : "🔽 Instruções de Uso"}
+                <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline mb-2 block">
+                  {showInstructions ? "🔼 Ocultar" : "🔽 Instruções de Uso"}
                 </button>
                 {showInstructions && (
-                  <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
-                    <p className="mb-2"><strong>1. Título:</strong> A primeira linha de cada página é sempre um título.</p>
-                    <p className="mb-2"><strong>2. Nova Página:</strong> Use um hífen (<strong>-</strong>) sozinho para pular de página.</p>
-                    <p><strong>3. Nova Música:</strong> Para novo título na mesma página, tecle Enter 3 vezes.</p>
+                  <div className="bg-black/30 p-4 rounded text-xs text-slate-300 space-y-2">
+                    <p><strong>1. Títulos:</strong> A primeira linha e textos após 3 "Enters" viram títulos automaticamente.</p>
+                    <p><strong>2. Auto-Página:</strong> O sistema gera novas páginas sozinho quando o espaço acaba.</p>
+                    <p><strong>3. Auto-Quebra:</strong> Linhas compridas são quebradas automaticamente para não invadir outras colunas.</p>
                   </div>
                 )}
               </div>
-              <label>Título do Cabeçalho (Topo do PDF)</label>
+              <label>Título do Cabeçalho</label>
               <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo" />
-              <label>Cole aqui as letras e cifras</label>
-              <textarea rows={12} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Título da Música..." className="text-sm font-mono" />
+              <label>Letras e Cifras</label>
+              <textarea rows={12} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Cole seu repertório aqui..." className="text-sm font-mono" />
               <button onClick={() => processPDF('download')} className="btn btn-green">📄 Gerar PDF do Repertório</button>
               <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Compartilhar no WhatsApp</button>
             </section>
@@ -156,7 +159,7 @@ export default function PromptLabPage() {
             <section className="panel h-full flex flex-col sticky top-6">
               <label>Visualização em Tempo Real</label>
               <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-mono text-sm leading-relaxed text-slate-300 min-h-[450px] whitespace-pre-wrap overflow-y-auto">
-                {repertoire || "Digite suas músicas..."}
+                {repertoire || "Seu texto aparecerá aqui..."}
               </div>
             </section>
           </div>
