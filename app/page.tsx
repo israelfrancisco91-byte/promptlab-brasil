@@ -40,8 +40,7 @@ export default function PromptLabPage() {
           pdfDoc.setDrawColor(220, 220, 220);
           pdfDoc.line(15, 15, 195, 15);
         }
-        // Reset obrigatório para PRETO antes de qualquer texto
-        pdfDoc.setTextColor(0, 0, 0);
+        pdfDoc.setTextColor(0, 0, 0); // Reset para preto garantido
       };
 
       const checkSpace = (needed: number) => {
@@ -93,7 +92,7 @@ export default function PromptLabPage() {
           let lyricLine = lines[i + 1] || "";
           
           if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
-            // BLOCO SINCRONIZADO
+            // BLOCO SINCRONIZADO (Cifra e Letra juntas)
             while (chordLine.length > 0 || lyricLine.length > 0) {
               checkSpace(12);
               doc.setFont("courier", "bold");
@@ -103,11 +102,10 @@ export default function PromptLabPage() {
               const maxLen = Math.max(chordLine.length, lyricLine.length);
               
               if (maxLen > charLimit) {
-                // Busca espaço para não quebrar palavras
                 const lastSpace = lyricLine.lastIndexOf(' ', charLimit);
                 const lastSpaceChord = chordLine.lastIndexOf(' ', charLimit);
                 const bestSpace = Math.max(lastSpace, lastSpaceChord);
-                if (bestSpace > charLimit * 0.6) breakIdx = bestSpace;
+                if (bestSpace > charLimit * 0.5) breakIdx = bestSpace;
               } else {
                 breakIdx = maxLen;
               }
@@ -118,20 +116,20 @@ export default function PromptLabPage() {
               const lChunk = lyricLine.substring(0, breakIdx);
 
               if (cChunk.trim() !== "") {
-                doc.setTextColor(37, 99, 235);
+                doc.setTextColor(37, 99, 235); // Cor da cifra segura
                 doc.text(cChunk, currentX, currentY);
                 currentY += 4.5;
               }
-              doc.setTextColor(0, 0, 0);
+              doc.setTextColor(0, 0, 0); // Cor da letra segura
               doc.text(lChunk, currentX, currentY);
               currentY += 6.5;
 
-              chordLine = chordLine.substring(breakIdx).replace(/^\s/, '');
-              lyricLine = lyricLine.substring(breakIdx).replace(/^\s/, '');
+              chordLine = chordLine.substring(breakIdx).replace(/^\s+/, '');
+              lyricLine = lyricLine.substring(breakIdx).replace(/^\s+/, '');
             }
             i += 2; 
           } else {
-            // LINHA AVULSA
+            // LINHA AVULSA (Onde o erro estava escondido)
             let remaining = line;
             while (remaining.length > 0) {
               checkSpace(6);
@@ -141,7 +139,7 @@ export default function PromptLabPage() {
               let breakIdx = charLimit;
               if (remaining.length > charLimit) {
                 const lastSpace = remaining.lastIndexOf(' ', charLimit);
-                if (lastSpace > charLimit * 0.6) breakIdx = lastSpace;
+                if (lastSpace > charLimit * 0.5) breakIdx = lastSpace;
               } else {
                 breakIdx = remaining.length;
               }
@@ -149,10 +147,17 @@ export default function PromptLabPage() {
               if (breakIdx <= 0) breakIdx = charLimit;
 
               const chunk = remaining.substring(0, breakIdx);
-              doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
+              
+              // O CULPADO ERA ESTA LÓGICA (AGORA 100% CORRIGIDA)
+              if (isChordLine(line)) {
+                doc.setTextColor(37, 99, 235); // Sem colchetes!
+              } else {
+                doc.setTextColor(0, 0, 0); // Sem colchetes!
+              }
+              
               doc.text(chunk, currentX, currentY);
               currentY += 5.5;
-              remaining = remaining.substring(breakIdx).replace(/^\s/, '');
+              remaining = remaining.substring(breakIdx).replace(/^\s+/, '');
             }
             i++;
           }
@@ -173,7 +178,8 @@ export default function PromptLabPage() {
         }
       }
     } catch (err) {
-      alert("Erro na geração do PDF. Verifique se o texto é muito longo.");
+      console.error(err);
+      alert("Erro interno. A geração do PDF foi interrompida.");
     }
   };
 
