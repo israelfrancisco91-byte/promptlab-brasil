@@ -20,7 +20,7 @@ export default function PromptLabPage() {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
-      const colWidth = 85; // Limite rigoroso para evitar sobreposição
+      const colWidth = 85; // Limite lateral para evitar atropelo entre colunas
       
       if (!repertoire.trim()) return alert("O campo está vazio!");
 
@@ -29,14 +29,19 @@ export default function PromptLabPage() {
       let emptyLineCount = 0;
       let isNextLineTitle = true;
 
-      // Função interna para elementos fixos
+      // Desenha elementos fixos (Cabeçalho e Marca d'água)
       const drawFixedElements = (pdfDoc: jsPDF) => {
         if (repertoireHeader) {
-          pdfDoc.setFontSize(10); pdfDoc.setFont("helvetica", "bold"); pdfDoc.setTextColor(100);
+          pdfDoc.setFont("helvetica", "bold");
+          pdfDoc.setFontSize(10);
+          pdfDoc.setTextColor(100, 116, 139);
           pdfDoc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
-          pdfDoc.setDrawColor(220); pdfDoc.line(15, 15, 195, 15);
+          pdfDoc.setDrawColor(220, 220, 220);
+          pdfDoc.line(15, 15, 195, 15);
         }
-        pdfDoc.setFontSize(10); pdfDoc.setTextColor(150); pdfDoc.setFont("helvetica", "bold");
+        pdfDoc.setFont("helvetica", "bold");
+        pdfDoc.setFontSize(10);
+        pdfDoc.setTextColor(150, 150, 150);
         pdfDoc.text(watermark, 105, 290, { align: "center" });
       };
 
@@ -53,21 +58,22 @@ export default function PromptLabPage() {
           return;
         }
 
-        // Detecta se a próxima linha deve ser título baseado nos Enters (3 Enters = 2 linhas vazias)
         const isTitle = isNextLineTitle || emptyLineCount >= 2;
         
-        // Configura estilo para medição
+        // Define a fonte ANTES de medir e quebrar o texto
         if (isTitle) {
-          doc.setFontSize(14); doc.setFont("helvetica", "bold");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(14);
         } else {
-          doc.setFontSize(10); doc.setFont("courier", "bold");
+          doc.setFont("courier", "bold");
+          doc.setFontSize(10);
         }
 
-        // QUEBRA AUTOMÁTICA: Divide a linha se ela for maior que a largura da coluna
+        // Quebra a linha automaticamente se for maior que a largura da coluna (85mm)
         const wrappedSubLines = doc.splitTextToSize(line, colWidth);
 
         wrappedSubLines.forEach((subLine: string) => {
-          // GESTÃO DE ESPAÇO (COLUNAS E PÁGINAS)
+          // GESTÃO DE ESPAÇO: Troca de coluna ou página
           if (currentX === 15 && currentY > 282) {
             currentX = 110;
             currentY = 32;
@@ -79,15 +85,20 @@ export default function PromptLabPage() {
           }
 
           if (isTitle) {
-            doc.setTextColor(0);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
             doc.text(subLine.toUpperCase().trim(), currentX, currentY);
-            currentY += 7;
+            currentY += 7.5;
             isNextLineTitle = false;
           } else {
+            doc.setFont("courier", "bold");
+            doc.setFontSize(10);
+            // Azul para cifras, preto para letras
             if (isChordLine(subLine)) {
               doc.setTextColor(37, 99, 235);
             } else {
-              doc.setTextColor(0);
+              doc.setTextColor(0, 0, 0);
             }
             doc.text(subLine, currentX, currentY);
             currentY += 5.5;
@@ -104,22 +115,22 @@ export default function PromptLabPage() {
         const pdfBlob = doc.output('blob');
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Meu Repertório' }).catch(() => doc.save(fileName));
+          await navigator.share({ files: [file], title: 'Repertório' }).catch(() => doc.save(fileName));
         } else {
           doc.save(fileName);
         }
       }
     } catch (err) {
-      alert("Erro na geração. Verifique o conteúdo.");
+      alert("Erro na geração. Tente reduzir o texto.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-sans p-4">
+    <div className="min-h-screen bg-[#020617] text-white font-sans p-4 selection:bg-blue-500/30">
       <style jsx global>{`
-        .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; }
-        label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; }
-        input, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 12px; }
+        .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
+        label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
+        input, textarea { background: #020617; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
         .btn { padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; }
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-blue { background: #2563eb; color: white; }
@@ -127,7 +138,7 @@ export default function PromptLabPage() {
 
       <header className="max-w-5xl mx-auto text-center py-12">
         <h1 className="text-5xl font-black tracking-tighter mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
-        <p className="text-slate-400 font-medium">Repertório Digital Inteligente</p>
+        <p className="text-slate-400 font-medium">Repertório Digital Profissional</p>
       </header>
 
       <main className="max-w-6xl mx-auto">
@@ -136,14 +147,14 @@ export default function PromptLabPage() {
             <section className="panel border-l-4 border-green-500">
               <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório</h2>
               <div className="mb-6">
-                <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline mb-2 block">
+                <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline flex items-center gap-1 mb-2">
                   {showInstructions ? "🔼 Ocultar" : "🔽 Instruções de Uso"}
                 </button>
                 {showInstructions && (
-                  <div className="bg-black/30 p-4 rounded text-xs text-slate-300 space-y-2">
-                    <p><strong>1. Títulos:</strong> A primeira linha e textos após 3 "Enters" viram títulos automaticamente.</p>
-                    <p><strong>2. Auto-Página:</strong> O sistema gera novas páginas sozinho quando o espaço acaba.</p>
-                    <p><strong>3. Auto-Quebra:</strong> Linhas compridas são quebradas automaticamente para não invadir outras colunas.</p>
+                  <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
+                    <p className="mb-2"><strong>1. Títulos:</strong> A primeira linha e textos após 3 "Enters" viram títulos.</p>
+                    <p className="mb-2"><strong>2. Auto-Página:</strong> O sistema gera novas páginas sozinho conforme o texto cresce.</p>
+                    <p><strong>3. Auto-Quebra:</strong> Linhas compridas são quebradas automaticamente para não invadir colunas.</p>
                   </div>
                 )}
               </div>
@@ -159,7 +170,7 @@ export default function PromptLabPage() {
             <section className="panel h-full flex flex-col sticky top-6">
               <label>Visualização em Tempo Real</label>
               <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-mono text-sm leading-relaxed text-slate-300 min-h-[450px] whitespace-pre-wrap overflow-y-auto">
-                {repertoire || "Seu texto aparecerá aqui..."}
+                {repertoire || "Digite suas músicas..."}
               </div>
             </section>
           </div>
