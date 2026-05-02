@@ -7,6 +7,9 @@ export default function PromptLabPage() {
   const [showInstructions, setShowInstructions] = useState(false)
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
+  
+  // Controle das janelas de políticas para o AdSense
+  const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null)
 
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
@@ -40,7 +43,7 @@ export default function PromptLabPage() {
           pdfDoc.setDrawColor(220, 220, 220);
           pdfDoc.line(15, 15, 195, 15);
         }
-        pdfDoc.setTextColor(0, 0, 0); // Reset para preto garantido
+        pdfDoc.setTextColor(0, 0, 0); 
       };
 
       const checkSpace = (needed: number) => {
@@ -92,7 +95,6 @@ export default function PromptLabPage() {
           let lyricLine = lines[i + 1] || "";
           
           if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
-            // BLOCO SINCRONIZADO
             while (chordLine.length > 0 || lyricLine.length > 0) {
               checkSpace(12);
               doc.setFont("courier", "bold");
@@ -129,7 +131,6 @@ export default function PromptLabPage() {
             }
             i += 2; 
           } else {
-            // LINHA AVULSA
             let remaining = line;
             while (remaining.length > 0) {
               checkSpace(6);
@@ -183,7 +184,7 @@ export default function PromptLabPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-sans p-4">
+    <div className="min-h-screen bg-[#020617] text-white font-sans p-4 relative">
       <style jsx global>{`
         .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
@@ -191,6 +192,12 @@ export default function PromptLabPage() {
         .btn { padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; }
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-blue { background: #2563eb; color: white; }
+        
+        /* Estilos do Scrollbar para o Modal */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
       `}</style>
 
       <header className="max-w-3xl mx-auto text-center py-12">
@@ -224,6 +231,56 @@ export default function PromptLabPage() {
           </div>
         </section>
       </main>
+
+      {/* RODAPÉ ADSENSE COMPLIANCE */}
+      <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
+        <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+          <button onClick={() => setLegalModal('privacy')} className="hover:text-blue-400 transition-colors">Política de Privacidade</button>
+          <button onClick={() => setLegalModal('terms')} className="hover:text-blue-400 transition-colors">Termos de Uso</button>
+          <a href="mailto:contato@promptlabbrasil.com.br" className="hover:text-blue-400 transition-colors">Contato</a>
+        </div>
+        <p className="text-xs text-slate-600">© 2026 PromptLab Brasil. Todos os direitos reservados.</p>
+      </footer>
+
+      {/* MODAL DE INFORMAÇÕES FORMAIS */}
+      {legalModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+            
+            <div className="flex justify-between items-center p-6 border-b border-slate-800">
+              <h3 className="text-lg font-black text-white uppercase tracking-wide">
+                {legalModal === 'privacy' ? 'Política de Privacidade' : 'Termos de Uso'}
+              </h3>
+              <button onClick={() => setLegalModal(null)} className="text-slate-400 hover:text-white text-2xl font-bold leading-none">&times;</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto custom-scroll text-sm text-slate-300 space-y-4">
+              {legalModal === 'privacy' ? (
+                <>
+                  <p>A sua privacidade é importante para nós. É política do PromptLab Brasil respeitar a sua privacidade em relação a qualquer informação sua que possamos coletar no site.</p>
+                  <p>Solicitamos informações pessoais apenas quando realmente precisamos delas para lhe fornecer um serviço. Fazemo-lo por meios justos e legais, com o seu conhecimento e consentimento.</p>
+                  <p>Apenas retemos as informações coletadas pelo tempo necessário para fornecer o serviço solicitado. Quando armazenamos dados, os protegemos dentro de meios comercialmente aceitáveis ​​para evitar perdas e roubos, bem como acesso, divulgação, cópia, uso ou modificação não autorizados.</p>
+                  <h4 className="font-bold text-white mt-4">Uso de Cookies e Google AdSense</h4>
+                  <p>O Google, como fornecedor de terceiros, usa cookies para exibir anúncios em nosso site. O uso do cookie DART pelo Google permite que ele exiba anúncios para nossos usuários com base em suas visitas ao nosso site e a outros sites na Internet. Você pode desativar o uso do cookie DART visitando a política de privacidade da rede de conteúdo e dos anúncios do Google.</p>
+                </>
+              ) : (
+                <>
+                  <p>Ao acessar ao site PromptLab Brasil, concorda em cumprir estes termos de serviço, todas as leis e regulamentos aplicáveis ​​e concorda que é responsável pelo cumprimento de todas as leis locais aplicáveis.</p>
+                  <h4 className="font-bold text-white mt-4">Uso da Ferramenta</h4>
+                  <p>A ferramenta de geração de PDF é fornecida "como está". O PromptLab Brasil não se responsabiliza pela perda de dados ou conteúdos não salvos gerados através da nossa aplicação de Repertório Digital.</p>
+                  <p>É concedida permissão para baixar temporariamente uma cópia dos materiais (informações ou software) no site, apenas para visualização transitória pessoal e não comercial.</p>
+                  <h4 className="font-bold text-white mt-4">Modificações</h4>
+                  <p>O PromptLab Brasil pode revisar estes termos de serviço do site a qualquer momento, sem aviso prévio. Ao usar este site, você concorda em ficar vinculado à versão atual desses termos de serviço.</p>
+                </>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-slate-800 text-right bg-slate-900/50 rounded-b-xl">
+              <button onClick={() => setLegalModal(null)} className="btn-blue px-6 py-2 rounded font-bold text-xs uppercase inline-block">Entendi</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
