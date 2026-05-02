@@ -8,11 +8,11 @@ export default function PromptLabPage() {
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
-  // DETECTOR DE CIFRAS
+  // DETECTOR DE CIFRAS (Aprimorado)
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.length > 80) return false;
-    const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?|INTRO:|REFRÃO:|PONTE:|SOLO:|VAMP:)(\s+|$))+$/i;
+    if (!trimmed || trimmed.length > 100) return false;
+    const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?|INTRO:|REFRÃO:|PONTE:|SOLO:|VAMP:|\(|\)|\||\d|\+)(\s+|$))+$/i;
     return chordPattern.test(line);
   };
 
@@ -20,7 +20,9 @@ export default function PromptLabPage() {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
-      const colWidth = 85; // Limite lateral para evitar atropelo entre colunas
+      
+      // Limite de caracteres para Courier Bold 10pt em uma coluna de 85mm
+      const charLimit = 42; 
       
       if (!repertoire.trim()) return alert("O campo está vazio!");
 
@@ -29,7 +31,6 @@ export default function PromptLabPage() {
       let emptyLineCount = 0;
       let isNextLineTitle = true;
 
-      // Desenha elementos fixos (Cabeçalho e Marca d'água)
       const drawFixedElements = (pdfDoc: jsPDF) => {
         if (repertoireHeader) {
           pdfDoc.setFont("helvetica", "bold");
@@ -45,68 +46,95 @@ export default function PromptLabPage() {
         pdfDoc.text(watermark, 105, 290, { align: "center" });
       };
 
+      const checkColumnAndPage = () => {
+        if (currentX === 15 && currentY > 282) {
+          currentX = 110;
+          currentY = 32;
+        } else if (currentX === 110 && currentY > 275) {
+          doc.addPage();
+          drawFixedElements(doc);
+          currentX = 15;
+          currentY = 32;
+        }
+      };
+
       drawFixedElements(doc);
 
-      const allLines = repertoire.split('\n');
+      const lines = repertoire.split('\n');
+      let i = 0;
 
-      allLines.forEach((line) => {
-        const trimmedLine = line.trim();
+      while (i < lines.length) {
+        const line = lines[i];
+        const trimmed = line.trim();
 
-        if (trimmedLine === "") {
+        if (trimmed === "") {
           emptyLineCount++;
           currentY += 2.5;
-          return;
+          i++;
+          continue;
         }
 
         const isTitle = isNextLineTitle || emptyLineCount >= 2;
         
-        // Define a fonte ANTES de medir e quebrar o texto
         if (isTitle) {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
+          doc.setTextColor(0, 0, 0);
+          
+          const wrappedTitle = doc.splitTextToSize(line, 85);
+          wrappedTitle.forEach((t: string) => {
+            checkColumnAndPage();
+            doc.text(t.toUpperCase().trim(), currentX, currentY);
+            currentY += 7.5;
+          });
+          
+          isNextLineTitle = false;
+          emptyLineCount = 0;
+          i++;
         } else {
           doc.setFont("courier", "bold");
           doc.setFontSize(10);
-        }
 
-        // Quebra a linha automaticamente se for maior que a largura da coluna (85mm)
-        const wrappedSubLines = doc.splitTextToSize(line, colWidth);
-
-        wrappedSubLines.forEach((subLine: string) => {
-          // GESTÃO DE ESPAÇO: Troca de coluna ou página
-          if (currentX === 15 && currentY > 282) {
-            currentX = 110;
-            currentY = 32;
-          } else if (currentX === 110 && currentY > 275) {
-            doc.addPage();
-            drawFixedElements(doc);
-            currentX = 15;
-            currentY = 32;
-          }
-
-          if (isTitle) {
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(14);
-            doc.setTextColor(0, 0, 0);
-            doc.text(subLine.toUpperCase().trim(), currentX, currentY);
-            currentY += 7.5;
-            isNextLineTitle = false;
-          } else {
-            doc.setFont("courier", "bold");
-            doc.setFontSize(10);
-            // Azul para cifras, preto para letras
-            if (isChordLine(subLine)) {
-              doc.setTextColor(37, 99, 235);
-            } else {
-              doc.setTextColor(0, 0, 0);
+          const nextLine = lines[i + 1] || "";
+          
+          // LÓGICA DE SINCRONIA: Cifra + Letra
+          if (isChordLine(line) && nextLine.trim() !== "" && !isChordLine(nextLine)) {
+            const chordLine = line;
+            const lyricLine = nextLine;
+            
+            // Quebra as duas linhas juntas no mesmo índice
+            for (let charIdx = 0; charIdx < Math.max(chordLine.length, lyricLine.length); charIdx += charLimit) {
+              checkColumnAndPage();
+              
+              // Parte da Cifra
+              const chordChunk = chordLine.substring(charIdx, charIdx + charLimit);
+              if (chordChunk.trim() !== "" || chordLine.length > charIdx) {
+                doc.setTextColor(37, 99, 235); // Azul para cifras
+                doc.text(chordChunk, currentX, currentY);
+                currentY += 4.5;
+              }
+              
+              // Parte da Letra
+              const lyricChunk = lyricLine.substring(charIdx, charIdx + charLimit);
+              doc.setTextColor(0, 0, 0); // Preto para letras
+              doc.text(lyricChunk, currentX, currentY);
+              currentY += 6; // Espaço entre versos
             }
-            doc.text(subLine, currentX, currentY);
-            currentY += 5.5;
+            i += 2; // Pula as duas linhas processadas
+          } else {
+            // Linha avulsa (só letra ou só cifra sem par)
+            const wrappedLine = doc.splitTextToSize(line, 85);
+            wrappedLine.forEach((l: string) => {
+              checkColumnAndPage();
+              doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
+              doc.text(l, currentX, currentY);
+              currentY += 5.5;
+            });
+            i++;
           }
-        });
-
-        emptyLineCount = 0;
-      });
+          emptyLineCount = 0;
+        }
+      }
 
       const fileName = "repertorio.pdf";
       if (action === 'download') {
@@ -115,18 +143,18 @@ export default function PromptLabPage() {
         const pdfBlob = doc.output('blob');
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Repertório' }).catch(() => doc.save(fileName));
+          await navigator.share({ files: [file], title: 'Meu Repertório' }).catch(() => doc.save(fileName));
         } else {
           doc.save(fileName);
         }
       }
     } catch (err) {
-      alert("Erro na geração. Tente reduzir o texto.");
+      alert("Erro na geração. Verifique o conteúdo.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-sans p-4 selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#020617] text-white font-sans p-4">
       <style jsx global>{`
         .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
@@ -147,14 +175,14 @@ export default function PromptLabPage() {
             <section className="panel border-l-4 border-green-500">
               <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório</h2>
               <div className="mb-6">
-                <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline flex items-center gap-1 mb-2">
+                <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline mb-2 block">
                   {showInstructions ? "🔼 Ocultar" : "🔽 Instruções de Uso"}
                 </button>
                 {showInstructions && (
                   <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
-                    <p className="mb-2"><strong>1. Títulos:</strong> A primeira linha e textos após 3 "Enters" viram títulos.</p>
-                    <p className="mb-2"><strong>2. Auto-Página:</strong> O sistema gera novas páginas sozinho conforme o texto cresce.</p>
-                    <p><strong>3. Auto-Quebra:</strong> Linhas compridas são quebradas automaticamente para não invadir colunas.</p>
+                    <p className="mb-2"><strong>1. Alinhamento:</strong> Cifras e letras são sincronizadas automaticamente na quebra.</p>
+                    <p className="mb-2"><strong>2. Títulos:</strong> Primeira linha e textos após 3 "Enters" viram títulos.</p>
+                    <p><strong>3. Auto-Página:</strong> O sistema cuida das quebras de coluna e página para você.</p>
                   </div>
                 )}
               </div>
