@@ -171,8 +171,14 @@ export default function PromptLabPage() {
       } else {
         const pdfBlob = doc.output('blob');
         const file = new File([pdfBlob], fName, { type: 'application/pdf' });
+        
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Repertório' }).catch(() => doc.save(fName));
+          // A LEGENDA FOI ADICIONADA AQUI!
+          await navigator.share({ 
+            files: [file], 
+            title: 'Repertório Digital',
+            text: 'Crie o seu repertório digital no promptlabbrasil.com.br'
+          }).catch(() => doc.save(fName));
         } else {
           doc.save(fName);
         }
@@ -193,7 +199,6 @@ export default function PromptLabPage() {
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-blue { background: #2563eb; color: white; }
         
-        /* Estilos do Scrollbar para o Modal */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
