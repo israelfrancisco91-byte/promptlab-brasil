@@ -8,7 +8,7 @@ export default function PromptLabPage() {
   const [repertoire, setRepertoire] = useState("")
   const [repertoireHeader, setRepertoireHeader] = useState("")
 
-  // DETECTOR DE CIFRAS (Aprimorado)
+  // DETECTOR DE CIFRAS (Versão ultra-compatível)
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 100) return false;
@@ -20,9 +20,7 @@ export default function PromptLabPage() {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
-      
-      // Limite de caracteres para Courier Bold 10pt em uma coluna de 85mm
-      const charLimit = 42; 
+      const charLimit = 42; // Limite de caracteres para Courier Bold 10pt em 85mm
       
       if (!repertoire.trim()) return alert("O campo está vazio!");
 
@@ -32,25 +30,24 @@ export default function PromptLabPage() {
       let isNextLineTitle = true;
 
       const drawFixedElements = (pdfDoc: jsPDF) => {
+        pdfDoc.setFont("helvetica", "bold");
+        pdfDoc.setFontSize(10);
         if (repertoireHeader) {
-          pdfDoc.setFont("helvetica", "bold");
-          pdfDoc.setFontSize(10);
           pdfDoc.setTextColor(100, 116, 139);
           pdfDoc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
           pdfDoc.setDrawColor(220, 220, 220);
           pdfDoc.line(15, 15, 195, 15);
         }
-        pdfDoc.setFont("helvetica", "bold");
-        pdfDoc.setFontSize(10);
         pdfDoc.setTextColor(150, 150, 150);
         pdfDoc.text(watermark, 105, 290, { align: "center" });
       };
 
-      const checkColumnAndPage = () => {
-        if (currentX === 15 && currentY > 282) {
+      // Função de verificação de espaço com "margem de segurança"
+      const checkSpace = (needed: number) => {
+        if (currentX === 15 && (currentY + needed) > 282) {
           currentX = 110;
           currentY = 32;
-        } else if (currentX === 110 && currentY > 275) {
+        } else if (currentX === 110 && (currentY + needed) > 275) {
           doc.addPage();
           drawFixedElements(doc);
           currentX = 15;
@@ -83,7 +80,7 @@ export default function PromptLabPage() {
           
           const wrappedTitle = doc.splitTextToSize(line, 85);
           wrappedTitle.forEach((t: string) => {
-            checkColumnAndPage();
+            checkSpace(8);
             doc.text(t.toUpperCase().trim(), currentX, currentY);
             currentY += 7.5;
           });
@@ -97,36 +94,39 @@ export default function PromptLabPage() {
 
           const nextLine = lines[i + 1] || "";
           
-          // LÓGICA DE SINCRONIA: Cifra + Letra
+          // LÓGICA DE SINCRONIA: Cifra + Letra (Trata como um bloco único)
           if (isChordLine(line) && nextLine.trim() !== "" && !isChordLine(nextLine)) {
             const chordLine = line;
             const lyricLine = nextLine;
             
-            // Quebra as duas linhas juntas no mesmo índice
             for (let charIdx = 0; charIdx < Math.max(chordLine.length, lyricLine.length); charIdx += charLimit) {
-              checkColumnAndPage();
+              // Verifica se há espaço para o bloco (Cifra + Letra = ~11mm)
+              checkSpace(11);
               
-              // Parte da Cifra
               const chordChunk = chordLine.substring(charIdx, charIdx + charLimit);
-              if (chordChunk.trim() !== "" || chordLine.length > charIdx) {
-                doc.setTextColor(37, 99, 235); // Azul para cifras
-                doc.text(chordChunk, currentX, currentY);
-                currentY += 4.5;
-              }
-              
-              // Parte da Letra
               const lyricChunk = lyricLine.substring(charIdx, charIdx + charLimit);
-              doc.setTextColor(0, 0, 0); // Preto para letras
+
+              // Imprime Cifra
+              doc.setTextColor(37, 99, 235);
+              doc.text(chordChunk, currentX, currentY);
+              currentY += 4.5;
+              
+              // Imprime Letra
+              doc.setTextColor(0, 0, 0);
               doc.text(lyricChunk, currentX, currentY);
-              currentY += 6; // Espaço entre versos
+              currentY += 6; 
             }
-            i += 2; // Pula as duas linhas processadas
+            i += 2; 
           } else {
-            // Linha avulsa (só letra ou só cifra sem par)
+            // Linha avulsa (Só letra ou só cifra)
             const wrappedLine = doc.splitTextToSize(line, 85);
             wrappedLine.forEach((l: string) => {
-              checkColumnAndPage();
-              doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
+              checkSpace(6);
+              if (isChordLine(line)) {
+                doc.setTextColor(37, 99, 235);
+              } else {
+                doc.setTextColor(0, 0, 0);
+              }
               doc.text(l, currentX, currentY);
               currentY += 5.5;
             });
@@ -149,12 +149,13 @@ export default function PromptLabPage() {
         }
       }
     } catch (err) {
-      alert("Erro na geração. Verifique o conteúdo.");
+      alert("Houve um erro na geração. Verifique se o texto possui caracteres muito incomuns.");
+      console.error(err);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-sans p-4">
+    <div className="min-h-screen bg-[#020617] text-white font-sans p-4 selection:bg-blue-500/30">
       <style jsx global>{`
         .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
@@ -180,9 +181,9 @@ export default function PromptLabPage() {
                 </button>
                 {showInstructions && (
                   <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
-                    <p className="mb-2"><strong>1. Alinhamento:</strong> Cifras e letras são sincronizadas automaticamente na quebra.</p>
+                    <p className="mb-2"><strong>1. Alinhamento:</strong> Cifras e letras agora quebram juntas para manter a posição.</p>
                     <p className="mb-2"><strong>2. Títulos:</strong> Primeira linha e textos após 3 "Enters" viram títulos.</p>
-                    <p><strong>3. Auto-Página:</strong> O sistema cuida das quebras de coluna e página para você.</p>
+                    <p><strong>3. Auto-Página:</strong> O sistema organiza as colunas e páginas automaticamente.</p>
                   </div>
                 )}
               </div>
@@ -198,7 +199,7 @@ export default function PromptLabPage() {
             <section className="panel h-full flex flex-col sticky top-6">
               <label>Visualização em Tempo Real</label>
               <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-mono text-sm leading-relaxed text-slate-300 min-h-[450px] whitespace-pre-wrap overflow-y-auto">
-                {repertoire || "Digite suas músicas..."}
+                {repertoire || "Aguardando conteúdo..."}
               </div>
             </section>
           </div>
