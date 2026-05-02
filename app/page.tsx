@@ -10,7 +10,7 @@ export default function PromptLabPage() {
 
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.length > 100) return false;
+    if (!trimmed || trimmed.length > 120) return false;
     const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?|INTRO:|REFRÃO:|PONTE:|SOLO:|VAMP:|\(|\)|\||\d|\+)(\s+|$))+$/i;
     return chordPattern.test(line);
   };
@@ -29,21 +29,18 @@ export default function PromptLabPage() {
       let isNextLineTitle = true;
 
       const drawFixedElements = (pdfDoc: jsPDF) => {
-        // Cabeçalho
+        pdfDoc.setTextColor(150, 150, 150);
+        pdfDoc.setFont("helvetica", "bold");
+        pdfDoc.setFontSize(10);
+        pdfDoc.text(watermark, 105, 290, { align: "center" });
+
         if (repertoireHeader) {
-          pdfDoc.setFont("helvetica", "bold");
-          pdfDoc.setFontSize(10);
           pdfDoc.setTextColor(100, 116, 139);
           pdfDoc.text(repertoireHeader.toUpperCase(), 105, 12, { align: "center" });
           pdfDoc.setDrawColor(220, 220, 220);
           pdfDoc.line(15, 15, 195, 15);
         }
-        // Marca d'água
-        pdfDoc.setFont("helvetica", "bold");
-        pdfDoc.setFontSize(10);
-        pdfDoc.setTextColor(150, 150, 150);
-        pdfDoc.text(watermark, 105, 290, { align: "center" });
-        // Reset crucial para evitar transparência/cinza no texto
+        // Reset obrigatório para PRETO antes de qualquer texto
         pdfDoc.setTextColor(0, 0, 0);
       };
 
@@ -51,6 +48,7 @@ export default function PromptLabPage() {
         if (currentX === 15 && (currentY + needed) > 282) {
           currentX = 110;
           currentY = 32;
+          doc.setTextColor(0, 0, 0);
         } else if (currentX === 110 && (currentY + needed) > 275) {
           doc.addPage();
           drawFixedElements(doc);
@@ -66,93 +64,95 @@ export default function PromptLabPage() {
 
       while (i < lines.length) {
         const line = lines[i];
-        const trimmed = line.trim();
-
-        if (trimmed === "") {
+        if (line.trim() === "") {
           emptyLineCount++;
           currentY += 2.5;
           i++;
           continue;
         }
 
-        const isTitle = isNextLineTitle || emptyLineCount >= 2;
-        
-        if (isTitle) {
-          doc.setTextColor(0, 0, 0);
+        if (isNextLineTitle || emptyLineCount >= 2) {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
+          doc.setTextColor(0, 0, 0);
           
           const wrappedTitle = doc.splitTextToSize(line, 85);
           wrappedTitle.forEach((t: string) => {
             checkSpace(8);
             doc.text(t.toUpperCase().trim(), currentX, currentY);
-            currentY += 7.5;
+            currentY += 8;
           });
-          
           isNextLineTitle = false;
           emptyLineCount = 0;
           i++;
         } else {
           doc.setFont("courier", "bold");
           doc.setFontSize(10);
-          doc.setTextColor(0, 0, 0);
 
           let chordLine = line;
           let lyricLine = lines[i + 1] || "";
           
           if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
-            // Bloco Sincronizado
+            // BLOCO SINCRONIZADO
             while (chordLine.length > 0 || lyricLine.length > 0) {
-              checkSpace(11);
-              
-              // Encontra o ponto de quebra ideal (espaço)
+              checkSpace(12);
+              doc.setFont("courier", "bold");
+              doc.setFontSize(10);
+
               let breakIdx = charLimit;
-              if (Math.max(chordLine.length, lyricLine.length) > charLimit) {
-                const tempLyric = lyricLine.substring(0, charLimit + 1);
-                const lastSpace = tempLyric.lastIndexOf(' ');
-                if (lastSpace > 0) breakIdx = lastSpace;
+              const maxLen = Math.max(chordLine.length, lyricLine.length);
+              
+              if (maxLen > charLimit) {
+                // Busca espaço para não quebrar palavras
+                const lastSpace = lyricLine.lastIndexOf(' ', charLimit);
+                const lastSpaceChord = chordLine.lastIndexOf(' ', charLimit);
+                const bestSpace = Math.max(lastSpace, lastSpaceChord);
+                if (bestSpace > charLimit * 0.6) breakIdx = bestSpace;
               } else {
-                breakIdx = Math.max(chordLine.length, lyricLine.length);
+                breakIdx = maxLen;
               }
 
-              const chordChunk = chordLine.substring(0, breakIdx);
-              const lyricChunk = lyricLine.substring(0, breakIdx);
+              if (breakIdx <= 0) breakIdx = charLimit;
 
-              // Desenha Cifra
-              if (chordChunk.trim() !== "") {
+              const cChunk = chordLine.substring(0, breakIdx);
+              const lChunk = lyricLine.substring(0, breakIdx);
+
+              if (cChunk.trim() !== "") {
                 doc.setTextColor(37, 99, 235);
-                doc.text(chordChunk, currentX, currentY);
+                doc.text(cChunk, currentX, currentY);
                 currentY += 4.5;
               }
-              
-              // Desenha Letra
               doc.setTextColor(0, 0, 0);
-              doc.text(lyricChunk.trimEnd(), currentX, currentY);
-              currentY += 6;
+              doc.text(lChunk, currentX, currentY);
+              currentY += 6.5;
 
-              // Remove o que já foi desenhado
-              chordLine = chordLine.substring(breakIdx).trimStart();
-              lyricLine = lyricLine.substring(breakIdx).trimStart();
+              chordLine = chordLine.substring(breakIdx).replace(/^\s/, '');
+              lyricLine = lyricLine.substring(breakIdx).replace(/^\s/, '');
             }
             i += 2; 
           } else {
-            // Linha avulsa com Smart Wrap
+            // LINHA AVULSA
             let remaining = line;
             while (remaining.length > 0) {
               checkSpace(6);
+              doc.setFont("courier", "bold");
+              doc.setFontSize(10);
+
               let breakIdx = charLimit;
               if (remaining.length > charLimit) {
-                const lastSpace = remaining.substring(0, charLimit + 1).lastIndexOf(' ');
-                if (lastSpace > 0) breakIdx = lastSpace;
+                const lastSpace = remaining.lastIndexOf(' ', charLimit);
+                if (lastSpace > charLimit * 0.6) breakIdx = lastSpace;
               } else {
                 breakIdx = remaining.length;
               }
 
+              if (breakIdx <= 0) breakIdx = charLimit;
+
               const chunk = remaining.substring(0, breakIdx);
               doc.setTextColor(isChordLine(line) ? [37, 99, 235] : [0, 0, 0]);
-              doc.text(chunk.trimEnd(), currentX, currentY);
+              doc.text(chunk, currentX, currentY);
               currentY += 5.5;
-              remaining = remaining.substring(breakIdx).trimStart();
+              remaining = remaining.substring(breakIdx).replace(/^\s/, '');
             }
             i++;
           }
@@ -160,20 +160,20 @@ export default function PromptLabPage() {
         }
       }
 
-      const fileName = "repertorio.pdf";
+      const fName = "repertorio.pdf";
       if (action === 'download') {
-        doc.save(fileName);
+        doc.save(fName);
       } else {
         const pdfBlob = doc.output('blob');
-        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        const file = new File([pdfBlob], fName, { type: 'application/pdf' });
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Meu Repertório' }).catch(() => doc.save(fileName));
+          await navigator.share({ files: [file], title: 'Repertório' }).catch(() => doc.save(fName));
         } else {
-          doc.save(fileName);
+          doc.save(fName);
         }
       }
     } catch (err) {
-      alert("Houve um erro na geração do PDF.");
+      alert("Erro na geração do PDF. Verifique se o texto é muito longo.");
     }
   };
 
@@ -200,27 +200,27 @@ export default function PromptLabPage() {
               <h2 className="text-xl font-black mb-4 flex items-center gap-2">📚 Repertório</h2>
               <div className="mb-6">
                 <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline mb-2 block">
-                  {showInstructions ? "🔼 Ocultar" : "🔽 Instruções de Uso"}
+                  {showInstructions ? "🔼 Ocultar" : "🔽 Instruções"}
                 </button>
                 {showInstructions && (
-                  <div className="bg-black/30 p-4 rounded-lg border border-green-900/50 text-xs text-slate-300 leading-relaxed">
-                    <p className="mb-2"><strong>1. Títulos:</strong> O primeiro título da página agora sai sempre em preto sólido.</p>
-                    <p className="mb-2"><strong>2. Quebra de Linha:</strong> Palavras não são mais cortadas ao meio na troca de linha.</p>
-                    <p><strong>3. Sincronia:</strong> Cifras acompanham a quebra das palavras automaticamente.</p>
+                  <div className="bg-black/30 p-4 rounded text-xs text-slate-300 leading-relaxed">
+                    <p><strong>1. Sincronia:</strong> Cifras e letras quebram juntas sem cortar palavras.</p>
+                    <p><strong>2. Cores:</strong> Títulos saem em preto nítido, mesmo no topo da página.</p>
+                    <p><strong>3. Auto-Página:</strong> Tudo é organizado automaticamente em colunas.</p>
                   </div>
                 )}
               </div>
-              <label>Título do Cabeçalho</label>
+              <label>Cabeçalho do PDF</label>
               <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo" />
               <label>Letras e Cifras</label>
               <textarea rows={12} value={repertoire} onChange={(e) => setRepertoire(e.target.value)} placeholder="Título da Música..." className="text-sm font-mono" />
-              <button onClick={() => processPDF('download')} className="btn btn-green">📄 Gerar PDF do Repertório</button>
-              <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Compartilhar no WhatsApp</button>
+              <button onClick={() => processPDF('download')} className="btn btn-green">📄 Gerar PDF</button>
+              <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Compartilhar WhatsApp</button>
             </section>
           </div>
-          <div className="space-y-6">
+          <div className="space-y-6 hidden lg:block">
             <section className="panel h-full flex flex-col sticky top-6">
-              <label>Visualização em Tempo Real</label>
+              <label>Visualização</label>
               <div className="flex-1 bg-black/40 rounded-xl p-6 border border-slate-800 font-mono text-sm leading-relaxed text-slate-300 min-h-[450px] whitespace-pre-wrap overflow-y-auto">
                 {repertoire || "Aguardando conteúdo..."}
               </div>
