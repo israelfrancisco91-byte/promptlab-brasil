@@ -47,7 +47,7 @@ export default function PromptLabPage() {
     return chordPattern.test(line);
   };
 
-  // --- MOTOR DE TRANSPOSIÇÃO MUSICAL ---
+  // --- MOTOR DE TRANSPOSIÇÃO MUSICAL (CORRIGIDO) ---
   const transposeSong = (index: number, steps: number) => {
     const scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const flatToSharp: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
@@ -58,19 +58,23 @@ export default function PromptLabPage() {
     const transposedLines = lines.map(line => {
       if (!isChordLine(line)) return line;
 
-      // Encontra e transpõe apenas os acordes
-      return line.replace(/\b([A-G][b#]?)(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?\b/g, (match, root, suffix, bass) => {
+      // Expressão Regular blindada: Captura o sustenido/bemol perfeitamente sem deixar "restos"
+      return line.replace(/(^|[\s()|])([A-G][b#]?)([^\s()|/]*)(?:\/([A-G][b#]?))?(?=[\s()|]|$)/g, (match, prefix, root, suffix, bass) => {
         const getNewNote = (note: string) => {
-          const n = flatToSharp[note] || note;
+          if (!note) return '';
+          const n = flatToSharp[note] || note; // Converte bemol pra sustenido pra facilitar o cálculo
           const idx = scale.indexOf(n);
           if (idx === -1) return note;
+          // Matemática circular da escala musical (0 a 11)
           const newIdx = (idx + steps + 12) % 12;
           return scale[newIdx];
         };
 
         const newRoot = getNewNote(root);
-        const newBass = bass ? '/' + getNewNote(bass.substring(1)) : '';
-        return newRoot + (suffix || '') + newBass;
+        const newBass = bass ? '/' + getNewNote(bass) : '';
+        
+        // Remonta o acorde transposto com os sufixos (ex: m7, 9, dim)
+        return prefix + newRoot + (suffix || '') + newBass;
       });
     });
 
