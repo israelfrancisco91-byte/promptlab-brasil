@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { jsPDF } from "jspdf"
 
-// Definimos o que é uma Música no sistema
 interface Song {
   id: string;
   title: string;
@@ -14,14 +13,9 @@ export default function PromptLabPage() {
   const [showInstructions, setShowInstructions] = useState(false)
   const [repertoireHeader, setRepertoireHeader] = useState("")
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null)
-  
-  // Agora o estado não é mais um texto gigante, mas uma LISTA de músicas
   const [songs, setSongs] = useState<Song[]>([{ id: 'init-1', title: "", content: "" }])
 
-  // Funções para gerenciar os Cards
-  const addSong = () => {
-    setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
-  }
+  const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
 
   const updateSong = (index: number, field: 'title' | 'content', value: string) => {
     const newSongs = [...songs];
@@ -31,7 +25,6 @@ export default function PromptLabPage() {
 
   const removeSong = (index: number) => {
     if (songs.length === 1) {
-      // Se for a última, apenas limpa
       setSongs([{ id: Date.now().toString(), title: "", content: "" }]);
       return;
     }
@@ -41,21 +34,48 @@ export default function PromptLabPage() {
   const moveSong = (index: number, direction: 'up' | 'down') => {
     if (direction === 'up' && index === 0) return;
     if (direction === 'down' && index === songs.length - 1) return;
-    
     const newSongs = [...songs];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
-    // Troca as músicas de posição
     [newSongs[index], newSongs[targetIndex]] = [newSongs[targetIndex], newSongs[index]];
     setSongs(newSongs);
   }
 
-  // O nosso confiável detector de cifras
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 120) return false;
     const chordPattern = /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?|INTRO:|REFRÃO:|PONTE:|SOLO:|VAMP:|\(|\)|\||\d|\+)(\s+|$))+$/i;
     return chordPattern.test(line);
+  };
+
+  // --- MOTOR DE TRANSPOSIÇÃO MUSICAL ---
+  const transposeSong = (index: number, steps: number) => {
+    const scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const flatToSharp: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
+
+    const newSongs = [...songs];
+    const lines = newSongs[index].content.split('\n');
+
+    const transposedLines = lines.map(line => {
+      if (!isChordLine(line)) return line;
+
+      // Encontra e transpõe apenas os acordes
+      return line.replace(/\b([A-G][b#]?)(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?\b/g, (match, root, suffix, bass) => {
+        const getNewNote = (note: string) => {
+          const n = flatToSharp[note] || note;
+          const idx = scale.indexOf(n);
+          if (idx === -1) return note;
+          const newIdx = (idx + steps + 12) % 12;
+          return scale[newIdx];
+        };
+
+        const newRoot = getNewNote(root);
+        const newBass = bass ? '/' + getNewNote(bass.substring(1)) : '';
+        return newRoot + (suffix || '') + newBass;
+      });
+    });
+
+    newSongs[index].content = transposedLines.join('\n');
+    setSongs(newSongs);
   };
 
   const processPDF = async (action: 'download' | 'share') => {
@@ -100,11 +120,9 @@ export default function PromptLabPage() {
 
       drawFixedElements(doc);
 
-      // NOVO MOTOR: Mais simples e à prova de falhas
       songs.forEach((song) => {
         if (!song.title.trim() && !song.content.trim()) return;
 
-        // 1. Imprime o Título (Se houver)
         if (song.title.trim() !== "") {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
@@ -118,14 +136,13 @@ export default function PromptLabPage() {
           });
         }
 
-        // 2. Imprime a Letra/Cifra usando a mesma lógica blindada
         const lines = song.content.split('\n');
         let j = 0;
 
         while (j < lines.length) {
           const line = lines[j];
           if (line.trim() === "") {
-            currentY += 2.5; // Apenas adiciona espaço vertical
+            currentY += 2.5; 
             j++;
             continue;
           }
@@ -137,7 +154,6 @@ export default function PromptLabPage() {
           let lyricLine = lines[j + 1] || "";
           
           if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
-            // BLOCO SINCRONIZADO
             while (chordLine.length > 0 || lyricLine.length > 0) {
               checkSpace(12);
               doc.setFont("courier", "bold");
@@ -174,7 +190,6 @@ export default function PromptLabPage() {
             }
             j += 2; 
           } else {
-            // LINHA AVULSA
             let remaining = line;
             while (remaining.length > 0) {
               checkSpace(6);
@@ -206,8 +221,6 @@ export default function PromptLabPage() {
             j++;
           }
         }
-        
-        // Espaçamento extra no fim de cada música
         currentY += 6;
       });
 
@@ -250,6 +263,8 @@ export default function PromptLabPage() {
         .btn-blue:hover { background: #1d4ed8; }
         .btn-icon { background: #334155; color: white; border: none; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
         .btn-icon:hover { background: #475569; }
+        .btn-transpose { background: #475569; font-size: 0.7rem; font-weight: bold; border-radius: 6px; padding: 0 8px; height: 32px; transition: 0.2s; }
+        .btn-transpose:hover { background: #3b82f6; }
         .btn-danger { background: #ef4444; }
         .btn-danger:hover { background: #b91c1c; }
         
@@ -276,8 +291,8 @@ export default function PromptLabPage() {
           {showInstructions && (
             <div className="bg-black/30 p-4 rounded text-xs text-slate-300 leading-relaxed space-y-2 mb-6">
               <p><strong>1. Nova Organização:</strong> Cada música agora tem o seu próprio bloco (Card). Escreva o título no campo menor e cole a letra no campo maior.</p>
-              <p><strong>2. Reordenar:</strong> Use as setas (⬆️ ⬇️) para mudar a ordem das músicas no seu PDF final.</p>
-              <p><strong>3. Sincronia:</strong> Cifras e letras continuam sendo alinhadas e coloridas automaticamente no PDF.</p>
+              <p><strong>2. Transposição:</strong> Use os botões "-½" e "+½" na barra de cada música para mudar o tom automaticamente (afeta apenas as linhas com cifras).</p>
+              <p><strong>3. Reordenar:</strong> Use as setas (⬆️ ⬇️) para mudar a ordem das músicas no seu PDF final.</p>
             </div>
           )}
           
@@ -294,8 +309,8 @@ export default function PromptLabPage() {
           <div className="space-y-4 mb-6">
             {songs.map((song, index) => (
               <div key={song.id} className="card relative group">
-                <div className="flex justify-between items-start gap-4 mb-3">
-                  <div className="flex-1">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3">
+                  <div className="flex-1 w-full">
                     <label className="!mb-1 text-slate-400">Título da Música {index + 1}</label>
                     <input 
                       value={song.title}
@@ -304,7 +319,13 @@ export default function PromptLabPage() {
                       className="!mb-0 !bg-[#0f172a] font-bold"
                     />
                   </div>
-                  <div className="flex gap-2 pt-5">
+                  
+                  <div className="flex gap-2 w-full md:w-auto md:pt-5 justify-end">
+                    {/* Botões de Transposição */}
+                    <button onClick={() => transposeSong(index, -1)} className="btn-transpose" title="Abaixar meio tom">-½ Tom</button>
+                    <button onClick={() => transposeSong(index, 1)} className="btn-transpose mr-2" title="Subir meio tom">+½ Tom</button>
+                    
+                    {/* Botões de Ordem e Excluir */}
                     <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30" title="Mover para cima">⬆️</button>
                     <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30" title="Mover para baixo">⬇️</button>
                     <button onClick={() => removeSong(index)} className="btn-icon btn-danger" title="Excluir música">🗑️</button>
@@ -312,12 +333,11 @@ export default function PromptLabPage() {
                 </div>
                 
                 <div>
-                  <label className="!mb-1 text-slate-400">Letra e Cifras</label>
                   <textarea 
                     rows={8} 
                     value={song.content}
                     onChange={(e) => updateSong(index, 'content', e.target.value)}
-                    placeholder="Cole as estrofes e refrões aqui..."
+                    placeholder="Cole as estrofes e refrões cifrados aqui..."
                     className="!mb-0 text-sm font-mono !bg-[#0f172a]"
                   />
                 </div>
