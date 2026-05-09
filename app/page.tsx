@@ -268,7 +268,6 @@ export default function PromptLabPage() {
     
     if (originalIdx === -1 || shapeIdx === -1) return 0;
     
-    // Calcula a distância de semitons (casas do violão)
     return (originalIdx - shapeIdx + 12) % 12;
   };
 
@@ -300,7 +299,6 @@ export default function PromptLabPage() {
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        /* Estilos do Menu e Botões de Nota */
         .nav-tab { padding: 12px 24px; font-weight: 800; text-transform: uppercase; font-size: 0.85rem; border-radius: 8px; cursor: pointer; transition: 0.2s; flex: 1; text-align: center; }
         .nav-tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
         .nav-tab.inactive { background: transparent; color: #94a3b8; border: 1px solid transparent; }
@@ -315,7 +313,6 @@ export default function PromptLabPage() {
         <h1 className="text-5xl font-black tracking-tighter mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
         <p className="text-slate-400 font-medium mb-8">Ferramentas Profissionais para Músicos</p>
         
-        {/* MENU SUPERIOR (TABS) */}
         <div className="flex bg-[#0f172a] p-2 rounded-xl border border-slate-800 gap-2">
           <button 
             className={`nav-tab ${activeTab === 'setlist' ? 'active' : 'inactive'}`}
@@ -334,9 +331,6 @@ export default function PromptLabPage() {
 
       <main className="max-w-3xl mx-auto space-y-6">
         
-        {/* ========================================= */}
-        {/* ABA 1: CONSTRUTOR DE REPERTÓRIO (O SEU ORIGINAL) */}
-        {/* ========================================= */}
         {activeTab === 'setlist' && (
           <section className="panel border-l-4 border-green-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="flex justify-between items-center mb-6">
@@ -414,9 +408,6 @@ export default function PromptLabPage() {
           </section>
         )}
 
-        {/* ========================================= */}
-        {/* ABA 2: CALCULADORA DE CAPOTRASTE (NOVA) */}
-        {/* ========================================= */}
         {activeTab === 'capo' && (
           <section className="panel border-l-4 border-purple-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="mb-6 border-b border-slate-800 pb-4">
@@ -426,7 +417,6 @@ export default function PromptLabPage() {
 
             <div className="grid md:grid-cols-2 gap-8 mb-8">
               
-              {/* PASSO 1: Tom Original */}
               <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
                 <label className="text-blue-400">1. Tom da Música (Cantor)</label>
                 <p className="text-xs text-slate-400 mb-4">Em qual tom a música está gravada ou vai ser cantada?</p>
@@ -443,7 +433,6 @@ export default function PromptLabPage() {
                 </div>
               </div>
 
-              {/* PASSO 2: Shape Desejado */}
               <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
                 <label className="text-purple-400">2. Acordes que quero fazer (Shape)</label>
                 <p className="text-xs text-slate-400 mb-4">Quais acordes você quer bater no violão? (Ex: C, G, D)</p>
@@ -462,7 +451,6 @@ export default function PromptLabPage() {
 
             </div>
 
-            {/* RESULTADO (VISOR GRANDE) */}
             <div className={`p-8 rounded-xl text-center border-2 transition-all duration-500 ${
               capoResult === 0 
                 ? 'bg-slate-800/50 border-slate-700' 
@@ -490,6 +478,23 @@ export default function PromptLabPage() {
         )}
 
       </main>
+
+      {/* ========================================= */}
+      {/* SEÇÃO SEO PARA O GOOGLE ADSENSE (NOVO) */}
+      {/* ========================================= */}
+      <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+        <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
+        <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
+        
+        <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
+        <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
+        
+        <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
+        <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
+
+        <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
+        <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
+      </section>
 
       {/* RODAPÉ ADSENSE COMPLIANCE */}
       <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
