@@ -9,8 +9,18 @@ interface Song {
   content: string;
 }
 
+// Nova interface para a Biblioteca
+interface SavedRepertoire {
+  id: string;
+  name: string;
+  date: string;
+  header: string;
+  songs: Song[];
+}
+
 export default function PromptLabPage() {
-  const [activeTab, setActiveTab] = useState<'setlist' | 'capo'>('setlist')
+  // Agora temos 3 abas
+  const [activeTab, setActiveTab] = useState<'setlist' | 'capo' | 'library'>('setlist')
 
   const [showInstructions, setShowInstructions] = useState(false)
   const [repertoireHeader, setRepertoireHeader] = useState("")
@@ -21,22 +31,27 @@ export default function PromptLabPage() {
   const [shapeTone, setShapeTone] = useState('D')
   const notesArray = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
 
+  // Estado da Biblioteca
+  const [savedRepertoires, setSavedRepertoires] = useState<SavedRepertoire[]>([])
+
+  // 1. Carrega os dados salvos do rascunho atual E da biblioteca
   useEffect(() => {
     const savedSongs = localStorage.getItem('promptlab_songs')
     const savedHeader = localStorage.getItem('promptlab_header')
+    const savedLibrary = localStorage.getItem('promptlab_library')
     
     if (savedSongs) {
-      try {
-        setSongs(JSON.parse(savedSongs))
-      } catch (e) {
-        console.error("Erro ao carregar o repertório", e)
-      }
+      try { setSongs(JSON.parse(savedSongs)) } catch (e) { console.error(e) }
     }
     if (savedHeader) {
       setRepertoireHeader(savedHeader)
     }
+    if (savedLibrary) {
+      try { setSavedRepertoires(JSON.parse(savedLibrary)) } catch (e) { console.error(e) }
+    }
   }, [])
 
+  // 2. Salva automaticamente o rascunho atual
   useEffect(() => {
     localStorage.setItem('promptlab_songs', JSON.stringify(songs))
   }, [songs])
@@ -45,6 +60,54 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_header', repertoireHeader)
   }, [repertoireHeader])
 
+  // 3. Salva a biblioteca sempre que ela for atualizada
+  useEffect(() => {
+    localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
+  }, [savedRepertoires])
+
+
+  // --- FUNÇÕES DA BIBLIOTECA (NOVAS) ---
+  const saveToLibrary = () => {
+    const defaultName = repertoireHeader || `Repertório ${new Date().toLocaleDateString('pt-BR')}`
+    const name = window.prompt("Dê um nome para salvar este repertório:", defaultName)
+    
+    if (!name) return; // Usuário cancelou
+
+    const newRep: SavedRepertoire = {
+      id: Date.now().toString(),
+      name: name,
+      date: new Date().toLocaleDateString('pt-BR'),
+      header: repertoireHeader,
+      songs: [...songs] // Cria uma cópia das músicas atuais
+    }
+    
+    setSavedRepertoires([...savedRepertoires, newRep])
+    alert("✅ Repertório salvo na sua biblioteca com sucesso!")
+  }
+
+  const loadFromLibrary = (rep: SavedRepertoire) => {
+    if (window.confirm("Atenção: Carregar este repertório vai substituir o que está na tela agora. Deseja continuar?")) {
+      setSongs(rep.songs)
+      setRepertoireHeader(rep.header)
+      setActiveTab('setlist')
+    }
+  }
+
+  const deleteFromLibrary = (id: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este repertório salvo?")) {
+      setSavedRepertoires(savedRepertoires.filter(r => r.id !== id))
+    }
+  }
+
+  const clearCurrentSetlist = () => {
+    if (window.confirm("Deseja limpar a tela para começar um repertório do zero?")) {
+      setSongs([{ id: Date.now().toString(), title: "", content: "" }])
+      setRepertoireHeader("")
+    }
+  }
+
+
+  // --- FUNÇÕES DO REPERTÓRIO (INTOUCHÁVEIS) ---
   const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
 
   const updateSong = (index: number, field: 'title' | 'content', value: string) => {
@@ -338,7 +401,8 @@ export default function PromptLabPage() {
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        .nav-tab { padding: 12px 24px; font-weight: 800; text-transform: uppercase; font-size: 0.85rem; border-radius: 8px; cursor: pointer; transition: 0.2s; flex: 1; text-align: center; }
+        .nav-tab { padding: 10px 12px; font-weight: 800; text-transform: uppercase; font-size: 0.75rem; border-radius: 8px; cursor: pointer; transition: 0.2s; flex: 1; text-align: center; }
+        @media (min-width: 640px) { .nav-tab { font-size: 0.85rem; padding: 12px 24px; } }
         .nav-tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
         .nav-tab.inactive { background: transparent; color: #94a3b8; border: 1px solid transparent; }
         .nav-tab.inactive:hover { background: #1e293b; color: white; }
@@ -357,29 +421,48 @@ export default function PromptLabPage() {
             className={`nav-tab ${activeTab === 'setlist' ? 'active' : 'inactive'}`}
             onClick={() => setActiveTab('setlist')}
           >
-            📚 Repertório PDF
+            📚 Repertório
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'library' ? 'active' : 'inactive'}`}
+            onClick={() => setActiveTab('library')}
+          >
+            📂 Salvos
           </button>
           <button 
             className={`nav-tab ${activeTab === 'capo' ? 'active' : 'inactive'}`}
             onClick={() => setActiveTab('capo')}
           >
-            🎸 Calculadora Capo
+            🎸 Capo
           </button>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto space-y-6">
         
+        {/* ================= ABA 1: REPERTÓRIO ================= */}
         {activeTab === 'setlist' && (
           <section className="panel border-l-4 border-green-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black flex items-center gap-2">📚 Construtor de PDF</h2>
-              <button 
-                onClick={() => setShowInstructions(!showInstructions)} 
-                className="text-xs font-bold bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-full text-slate-300 transition-colors flex items-center gap-2 border border-slate-700"
-              >
-                {showInstructions ? "Ocultar Guia" : "📖 Como usar"}
-              </button>
+            
+            {/* BOTÕES DE AÇÃO: NOVO E SALVAR */}
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-800 pb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black">📚 Construtor de PDF</h2>
+                <button 
+                  onClick={() => setShowInstructions(!showInstructions)} 
+                  className="text-xs text-slate-400 hover:text-white underline ml-2"
+                >
+                  {showInstructions ? "Ocultar" : "Como usar"}
+                </button>
+              </div>
+              <div className="flex w-full sm:w-auto gap-2">
+                <button onClick={clearCurrentSetlist} className="btn-icon !w-auto px-4 !bg-slate-800 hover:!bg-slate-700 text-xs font-bold uppercase" title="Apagar tudo e começar do zero">
+                  📄 Novo
+                </button>
+                <button onClick={saveToLibrary} className="btn-icon !w-auto px-4 !bg-blue-600 hover:!bg-blue-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(37,99,235,0.4)]" title="Salvar este repertório na sua biblioteca">
+                  💾 Salvar Repertório
+                </button>
+              </div>
             </div>
             
             {showInstructions && (
@@ -388,21 +471,15 @@ export default function PromptLabPage() {
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <span className="text-lg">📝</span>
-                    <div>
-                      <strong className="text-blue-400">Adicionar Músicas:</strong> Utilize os blocos individuais para cada canção. Insira o título no campo superior e cole a cifra completa na área de texto. Seu progresso é salvo automaticamente.
-                    </div>
+                    <div><strong className="text-blue-400">Adicionar Músicas:</strong> Utilize os blocos individuais. Insira o título no campo superior e cole a cifra completa na área de texto. Seu progresso é salvo automaticamente.</div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-lg">💾</span>
+                    <div><strong className="text-blue-400">Salvar na Biblioteca:</strong> Use o botão azul "Salvar Repertório" no topo para guardar listas prontas e reutilizá-las no futuro acessando a aba "Salvos".</div>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-lg">🎛️</span>
-                    <div>
-                      <strong className="text-purple-400">Transposição Inteligente:</strong> Altere o tom da música clicando nos botões <span className="bg-slate-700 px-1.5 py-0.5 rounded text-xs">-½ Tom</span> e <span className="bg-slate-700 px-1.5 py-0.5 rounded text-xs">+½ Tom</span>. O sistema ajusta exclusivamente os acordes, preservando a sua letra.
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-lg">🔄</span>
-                    <div>
-                      <strong className="text-green-400">Organização Rápida:</strong> Monte o seu setlist perfeito arrastando as músicas com as setas direcionais (⬆️ ⬇️) para definir a ordem exata de impressão no documento final.
-                    </div>
+                    <div><strong className="text-purple-400">Transposição Inteligente:</strong> Altere o tom da música clicando nos botões -½ Tom e +½ Tom. O sistema ajusta exclusivamente os acordes.</div>
                   </li>
                 </ul>
               </div>
@@ -468,6 +545,54 @@ export default function PromptLabPage() {
           </section>
         )}
 
+        {/* ================= ABA 2: BIBLIOTECA DE SALVOS (NOVA) ================= */}
+        {activeTab === 'library' && (
+          <section className="panel border-l-4 border-blue-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="mb-6 border-b border-slate-800 pb-4">
+              <h2 className="text-xl font-black flex items-center gap-2 mb-2">📂 Meus Repertórios Salvos</h2>
+              <p className="text-slate-400 text-sm">Suas listas ficam armazenadas localmente no seu aparelho para você reutilizar quando quiser.</p>
+            </div>
+
+            {savedRepertoires.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed border-slate-800 rounded-xl">
+                <div className="text-4xl mb-4 opacity-50">📁</div>
+                <h3 className="text-lg font-bold text-slate-300 mb-2">Sua biblioteca está vazia</h3>
+                <p className="text-slate-500 text-sm max-w-sm mx-auto">Vá para a aba "Repertório", monte o seu setlist e clique no botão azul "Salvar Repertório" para guardá-lo aqui.</p>
+                <button onClick={() => setActiveTab('setlist')} className="mt-6 text-blue-400 font-bold hover:underline">Criar meu primeiro repertório &rarr;</button>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {savedRepertoires.map((rep) => (
+                  <div key={rep.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors group">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold text-white text-lg truncate pr-4" title={rep.name}>{rep.name}</h3>
+                      <span className="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded whitespace-nowrap">{rep.date}</span>
+                    </div>
+                    <p className="text-slate-400 text-xs mb-4">Músicas: {rep.songs.length}</p>
+                    
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => loadFromLibrary(rep)} 
+                        className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-4 rounded-lg transition-colors"
+                      >
+                        Carregar e Editar
+                      </button>
+                      <button 
+                        onClick={() => deleteFromLibrary(rep.id)} 
+                        className="bg-slate-700 hover:bg-red-500 text-white p-2 rounded-lg transition-colors"
+                        title="Excluir este repertório"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ================= ABA 3: CAPOTRASTE ================= */}
         {activeTab === 'capo' && (
           <section className="panel border-l-4 border-purple-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="mb-6 border-b border-slate-800 pb-4">
@@ -476,19 +601,12 @@ export default function PromptLabPage() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-8 mb-8">
-              
               <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
                 <label className="text-blue-400">1. Tom da Música (Cantor)</label>
                 <p className="text-xs text-slate-400 mb-4">Em qual tom a música está gravada ou vai ser cantada?</p>
                 <div className="grid grid-cols-4 gap-2">
                   {notesArray.map(note => (
-                    <button 
-                      key={`orig-${note}`}
-                      onClick={() => setOriginalTone(note)}
-                      className={`note-btn ${originalTone === note ? 'active' : ''}`}
-                    >
-                      {note}
-                    </button>
+                    <button key={`orig-${note}`} onClick={() => setOriginalTone(note)} className={`note-btn ${originalTone === note ? 'active' : ''}`}>{note}</button>
                   ))}
                 </div>
               </div>
@@ -498,42 +616,23 @@ export default function PromptLabPage() {
                 <p className="text-xs text-slate-400 mb-4">Quais acordes você quer bater no violão? (Ex: C, G, D)</p>
                 <div className="grid grid-cols-4 gap-2">
                   {notesArray.map(note => (
-                    <button 
-                      key={`shape-${note}`}
-                      onClick={() => setShapeTone(note)}
-                      className={`note-btn ${shapeTone === note ? 'active' : ''}`}
-                    >
-                      {note}
-                    </button>
+                    <button key={`shape-${note}`} onClick={() => setShapeTone(note)} className={`note-btn ${shapeTone === note ? 'active' : ''}`}>{note}</button>
                   ))}
                 </div>
               </div>
-
             </div>
 
-            <div className={`p-8 rounded-xl text-center border-2 transition-all duration-500 ${
-              capoResult === 0 
-                ? 'bg-slate-800/50 border-slate-700' 
-                : 'bg-gradient-to-br from-blue-900/40 to-purple-900/40 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.2)]'
-            }`}>
+            <div className={`p-8 rounded-xl text-center border-2 transition-all duration-500 ${capoResult === 0 ? 'bg-slate-800/50 border-slate-700' : 'bg-gradient-to-br from-blue-900/40 to-purple-900/40 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.2)]'}`}>
               <h3 className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2">Resultado</h3>
-              
               {capoResult === 0 ? (
-                <div className="text-3xl font-black text-slate-300">
-                  Sem Capotraste
-                </div>
+                <div className="text-3xl font-black text-slate-300">Sem Capotraste</div>
               ) : (
                 <div>
-                  <div className="text-4xl md:text-5xl font-black text-white mb-2">
-                    Capo na <span className="text-purple-400">{capoResult}ª</span> Casa
-                  </div>
-                  <p className="text-slate-300 font-medium text-sm">
-                    Tocar usando os acordes de <strong className="text-white">{shapeTone}</strong> vai soar como <strong className="text-white">{originalTone}</strong>.
-                  </p>
+                  <div className="text-4xl md:text-5xl font-black text-white mb-2">Capo na <span className="text-purple-400">{capoResult}ª</span> Casa</div>
+                  <p className="text-slate-300 font-medium text-sm">Tocar usando os acordes de <strong className="text-white">{shapeTone}</strong> vai soar como <strong className="text-white">{originalTone}</strong>.</p>
                 </div>
               )}
             </div>
-            
           </section>
         )}
 
@@ -575,32 +674,24 @@ export default function PromptLabPage() {
               {legalModal === 'privacy' ? (
                 <div className="space-y-4">
                   <p>A sua privacidade é fundamental para nós no <strong>PromptLab Brasil</strong>. Esta política descreve como as suas informações são tratadas ao utilizar a nossa plataforma.</p>
-
                   <h4 className="text-white font-bold mt-4">1. Armazenamento Local (Local Storage)</h4>
-                  <p>O PromptLab Brasil foi projetado com foco na sua privacidade e segurança. Os repertórios, letras de músicas e configurações que você insere <strong>não são enviados ou salvos em nossos servidores</strong>. Utilizamos a tecnologia de <em>Local Storage</em> do seu navegador para garantir que você não perca seus dados ao fechar a aba acidentalmente. Você tem controle total e pode apagar esses dados a qualquer momento limpando o cache do seu próprio navegador.</p>
-
+                  <p>O PromptLab Brasil foi projetado com foco na sua privacidade e segurança. Os repertórios, letras de músicas e configurações que você insere <strong>não são enviados ou salvos em nossos servidores</strong>. Utilizamos a tecnologia de <em>Local Storage</em> do seu navegador para garantir que você não perca seus dados ao fechar a aba acidentalmente, bem como para a sua Biblioteca pessoal de repertórios. Você tem controle total e pode apagar esses dados a qualquer momento limpando o cache do seu próprio navegador.</p>
                   <h4 className="text-white font-bold mt-4">2. Cookies e Google AdSense</h4>
-                  <p>Para manter a ferramenta gratuita para todos os músicos, exibimos anúncios de parceiros fornecidos pelo Google AdSense. O Google, como fornecedor de terceiros, utiliza cookies (incluindo o cookie DART) para veicular anúncios com base em suas visitas a este e a outros sites na Internet.</p>
-                  <p>Os usuários podem desativar o uso do cookie DART visitando a Política de Privacidade da rede de conteúdo e dos anúncios do Google.</p>
-
+                  <p>Para manter a ferramenta gratuita para todos os músicos, exibimos anúncios de parceiros fornecidos pelo Google AdSense. O Google utiliza cookies para veicular anúncios com base em suas visitas a este e a outros sites na Internet.</p>
                   <h4 className="text-white font-bold mt-4">3. Coleta de Dados Analíticos</h4>
-                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender, de forma totalmente anônima, o volume de acesso ao site (exemplo: país de origem, tipo de dispositivo utilizado, navegador). Nenhuma informação pessoal ou individualmente identificável é coletada ou armazenada neste processo.</p>
+                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender, de forma totalmente anônima, o volume de acesso ao site. Nenhuma informação pessoal é coletada neste processo.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <p>Bem-vindo ao <strong>PromptLab Brasil</strong>. Ao acessar e utilizar nossa plataforma, você concorda expressamente com os seguintes Termos de Uso.</p>
-
                   <h4 className="text-white font-bold mt-4">1. Natureza do Serviço</h4>
                   <p>O PromptLab Brasil é uma ferramenta utilitária e gratuita projetada exclusivamente para auxiliar músicos na formatação, transposição algorítmica e geração de PDFs para cifras musicais e setlists.</p>
-
                   <h4 className="text-white font-bold mt-4">2. Responsabilidade sobre o Conteúdo</h4>
-                  <p>A nossa plataforma <strong>não hospeda, não distribui e não possui</strong> direitos autorais sobre nenhuma letra de música ou cifra. O sistema funciona estritamente como um processador de texto no lado do cliente (no seu dispositivo). O usuário é o único e exclusivo responsável por qualquer conteúdo protegido por direitos autorais que decida inserir, formatar ou compartilhar através dos PDFs gerados pela ferramenta.</p>
-
+                  <p>A nossa plataforma <strong>não hospeda, não distribui e não possui</strong> direitos autorais sobre nenhuma letra de música ou cifra. O sistema funciona estritamente como um processador de texto no lado do cliente (no seu dispositivo). O usuário é o único e exclusivo responsável por qualquer conteúdo que decida inserir.</p>
                   <h4 className="text-white font-bold mt-4">3. Isenção de Garantias</h4>
-                  <p>Embora nos esforcemos continuamente para manter a ferramenta impecável e atualizada (incluindo sistemas de salvamento automático local), o serviço é fornecido "no estado em que se encontra" e "conforme disponível". Não garantimos que a plataforma estará 100% livre de erros ou interrupções. Não nos responsabilizamos por eventuais perdas de dados, formatações incorretas ou problemas técnicos que possam ocorrer durante ensaios ou apresentações ao vivo.</p>
-
+                  <p>O serviço é fornecido "no estado em que se encontra". Não garantimos que a plataforma estará 100% livre de erros ou interrupções. Não nos responsabilizamos por eventuais perdas de dados armazenados localmente (Local Storage) ou problemas técnicos durante apresentações.</p>
                   <h4 className="text-white font-bold mt-4">4. Modificações dos Termos</h4>
-                  <p>O PromptLab Brasil reserva-se o direito de revisar estes termos de serviço a qualquer momento, sem aviso prévio. Ao continuar utilizando a ferramenta após as alterações, você concorda em ficar vinculado à versão atualizada destes Termos de Uso.</p>
+                  <p>O PromptLab Brasil reserva-se o direito de revisar estes termos de serviço a qualquer momento, sem aviso prévio.</p>
                 </div>
               )}
             </div>
