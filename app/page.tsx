@@ -100,7 +100,8 @@ export default function PromptLabPage() {
     }
   }
 
-  const handleSearch = (engine: 'google' | 'cifraclub' | 'letras') => {
+  // --- FUNÇÃO DE BUSCA ATUALIZADA (4 OPÇÕES) ---
+  const handleSearch = (engine: 'google' | 'cifraclub' | 'letras' | 'missa') => {
     if (!searchQuery.trim()) {
       alert("Digite o nome de uma música antes de pesquisar!");
       return;
@@ -115,6 +116,8 @@ export default function PromptLabPage() {
       url = `https://www.google.com/search?q=site:cifraclub.com.br+${query}`;
     } else if (engine === 'letras') {
       url = `https://www.google.com/search?q=site:letras.mus.br+${query}`;
+    } else if (engine === 'missa') {
+      url = `https://www.google.com/search?q=site:musicasparamissa.com.br+${query}`;
     }
     
     window.open(url, '_blank');
@@ -648,6 +651,7 @@ export default function PromptLabPage() {
           </section>
         )}
 
+        {/* ================= ABA 4: PESQUISA ATUALIZADA ================= */}
         {activeTab === 'search' && (
           <section className="panel border-l-4 border-yellow-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="mb-6 border-b border-slate-800 pb-4">
@@ -671,7 +675,8 @@ export default function PromptLabPage() {
               
               <div className="mt-6">
                 <p className="text-xs text-slate-400 font-bold uppercase mb-3 text-center">Escolha onde deseja pesquisar:</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Mudança no Grid de botões: De 3 para 4 opções (2x2) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button 
                     onClick={() => handleSearch('cifraclub')}
                     className="bg-[#ff6600]/20 hover:bg-[#ff6600]/40 text-[#ff8833] border border-[#ff6600]/50 py-3 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
@@ -683,6 +688,12 @@ export default function PromptLabPage() {
                     className="bg-[#22c55e]/20 hover:bg-[#22c55e]/40 text-[#4ade80] border border-[#22c55e]/50 py-3 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
                   >
                     🎵 Letras.mus
+                  </button>
+                  <button 
+                    onClick={() => handleSearch('missa')}
+                    className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-600/50 py-3 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    ⛪ Músicas p/ Missa
                   </button>
                   <button 
                     onClick={() => handleSearch('google')}
@@ -714,7 +725,7 @@ export default function PromptLabPage() {
         <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
 
         <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
-        <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
+        <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simple clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
       </section>
 
       <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
