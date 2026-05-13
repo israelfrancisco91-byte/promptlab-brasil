@@ -571,20 +571,41 @@ export default function PromptLabPage() {
               </h3>
               <button onClick={() => setLegalModal(null)} className="text-slate-400 hover:text-white text-2xl font-bold leading-none">&times;</button>
             </div>
-            <div className="p-6 overflow-y-auto custom-scroll text-sm text-slate-300 space-y-4">
+            <div className="p-6 overflow-y-auto custom-scroll text-sm text-slate-300">
               {legalModal === 'privacy' ? (
-                <>
-                  <p>A sua privacidade é importante para nós. É política do PromptLab Brasil respeitar a sua privacidade em relação a qualquer informação sua que possamos coletar no site.</p>
-                  <p>O Google, como fornecedor de terceiros, usa cookies para exibir anúncios em nosso site. O uso do cookie DART pelo Google permite que ele exiba anúncios para nossos usuários com base em suas visitas ao nosso site e a outros sites na Internet.</p>
-                </>
+                <div className="space-y-4">
+                  <p>A sua privacidade é fundamental para nós no <strong>PromptLab Brasil</strong>. Esta política descreve como as suas informações são tratadas ao utilizar a nossa plataforma.</p>
+
+                  <h4 className="text-white font-bold mt-4">1. Armazenamento Local (Local Storage)</h4>
+                  <p>O PromptLab Brasil foi projetado com foco na sua privacidade e segurança. Os repertórios, letras de músicas e configurações que você insere <strong>não são enviados ou salvos em nossos servidores</strong>. Utilizamos a tecnologia de <em>Local Storage</em> do seu navegador para garantir que você não perca seus dados ao fechar a aba acidentalmente. Você tem controle total e pode apagar esses dados a qualquer momento limpando o cache do seu próprio navegador.</p>
+
+                  <h4 className="text-white font-bold mt-4">2. Cookies e Google AdSense</h4>
+                  <p>Para manter a ferramenta gratuita para todos os músicos, exibimos anúncios de parceiros fornecidos pelo Google AdSense. O Google, como fornecedor de terceiros, utiliza cookies (incluindo o cookie DART) para veicular anúncios com base em suas visitas a este e a outros sites na Internet.</p>
+                  <p>Os usuários podem desativar o uso do cookie DART visitando a Política de Privacidade da rede de conteúdo e dos anúncios do Google.</p>
+
+                  <h4 className="text-white font-bold mt-4">3. Coleta de Dados Analíticos</h4>
+                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender, de forma totalmente anônima, o volume de acesso ao site (exemplo: país de origem, tipo de dispositivo utilizado, navegador). Nenhuma informação pessoal ou individualmente identificável é coletada ou armazenada neste processo.</p>
+                </div>
               ) : (
-                <>
-                  <p>Ao acessar ao site PromptLab Brasil, concorda em cumprir estes termos de serviço, todas as leis e regulamentos aplicáveis ​​e concorda que é responsável pelo cumprimento de todas as leis locais aplicáveis.</p>
-                </>
+                <div className="space-y-4">
+                  <p>Bem-vindo ao <strong>PromptLab Brasil</strong>. Ao acessar e utilizar nossa plataforma, você concorda expressamente com os seguintes Termos de Uso.</p>
+
+                  <h4 className="text-white font-bold mt-4">1. Natureza do Serviço</h4>
+                  <p>O PromptLab Brasil é uma ferramenta utilitária e gratuita projetada exclusivamente para auxiliar músicos na formatação, transposição algorítmica e geração de PDFs para cifras musicais e setlists.</p>
+
+                  <h4 className="text-white font-bold mt-4">2. Responsabilidade sobre o Conteúdo</h4>
+                  <p>A nossa plataforma <strong>não hospeda, não distribui e não possui</strong> direitos autorais sobre nenhuma letra de música ou cifra. O sistema funciona estritamente como um processador de texto no lado do cliente (no seu dispositivo). O usuário é o único e exclusivo responsável por qualquer conteúdo protegido por direitos autorais que decida inserir, formatar ou compartilhar através dos PDFs gerados pela ferramenta.</p>
+
+                  <h4 className="text-white font-bold mt-4">3. Isenção de Garantias</h4>
+                  <p>Embora nos esforcemos continuamente para manter a ferramenta impecável e atualizada (incluindo sistemas de salvamento automático local), o serviço é fornecido "no estado em que se encontra" e "conforme disponível". Não garantimos que a plataforma estará 100% livre de erros ou interrupções. Não nos responsabilizamos por eventuais perdas de dados, formatações incorretas ou problemas técnicos que possam ocorrer durante ensaios ou apresentações ao vivo.</p>
+
+                  <h4 className="text-white font-bold mt-4">4. Modificações dos Termos</h4>
+                  <p>O PromptLab Brasil reserva-se o direito de revisar estes termos de serviço a qualquer momento, sem aviso prévio. Ao continuar utilizando a ferramenta após as alterações, você concorda em ficar vinculado à versão atualizada destes Termos de Uso.</p>
+                </div>
               )}
             </div>
             <div className="p-6 border-t border-slate-800 text-right bg-slate-900/50 rounded-b-xl">
-              <button onClick={() => setLegalModal(null)} className="btn-blue px-6 py-2 rounded font-bold text-xs uppercase inline-block">Entendi</button>
+              <button onClick={() => setLegalModal(null)} className="btn-blue px-6 py-2 rounded font-bold text-xs uppercase inline-block">Compreendido</button>
             </div>
           </div>
         </div>
