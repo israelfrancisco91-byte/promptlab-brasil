@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { jsPDF } from "jspdf"
 
 interface Song {
@@ -23,6 +23,39 @@ export default function PromptLabPage() {
   const [originalTone, setOriginalTone] = useState('F')
   const [shapeTone, setShapeTone] = useState('D')
   const notesArray = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
+
+  // ==========================================
+  // NOVO: SALVAMENTO AUTOMÁTICO (LOCALSTORAGE)
+  // ==========================================
+  
+  // 1. Carregar os dados salvos quando o site abrir
+  useEffect(() => {
+    const savedSongs = localStorage.getItem('promptlab_songs')
+    const savedHeader = localStorage.getItem('promptlab_header')
+    
+    if (savedSongs) {
+      try {
+        setSongs(JSON.parse(savedSongs))
+      } catch (e) {
+        console.error("Erro ao carregar o repertório", e)
+      }
+    }
+    if (savedHeader) {
+      setRepertoireHeader(savedHeader)
+    }
+  }, [])
+
+  // 2. Salvar automaticamente o repertório sempre que houver alteração
+  useEffect(() => {
+    localStorage.setItem('promptlab_songs', JSON.stringify(songs))
+  }, [songs])
+
+  // 3. Salvar automaticamente o cabeçalho sempre que houver alteração
+  useEffect(() => {
+    localStorage.setItem('promptlab_header', repertoireHeader)
+  }, [repertoireHeader])
+  
+  // ==========================================
 
   // --- FUNÇÕES DO REPERTÓRIO (INTOUCHÁVEIS) ---
   const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
@@ -479,9 +512,7 @@ export default function PromptLabPage() {
 
       </main>
 
-      {/* ========================================= */}
       {/* SEÇÃO SEO PARA O GOOGLE ADSENSE (NOVO) */}
-      {/* ========================================= */}
       <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
         <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
         <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
