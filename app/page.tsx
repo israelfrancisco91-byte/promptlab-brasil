@@ -179,30 +179,26 @@ export default function PromptLabPage() {
           let chordLine = line;
           let lyricLine = lines[j + 1] || "";
           
-          // BLOCO 1: Lógica para Linha de Cifra + Linha de Letra sincronizadas
           if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
             while (chordLine.length > 0 || lyricLine.length > 0) {
               checkSpace(12);
               
               let breakIdx = charLimit;
-              let skipChars = 0; // Quantos caracteres pular (ex: o espaço)
+              let skipChars = 0;
               const maxLen = Math.max(chordLine.length, lyricLine.length);
               
               if (maxLen > charLimit) {
-                // Procura o último espaço vazio dentro do limite na letra da música
                 let lastSpace = lyricLine.substring(0, charLimit + 1).lastIndexOf(' ');
                 
                 if (lastSpace > 0) {
                   breakIdx = lastSpace;
-                  skipChars = 1; // Pula o espaço na quebra de linha
+                  skipChars = 1;
                 } else {
-                  // Se não achar espaço na letra, procura na cifra (raro, mas protege o código)
                   lastSpace = chordLine.substring(0, charLimit + 1).lastIndexOf(' ');
                   if (lastSpace > 0) {
                     breakIdx = lastSpace;
                     skipChars = 1;
                   } else {
-                    // Força a quebra no limite se for uma palavra gigantesca sem espaços
                     breakIdx = charLimit;
                     skipChars = 0;
                   }
@@ -229,14 +225,12 @@ export default function PromptLabPage() {
               doc.text(lChunk, currentX, currentY);
               currentY += 6.5;
 
-              // Avança as duas linhas sincronizadas, pulando o espaço que sobrou
               chordLine = chordLine.substring(breakIdx + skipChars);
               lyricLine = lyricLine.substring(breakIdx + skipChars);
             }
             j += 2; 
             
           } else {
-            // BLOCO 2: Lógica para linhas soltas (Só texto ou só cifra)
             let remaining = line;
             while (remaining.length > 0) {
               checkSpace(6);
@@ -380,16 +374,37 @@ export default function PromptLabPage() {
           <section className="panel border-l-4 border-green-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-black flex items-center gap-2">📚 Construtor de PDF</h2>
-              <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs font-bold text-green-400 underline">
-                {showInstructions ? "Ocultar Instruções" : "Ver Instruções"}
+              <button 
+                onClick={() => setShowInstructions(!showInstructions)} 
+                className="text-xs font-bold bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-full text-slate-300 transition-colors flex items-center gap-2 border border-slate-700"
+              >
+                {showInstructions ? "Ocultar Guia" : "📖 Como usar"}
               </button>
             </div>
             
             {showInstructions && (
-              <div className="bg-black/30 p-4 rounded text-xs text-slate-300 leading-relaxed space-y-2 mb-6">
-                <p><strong>1. Nova Organização:</strong> Cada música agora tem o seu próprio bloco (Card). Escreva o título no campo menor e cole a letra no campo maior.</p>
-                <p><strong>2. Transposição:</strong> Use os botões "-½" e "+½" na barra de cada música para mudar o tom automaticamente (afeta apenas as linhas com cifras).</p>
-                <p><strong>3. Reordenar:</strong> Use as setas (⬆️ ⬇️) para mudar a ordem das músicas no seu PDF final.</p>
+              <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700 text-sm text-slate-300 leading-relaxed space-y-4 mb-8 shadow-inner">
+                <h3 className="font-bold text-white text-base mb-2 border-b border-slate-700 pb-2">Guia Rápido de Uso</h3>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="text-lg">📝</span>
+                    <div>
+                      <strong className="text-blue-400">Adicionar Músicas:</strong> Utilize os blocos individuais para cada canção. Insira o título no campo superior e cole a cifra completa na área de texto. Seu progresso é salvo automaticamente.
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-lg">🎛️</span>
+                    <div>
+                      <strong className="text-purple-400">Transposição Inteligente:</strong> Altere o tom da música clicando nos botões <span className="bg-slate-700 px-1.5 py-0.5 rounded text-xs">-½ Tom</span> e <span className="bg-slate-700 px-1.5 py-0.5 rounded text-xs">+½ Tom</span>. O sistema ajusta exclusivamente os acordes, preservando a sua letra.
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-lg">🔄</span>
+                    <div>
+                      <strong className="text-green-400">Organização Rápida:</strong> Monte o seu setlist perfeito arrastando as músicas com as setas direcionais (⬆️ ⬇️) para definir a ordem exata de impressão no documento final.
+                    </div>
+                  </li>
+                </ul>
               </div>
             )}
             
