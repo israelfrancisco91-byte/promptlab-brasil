@@ -9,7 +9,6 @@ interface Song {
   content: string;
 }
 
-// Nova interface para a Biblioteca
 interface SavedRepertoire {
   id: string;
   name: string;
@@ -19,8 +18,8 @@ interface SavedRepertoire {
 }
 
 export default function PromptLabPage() {
-  // Agora temos 3 abas
-  const [activeTab, setActiveTab] = useState<'setlist' | 'capo' | 'library'>('setlist')
+  // Agora temos 4 abas: setlist, library, capo e search
+  const [activeTab, setActiveTab] = useState<'setlist' | 'capo' | 'library' | 'search'>('setlist')
 
   const [showInstructions, setShowInstructions] = useState(false)
   const [repertoireHeader, setRepertoireHeader] = useState("")
@@ -31,10 +30,11 @@ export default function PromptLabPage() {
   const [shapeTone, setShapeTone] = useState('D')
   const notesArray = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
 
-  // Estado da Biblioteca
   const [savedRepertoires, setSavedRepertoires] = useState<SavedRepertoire[]>([])
+  
+  // Estado para a nova barra de pesquisa
+  const [searchQuery, setSearchQuery] = useState("")
 
-  // 1. Carrega os dados salvos do rascunho atual E da biblioteca
   useEffect(() => {
     const savedSongs = localStorage.getItem('promptlab_songs')
     const savedHeader = localStorage.getItem('promptlab_header')
@@ -51,7 +51,6 @@ export default function PromptLabPage() {
     }
   }, [])
 
-  // 2. Salva automaticamente o rascunho atual
   useEffect(() => {
     localStorage.setItem('promptlab_songs', JSON.stringify(songs))
   }, [songs])
@@ -60,25 +59,24 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_header', repertoireHeader)
   }, [repertoireHeader])
 
-  // 3. Salva a biblioteca sempre que ela for atualizada
   useEffect(() => {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
 
 
-  // --- FUNÇÕES DA BIBLIOTECA (NOVAS) ---
+  // --- FUNÇÕES DA BIBLIOTECA ---
   const saveToLibrary = () => {
     const defaultName = repertoireHeader || `Repertório ${new Date().toLocaleDateString('pt-BR')}`
     const name = window.prompt("Dê um nome para salvar este repertório:", defaultName)
     
-    if (!name) return; // Usuário cancelou
+    if (!name) return;
 
     const newRep: SavedRepertoire = {
       id: Date.now().toString(),
       name: name,
       date: new Date().toLocaleDateString('pt-BR'),
       header: repertoireHeader,
-      songs: [...songs] // Cria uma cópia das músicas atuais
+      songs: [...songs]
     }
     
     setSavedRepertoires([...savedRepertoires, newRep])
@@ -104,6 +102,27 @@ export default function PromptLabPage() {
       setSongs([{ id: Date.now().toString(), title: "", content: "" }])
       setRepertoireHeader("")
     }
+  }
+
+  // --- FUNÇÕES DE PESQUISA (NOVA) ---
+  const handleSearch = (engine: 'google' | 'cifraclub' | 'letras') => {
+    if (!searchQuery.trim()) {
+      alert("Digite o nome de uma música antes de pesquisar!");
+      return;
+    }
+    
+    let url = "";
+    const query = encodeURIComponent(searchQuery.trim());
+    
+    if (engine === 'google') {
+      url = `https://www.google.com/search?q=${query}+cifra`;
+    } else if (engine === 'cifraclub') {
+      url = `https://www.google.com/search?q=site:cifraclub.com.br+${query}`;
+    } else if (engine === 'letras') {
+      url = `https://www.google.com/search?q=site:letras.mus.br+${query}`;
+    }
+    
+    window.open(url, '_blank');
   }
 
 
@@ -401,8 +420,9 @@ export default function PromptLabPage() {
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        .nav-tab { padding: 10px 12px; font-weight: 800; text-transform: uppercase; font-size: 0.75rem; border-radius: 8px; cursor: pointer; transition: 0.2s; flex: 1; text-align: center; }
-        @media (min-width: 640px) { .nav-tab { font-size: 0.85rem; padding: 12px 24px; } }
+        /* Ajuste no menu para permitir quebra de linha em telas pequenas (flex-wrap) */
+        .nav-tab { padding: 10px 12px; font-weight: 800; text-transform: uppercase; font-size: 0.70rem; border-radius: 8px; cursor: pointer; transition: 0.2s; flex: 1 1 auto; text-align: center; white-space: nowrap; }
+        @media (min-width: 640px) { .nav-tab { font-size: 0.80rem; padding: 12px 20px; } }
         .nav-tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
         .nav-tab.inactive { background: transparent; color: #94a3b8; border: 1px solid transparent; }
         .nav-tab.inactive:hover { background: #1e293b; color: white; }
@@ -416,7 +436,8 @@ export default function PromptLabPage() {
         <h1 className="text-5xl font-black tracking-tighter mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
         <p className="text-slate-400 font-medium mb-8">Ferramentas Profissionais para Músicos</p>
         
-        <div className="flex bg-[#0f172a] p-2 rounded-xl border border-slate-800 gap-2">
+        {/* Adicionado flex-wrap para as 4 abas caberem bem no celular */}
+        <div className="flex flex-wrap bg-[#0f172a] p-2 rounded-xl border border-slate-800 gap-2">
           <button 
             className={`nav-tab ${activeTab === 'setlist' ? 'active' : 'inactive'}`}
             onClick={() => setActiveTab('setlist')}
@@ -435,6 +456,12 @@ export default function PromptLabPage() {
           >
             🎸 Capo
           </button>
+          <button 
+            className={`nav-tab ${activeTab === 'search' ? 'active' : 'inactive'}`}
+            onClick={() => setActiveTab('search')}
+          >
+            🔍 Buscar
+          </button>
         </div>
       </header>
 
@@ -444,7 +471,6 @@ export default function PromptLabPage() {
         {activeTab === 'setlist' && (
           <section className="panel border-l-4 border-green-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             
-            {/* BOTÕES DE AÇÃO: NOVO E SALVAR */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-800 pb-6">
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black">📚 Construtor de PDF</h2>
@@ -474,8 +500,8 @@ export default function PromptLabPage() {
                     <div><strong className="text-blue-400">Adicionar Músicas:</strong> Utilize os blocos individuais. Insira o título no campo superior e cole a cifra completa na área de texto. Seu progresso é salvo automaticamente.</div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="text-lg">💾</span>
-                    <div><strong className="text-blue-400">Salvar na Biblioteca:</strong> Use o botão azul "Salvar Repertório" no topo para guardar listas prontas e reutilizá-las no futuro acessando a aba "Salvos".</div>
+                    <span className="text-lg">🔍</span>
+                    <div><strong className="text-yellow-400">Pesquisar Cifras:</strong> Vá na aba "Buscar" para encontrar letras rapidamente na internet, copie e cole aqui no construtor.</div>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-lg">🎛️</span>
@@ -545,7 +571,7 @@ export default function PromptLabPage() {
           </section>
         )}
 
-        {/* ================= ABA 2: BIBLIOTECA DE SALVOS (NOVA) ================= */}
+        {/* ================= ABA 2: BIBLIOTECA DE SALVOS ================= */}
         {activeTab === 'library' && (
           <section className="panel border-l-4 border-blue-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="mb-6 border-b border-slate-800 pb-4">
@@ -603,7 +629,6 @@ export default function PromptLabPage() {
             <div className="grid md:grid-cols-2 gap-8 mb-8">
               <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
                 <label className="text-blue-400">1. Tom da Música (Cantor)</label>
-                <p className="text-xs text-slate-400 mb-4">Em qual tom a música está gravada ou vai ser cantada?</p>
                 <div className="grid grid-cols-4 gap-2">
                   {notesArray.map(note => (
                     <button key={`orig-${note}`} onClick={() => setOriginalTone(note)} className={`note-btn ${originalTone === note ? 'active' : ''}`}>{note}</button>
@@ -613,7 +638,6 @@ export default function PromptLabPage() {
 
               <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
                 <label className="text-purple-400">2. Acordes que quero fazer (Shape)</label>
-                <p className="text-xs text-slate-400 mb-4">Quais acordes você quer bater no violão? (Ex: C, G, D)</p>
                 <div className="grid grid-cols-4 gap-2">
                   {notesArray.map(note => (
                     <button key={`shape-${note}`} onClick={() => setShapeTone(note)} className={`note-btn ${shapeTone === note ? 'active' : ''}`}>{note}</button>
@@ -633,6 +657,60 @@ export default function PromptLabPage() {
                 </div>
               )}
             </div>
+          </section>
+        )}
+
+        {/* ================= ABA 4: PESQUISAR CIFRAS (NOVA) ================= */}
+        {activeTab === 'search' && (
+          <section className="panel border-l-4 border-yellow-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="mb-6 border-b border-slate-800 pb-4">
+              <h2 className="text-xl font-black flex items-center gap-2 mb-2">🔍 Encontrar Letras e Cifras</h2>
+              <p className="text-slate-400 text-sm">Precisa da letra de uma música? Pesquise aqui. Nós abriremos o site com a cifra em uma nova aba. Basta copiar, fechar a aba e colar no seu repertório!</p>
+            </div>
+
+            <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700 mb-8">
+              <label className="text-yellow-400 text-sm mb-2">Qual música você está procurando?</label>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch('google')}
+                  placeholder="Ex: Te Louvarei Diante do Trono"
+                  className="!mb-0 flex-1 text-lg py-3 px-4"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="mt-6">
+                <p className="text-xs text-slate-400 font-bold uppercase mb-3 text-center">Escolha onde deseja pesquisar:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button 
+                    onClick={() => handleSearch('cifraclub')}
+                    className="bg-[#ff6600]/20 hover:bg-[#ff6600]/40 text-[#ff8833] border border-[#ff6600]/50 py-3 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    🎸 Cifra Club
+                  </button>
+                  <button 
+                    onClick={() => handleSearch('letras')}
+                    className="bg-[#22c55e]/20 hover:bg-[#22c55e]/40 text-[#4ade80] border border-[#22c55e]/50 py-3 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    🎵 Letras.mus
+                  </button>
+                  <button 
+                    onClick={() => handleSearch('google')}
+                    className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-600/50 py-3 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    🌐 Google Geral
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 p-4 rounded-lg text-sm text-slate-400 text-center border border-slate-700">
+              💡 <strong>Dica de Mestre:</strong> Seu repertório é salvo automaticamente! Você pode clicar nos botões acima para copiar a música e voltar para o PromptLab sem medo de perder o que já fez.
+            </div>
+            
           </section>
         )}
 
