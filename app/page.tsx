@@ -121,7 +121,7 @@ export default function PromptLabPage() {
 
       const drawFixedElements = (pdfDoc: jsPDF) => {
         pdfDoc.setTextColor(150, 150, 150);
-        pdfDoc.setFont("times", "bold"); // Fonte Serifada para marca d'água
+        pdfDoc.setFont("times", "bold"); 
         pdfDoc.setFontSize(10);
         pdfDoc.text(watermark, 105, 290, { align: "center" });
 
@@ -153,14 +153,14 @@ export default function PromptLabPage() {
         if (!song.title.trim() && !song.content.trim()) return;
 
         if (song.title.trim() !== "") {
-          doc.setFont("times", "bold"); // Títulos elegantes
+          doc.setFont("times", "bold"); 
           doc.setFontSize(14);
           doc.setTextColor(0, 0, 0);
           
           const wrappedTitle = doc.splitTextToSize(song.title.trim(), 85);
           wrappedTitle.forEach((t: string) => {
             checkSpace(8);
-            doc.text(t.trim(), currentX, currentY); // Respeita Maiúsculas/Minúsculas do usuário
+            doc.text(t.trim(), currentX, currentY); 
             currentY += 8;
           });
         }
@@ -179,28 +179,42 @@ export default function PromptLabPage() {
           let chordLine = line;
           let lyricLine = lines[j + 1] || "";
           
+          // BLOCO 1: Lógica para Linha de Cifra + Linha de Letra sincronizadas
           if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
             while (chordLine.length > 0 || lyricLine.length > 0) {
               checkSpace(12);
               
               let breakIdx = charLimit;
+              let skipChars = 0; // Quantos caracteres pular (ex: o espaço)
               const maxLen = Math.max(chordLine.length, lyricLine.length);
               
               if (maxLen > charLimit) {
-                const lastSpace = lyricLine.lastIndexOf(' ', charLimit);
-                const lastSpaceChord = chordLine.lastIndexOf(' ', charLimit);
-                const bestSpace = Math.max(lastSpace, lastSpaceChord);
-                if (bestSpace > charLimit * 0.5) breakIdx = bestSpace;
+                // Procura o último espaço vazio dentro do limite na letra da música
+                let lastSpace = lyricLine.substring(0, charLimit + 1).lastIndexOf(' ');
+                
+                if (lastSpace > 0) {
+                  breakIdx = lastSpace;
+                  skipChars = 1; // Pula o espaço na quebra de linha
+                } else {
+                  // Se não achar espaço na letra, procura na cifra (raro, mas protege o código)
+                  lastSpace = chordLine.substring(0, charLimit + 1).lastIndexOf(' ');
+                  if (lastSpace > 0) {
+                    breakIdx = lastSpace;
+                    skipChars = 1;
+                  } else {
+                    // Força a quebra no limite se for uma palavra gigantesca sem espaços
+                    breakIdx = charLimit;
+                    skipChars = 0;
+                  }
+                }
               } else {
                 breakIdx = maxLen;
+                skipChars = 0;
               }
-
-              if (breakIdx <= 0) breakIdx = charLimit;
 
               const cChunk = chordLine.substring(0, breakIdx);
               const lChunk = lyricLine.substring(0, breakIdx);
 
-              // Imprime a Cifra (Negrito, Azul e Monoespaçado)
               if (cChunk.trim() !== "") {
                 doc.setFont("courier", "bold");
                 doc.setFontSize(10);
@@ -209,35 +223,42 @@ export default function PromptLabPage() {
                 currentY += 4.5;
               }
               
-              // Imprime a Letra (Normal, Preto e Monoespaçado)
               doc.setFont("courier", "normal");
               doc.setFontSize(10);
               doc.setTextColor(0, 0, 0);
               doc.text(lChunk, currentX, currentY);
               currentY += 6.5;
 
-              chordLine = chordLine.substring(breakIdx).replace(/^\s+/, '');
-              lyricLine = lyricLine.substring(breakIdx).replace(/^\s+/, '');
+              // Avança as duas linhas sincronizadas, pulando o espaço que sobrou
+              chordLine = chordLine.substring(breakIdx + skipChars);
+              lyricLine = lyricLine.substring(breakIdx + skipChars);
             }
             j += 2; 
+            
           } else {
+            // BLOCO 2: Lógica para linhas soltas (Só texto ou só cifra)
             let remaining = line;
             while (remaining.length > 0) {
               checkSpace(6);
               
               let breakIdx = charLimit;
+              let skipChars = 0;
+              
               if (remaining.length > charLimit) {
-                const lastSpace = remaining.lastIndexOf(' ', charLimit);
-                if (lastSpace > charLimit * 0.5) breakIdx = lastSpace;
+                const lastSpace = remaining.substring(0, charLimit + 1).lastIndexOf(' ');
+                if (lastSpace > 0) {
+                  breakIdx = lastSpace;
+                  skipChars = 1;
+                } else {
+                  breakIdx = charLimit;
+                  skipChars = 0;
+                }
               } else {
                 breakIdx = remaining.length;
               }
 
-              if (breakIdx <= 0) breakIdx = charLimit;
-
               const chunk = remaining.substring(0, breakIdx);
               
-              // Verifica se a linha solta é acorde ou texto comum
               if (isChordLine(line)) {
                 doc.setFont("courier", "bold");
                 doc.setTextColor(37, 99, 235); 
@@ -249,7 +270,8 @@ export default function PromptLabPage() {
               doc.setFontSize(10);
               doc.text(chunk, currentX, currentY);
               currentY += 5.5;
-              remaining = remaining.substring(breakIdx).replace(/^\s+/, '');
+              
+              remaining = remaining.substring(breakIdx + skipChars);
             }
             j++;
           }
