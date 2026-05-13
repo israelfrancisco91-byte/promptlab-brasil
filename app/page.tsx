@@ -10,25 +10,17 @@ interface Song {
 }
 
 export default function PromptLabPage() {
-  // Estado para controlar qual aba está ativa no Menu
   const [activeTab, setActiveTab] = useState<'setlist' | 'capo'>('setlist')
 
-  // --- ESTADOS DO REPERTÓRIO ---
   const [showInstructions, setShowInstructions] = useState(false)
   const [repertoireHeader, setRepertoireHeader] = useState("")
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null)
   const [songs, setSongs] = useState<Song[]>([{ id: 'init-1', title: "", content: "" }])
 
-  // --- ESTADOS DO CAPOTRASTE ---
   const [originalTone, setOriginalTone] = useState('F')
   const [shapeTone, setShapeTone] = useState('D')
   const notesArray = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
 
-  // ==========================================
-  // NOVO: SALVAMENTO AUTOMÁTICO (LOCALSTORAGE)
-  // ==========================================
-  
-  // 1. Carregar os dados salvos quando o site abrir
   useEffect(() => {
     const savedSongs = localStorage.getItem('promptlab_songs')
     const savedHeader = localStorage.getItem('promptlab_header')
@@ -45,19 +37,14 @@ export default function PromptLabPage() {
     }
   }, [])
 
-  // 2. Salvar automaticamente o repertório sempre que houver alteração
   useEffect(() => {
     localStorage.setItem('promptlab_songs', JSON.stringify(songs))
   }, [songs])
 
-  // 3. Salvar automaticamente o cabeçalho sempre que houver alteração
   useEffect(() => {
     localStorage.setItem('promptlab_header', repertoireHeader)
   }, [repertoireHeader])
-  
-  // ==========================================
 
-  // --- FUNÇÕES DO REPERTÓRIO (INTOUCHÁVEIS) ---
   const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
 
   const updateSong = (index: number, field: 'title' | 'content', value: string) => {
@@ -134,7 +121,7 @@ export default function PromptLabPage() {
 
       const drawFixedElements = (pdfDoc: jsPDF) => {
         pdfDoc.setTextColor(150, 150, 150);
-        pdfDoc.setFont("helvetica", "bold");
+        pdfDoc.setFont("times", "bold"); // Fonte Serifada para marca d'água
         pdfDoc.setFontSize(10);
         pdfDoc.text(watermark, 105, 290, { align: "center" });
 
@@ -166,14 +153,14 @@ export default function PromptLabPage() {
         if (!song.title.trim() && !song.content.trim()) return;
 
         if (song.title.trim() !== "") {
-          doc.setFont("helvetica", "bold");
+          doc.setFont("times", "bold"); // Títulos elegantes
           doc.setFontSize(14);
           doc.setTextColor(0, 0, 0);
           
           const wrappedTitle = doc.splitTextToSize(song.title.trim(), 85);
           wrappedTitle.forEach((t: string) => {
             checkSpace(8);
-            doc.text(t.toUpperCase().trim(), currentX, currentY);
+            doc.text(t.trim(), currentX, currentY); // Respeita Maiúsculas/Minúsculas do usuário
             currentY += 8;
           });
         }
@@ -189,18 +176,13 @@ export default function PromptLabPage() {
             continue;
           }
 
-          doc.setFont("courier", "bold");
-          doc.setFontSize(10);
-
           let chordLine = line;
           let lyricLine = lines[j + 1] || "";
           
           if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
             while (chordLine.length > 0 || lyricLine.length > 0) {
               checkSpace(12);
-              doc.setFont("courier", "bold");
-              doc.setFontSize(10);
-
+              
               let breakIdx = charLimit;
               const maxLen = Math.max(chordLine.length, lyricLine.length);
               
@@ -218,11 +200,18 @@ export default function PromptLabPage() {
               const cChunk = chordLine.substring(0, breakIdx);
               const lChunk = lyricLine.substring(0, breakIdx);
 
+              // Imprime a Cifra (Negrito, Azul e Monoespaçado)
               if (cChunk.trim() !== "") {
+                doc.setFont("courier", "bold");
+                doc.setFontSize(10);
                 doc.setTextColor(37, 99, 235);
                 doc.text(cChunk, currentX, currentY);
                 currentY += 4.5;
               }
+              
+              // Imprime a Letra (Normal, Preto e Monoespaçado)
+              doc.setFont("courier", "normal");
+              doc.setFontSize(10);
               doc.setTextColor(0, 0, 0);
               doc.text(lChunk, currentX, currentY);
               currentY += 6.5;
@@ -235,9 +224,7 @@ export default function PromptLabPage() {
             let remaining = line;
             while (remaining.length > 0) {
               checkSpace(6);
-              doc.setFont("courier", "bold");
-              doc.setFontSize(10);
-
+              
               let breakIdx = charLimit;
               if (remaining.length > charLimit) {
                 const lastSpace = remaining.lastIndexOf(' ', charLimit);
@@ -250,12 +237,16 @@ export default function PromptLabPage() {
 
               const chunk = remaining.substring(0, breakIdx);
               
+              // Verifica se a linha solta é acorde ou texto comum
               if (isChordLine(line)) {
+                doc.setFont("courier", "bold");
                 doc.setTextColor(37, 99, 235); 
               } else {
+                doc.setFont("courier", "normal");
                 doc.setTextColor(0, 0, 0); 
               }
               
+              doc.setFontSize(10);
               doc.text(chunk, currentX, currentY);
               currentY += 5.5;
               remaining = remaining.substring(breakIdx).replace(/^\s+/, '');
@@ -289,7 +280,6 @@ export default function PromptLabPage() {
     }
   };
 
-  // --- FUNÇÃO MATEMÁTICA DO CAPOTRASTE ---
   const calculateCapoFret = () => {
     const scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const flatToSharp: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
@@ -512,7 +502,6 @@ export default function PromptLabPage() {
 
       </main>
 
-      {/* SEÇÃO SEO PARA O GOOGLE ADSENSE (NOVO) */}
       <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
         <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
         <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
@@ -527,7 +516,6 @@ export default function PromptLabPage() {
         <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
       </section>
 
-      {/* RODAPÉ ADSENSE COMPLIANCE */}
       <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
         <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
           <button onClick={() => setLegalModal('privacy')} className="hover:text-blue-400 transition-colors">Política de Privacidade</button>
@@ -537,7 +525,6 @@ export default function PromptLabPage() {
         <p className="text-xs text-slate-600">© 2026 PromptLab Brasil. Todos os direitos reservados.</p>
       </footer>
 
-      {/* MODAL DE INFORMAÇÕES FORMAIS */}
       {legalModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
