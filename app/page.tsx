@@ -18,7 +18,6 @@ interface SavedRepertoire {
 }
 
 export default function PromptLabPage() {
-  // Agora temos 4 abas: setlist, library, capo e search
   const [activeTab, setActiveTab] = useState<'setlist' | 'capo' | 'library' | 'search'>('setlist')
 
   const [showInstructions, setShowInstructions] = useState(false)
@@ -32,7 +31,6 @@ export default function PromptLabPage() {
 
   const [savedRepertoires, setSavedRepertoires] = useState<SavedRepertoire[]>([])
   
-  // Estado para a nova barra de pesquisa
   const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
@@ -63,8 +61,6 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
 
-
-  // --- FUNÇÕES DA BIBLIOTECA ---
   const saveToLibrary = () => {
     const defaultName = repertoireHeader || `Repertório ${new Date().toLocaleDateString('pt-BR')}`
     const name = window.prompt("Dê um nome para salvar este repertório:", defaultName)
@@ -104,7 +100,6 @@ export default function PromptLabPage() {
     }
   }
 
-  // --- FUNÇÕES DE PESQUISA (NOVA) ---
   const handleSearch = (engine: 'google' | 'cifraclub' | 'letras') => {
     if (!searchQuery.trim()) {
       alert("Digite o nome de uma música antes de pesquisar!");
@@ -125,8 +120,6 @@ export default function PromptLabPage() {
     window.open(url, '_blank');
   }
 
-
-  // --- FUNÇÕES DO REPERTÓRIO (INTOUCHÁVEIS) ---
   const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
 
   const updateSong = (index: number, field: 'title' | 'content', value: string) => {
@@ -420,7 +413,6 @@ export default function PromptLabPage() {
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        /* Ajuste no menu para permitir quebra de linha em telas pequenas (flex-wrap) */
         .nav-tab { padding: 10px 12px; font-weight: 800; text-transform: uppercase; font-size: 0.70rem; border-radius: 8px; cursor: pointer; transition: 0.2s; flex: 1 1 auto; text-align: center; white-space: nowrap; }
         @media (min-width: 640px) { .nav-tab { font-size: 0.80rem; padding: 12px 20px; } }
         .nav-tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
@@ -436,28 +428,27 @@ export default function PromptLabPage() {
         <h1 className="text-5xl font-black tracking-tighter mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
         <p className="text-slate-400 font-medium mb-8">Ferramentas Profissionais para Músicos</p>
         
-        {/* Adicionado flex-wrap para as 4 abas caberem bem no celular */}
-        <div className="flex flex-wrap bg-[#0f172a] p-2 rounded-xl border border-slate-800 gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:flex-row bg-[#0f172a] p-2 rounded-xl border border-slate-800 gap-2">
           <button 
-            className={`nav-tab ${activeTab === 'setlist' ? 'active' : 'inactive'}`}
+            className={`nav-tab flex-1 ${activeTab === 'setlist' ? 'active' : 'inactive'}`}
             onClick={() => setActiveTab('setlist')}
           >
             📚 Repertório
           </button>
           <button 
-            className={`nav-tab ${activeTab === 'library' ? 'active' : 'inactive'}`}
+            className={`nav-tab flex-1 ${activeTab === 'library' ? 'active' : 'inactive'}`}
             onClick={() => setActiveTab('library')}
           >
             📂 Salvos
           </button>
           <button 
-            className={`nav-tab ${activeTab === 'capo' ? 'active' : 'inactive'}`}
+            className={`nav-tab flex-1 ${activeTab === 'capo' ? 'active' : 'inactive'}`}
             onClick={() => setActiveTab('capo')}
           >
             🎸 Capo
           </button>
           <button 
-            className={`nav-tab ${activeTab === 'search' ? 'active' : 'inactive'}`}
+            className={`nav-tab flex-1 ${activeTab === 'search' ? 'active' : 'inactive'}`}
             onClick={() => setActiveTab('search')}
           >
             🔍 Buscar
@@ -467,7 +458,6 @@ export default function PromptLabPage() {
 
       <main className="max-w-3xl mx-auto space-y-6">
         
-        {/* ================= ABA 1: REPERTÓRIO ================= */}
         {activeTab === 'setlist' && (
           <section className="panel border-l-4 border-green-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             
@@ -571,7 +561,6 @@ export default function PromptLabPage() {
           </section>
         )}
 
-        {/* ================= ABA 2: BIBLIOTECA DE SALVOS ================= */}
         {activeTab === 'library' && (
           <section className="panel border-l-4 border-blue-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="mb-6 border-b border-slate-800 pb-4">
@@ -618,7 +607,6 @@ export default function PromptLabPage() {
           </section>
         )}
 
-        {/* ================= ABA 3: CAPOTRASTE ================= */}
         {activeTab === 'capo' && (
           <section className="panel border-l-4 border-purple-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="mb-6 border-b border-slate-800 pb-4">
@@ -660,7 +648,6 @@ export default function PromptLabPage() {
           </section>
         )}
 
-        {/* ================= ABA 4: PESQUISAR CIFRAS (NOVA) ================= */}
         {activeTab === 'search' && (
           <section className="panel border-l-4 border-yellow-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="mb-6 border-b border-slate-800 pb-4">
