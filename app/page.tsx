@@ -34,7 +34,7 @@ export default function PromptLabPage() {
 
   // --- ESTADOS DO TELEPROMPTER ---
   const [prompterSong, setPrompterSong] = useState<Song | null>(null)
-  const [prompterSpeed, setPrompterSpeed] = useState(2) // Começa numa velocidade um pouco mais ágil
+  const [prompterSpeed, setPrompterSpeed] = useState(2)
   const [isPrompterPlaying, setIsPrompterPlaying] = useState(false)
   const prompterRef = useRef<HTMLDivElement>(null)
 
@@ -65,7 +65,7 @@ export default function PromptLabPage() {
   }, [savedRepertoires])
 
 
-  // --- MOTOR DO TELEPROMPTER (REESCRITO PARA NÃO TRAVAR NO CELULAR) ---
+  // --- MOTOR DO TELEPROMPTER ---
   useEffect(() => {
     let animationFrameId: number;
     let lastTime = performance.now();
@@ -74,7 +74,6 @@ export default function PromptLabPage() {
     const scrollPrompter = (time: number) => {
       if (isPrompterPlaying && prompterRef.current) {
         const deltaTime = time - lastTime;
-        // Transforma a velocidade (1 a 10) em pixels por segundo reais
         const pixelsPerSecond = prompterSpeed * 12; 
         accumulatedScroll += (pixelsPerSecond * deltaTime) / 1000;
 
@@ -111,10 +110,9 @@ export default function PromptLabPage() {
   }
 
 
-  // --- INTELIGÊNCIA DE QUEBRA DE LINHA DO PROMPTER (NOVO) ---
-  // Quebra a letra respeitando espaços e cifras, do mesmo jeito que o PDF!
+  // --- INTELIGÊNCIA DE QUEBRA DE LINHA DO PROMPTER ---
   const getPrompterLines = (content: string) => {
-    const charLimit = 40; // Limite ideal para telas de celular sem precisar rolar horizontalmente
+    const charLimit = 40; 
     const lines = content.split('\n');
     let j = 0;
     const result: { type: string, text: string }[] = [];
@@ -213,7 +211,7 @@ export default function PromptLabPage() {
     }
   }
 
-  // --- FUNÇÕES DE PESQUISA (COM MÚSICAS PARA MISSA INCLUSO) ---
+  // --- FUNÇÕES DE PESQUISA ---
   const handleSearch = (engine: 'google' | 'cifraclub' | 'letras' | 'missa') => {
     if (!searchQuery.trim()) return alert("Digite o nome de uma música antes de pesquisar!");
     const query = encodeURIComponent(searchQuery.trim());
@@ -270,12 +268,10 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   };
 
-  // ================= O MOTOR DE PDF PERFEITO =================
   const processPDF = async (action: 'download' | 'share') => {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
-      // LIMITE ORIGINAL MANTIDO E INTOCÁVEL:
       const charLimit = 42; 
       
       const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
@@ -437,7 +433,6 @@ export default function PromptLabPage() {
         .note-btn:hover { background: #334155; }
         .note-btn.active { background: #3b82f6; border-color: #60a5fa; color: white; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
 
-        /* REGRAS DO PROMPTER: Usa white-space pre-wrap e oculta scroll horizontal para caber tudo na tela de forma limpa */
         .prompter-line { white-space: pre-wrap; min-height: 1.5em; word-break: break-word; }
         .prompter-chord { color: #60a5fa; font-weight: bold; }
         .prompter-lyric { color: #ffffff; }
@@ -592,7 +587,7 @@ export default function PromptLabPage() {
             </section>
           )}
 
-          {/* ================= ABA 4: PESQUISAR (CORRIGIDA) ================= */}
+          {/* ================= ABA 4: PESQUISAR ================= */}
           {activeTab === 'search' && (
             <section className="panel border-l-4 border-yellow-500">
                <div className="mb-6 border-b border-slate-800 pb-4">
@@ -614,6 +609,23 @@ export default function PromptLabPage() {
         </main>
       )}
 
+      {/* ================= TEXTO DE SEO RESTAURADO (APROVAÇÃO ADSENSE) ================= */}
+      {!prompterSong && (
+        <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+          <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
+          <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
+          
+          <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
+          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
+          
+          <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
+          <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
+
+          <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
+          <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
+        </section>
+      )}
+
       {/* RODAPÉ PADRÃO */}
       {!prompterSong && (
         <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
@@ -621,7 +633,7 @@ export default function PromptLabPage() {
             <button onClick={() => setLegalModal('privacy')} className="hover:text-blue-400">Política de Privacidade</button>
             <button onClick={() => setLegalModal('terms')} className="hover:text-blue-400">Termos de Uso</button>
           </div>
-          <p className="text-xs text-slate-600">© 2026 PromptLab Brasil.</p>
+          <p className="text-xs text-slate-600">© 2026 PromptLab Brasil. Todos os direitos reservados.</p>
         </footer>
       )}
 
@@ -660,13 +672,11 @@ export default function PromptLabPage() {
           <div 
             ref={prompterRef}
             className="flex-1 overflow-y-auto overflow-x-hidden custom-scroll p-6 sm:p-12 pb-[60vh]"
-            /* Fonte dinâmica min(3.8vw, 2.5rem) garante que 40 letras caibam perfeitamente na tela sem rolar pro lado */
             style={{ fontSize: 'min(3.8vw, 2.5rem)', lineHeight: '1.6' }} 
           >
             <div className="max-w-4xl mx-auto font-mono">
               <h1 className="text-5xl sm:text-7xl font-black mb-12 text-slate-500 border-b border-slate-800 pb-8">{prompterSong.title}</h1>
               
-              {/* O TELEPROMPTER AGORA RENDERIZA AS LINHAS QUEBRADAS E ALINHADAS COMO O PDF */}
               {getPrompterLines(prompterSong.content).map((lineObj, idx) => {
                 if (lineObj.type === 'empty') return <div key={idx} className="h-6 sm:h-8"></div>;
                 
@@ -683,7 +693,7 @@ export default function PromptLabPage() {
         </div>
       )}
 
-      {/* Modal Legal */}
+      {/* ================= MODAL DE TEXTOS LEGAIS RESTAURADO ================= */}
       {legalModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
@@ -692,7 +702,32 @@ export default function PromptLabPage() {
               <button onClick={() => setLegalModal(null)} className="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
             </div>
             <div className="p-6 overflow-y-auto text-sm text-slate-300">
-              <p>Textos legais simplificados para este teste. Feche para continuar.</p>
+              {legalModal === 'privacy' ? (
+                <div className="space-y-4">
+                  <p>A sua privacidade é fundamental para nós no <strong>PromptLab Brasil</strong>. Esta política descreve como as suas informações são tratadas ao utilizar a nossa plataforma.</p>
+                  <h4 className="text-white font-bold mt-4">1. Armazenamento Local (Local Storage)</h4>
+                  <p>O PromptLab Brasil foi projetado com foco na sua privacidade e segurança. Os repertórios, letras de músicas e configurações que você insere <strong>não são enviados ou salvos em nossos servidores</strong>. Utilizamos a tecnologia de <em>Local Storage</em> do seu navegador para garantir que você não perca seus dados ao fechar a aba acidentalmente, bem como para a sua Biblioteca pessoal de repertórios. Você tem controle total e pode apagar esses dados a qualquer momento limpando o cache do seu próprio navegador.</p>
+                  <h4 className="text-white font-bold mt-4">2. Cookies e Google AdSense</h4>
+                  <p>Para manter a ferramenta gratuita para todos os músicos, exibimos anúncios de parceiros fornecidos pelo Google AdSense. O Google utiliza cookies para veicular anúncios com base em suas visitas a este e a outros sites na Internet.</p>
+                  <h4 className="text-white font-bold mt-4">3. Coleta de Dados Analíticos</h4>
+                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender, de forma totalmente anônima, o volume de acesso ao site. Nenhuma informação pessoal é coletada neste processo.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p>Bem-vindo ao <strong>PromptLab Brasil</strong>. Ao acessar e utilizar nossa plataforma, você concorda expressamente com os seguintes Termos de Uso.</p>
+                  <h4 className="text-white font-bold mt-4">1. Natureza do Serviço</h4>
+                  <p>O PromptLab Brasil é uma ferramenta utilitária e gratuita projetada exclusivamente para auxiliar músicos na formatação, transposição algorítmica e geração de PDFs para cifras musicais e setlists.</p>
+                  <h4 className="text-white font-bold mt-4">2. Responsabilidade sobre o Conteúdo</h4>
+                  <p>A nossa plataforma <strong>não hospeda, não distribui e não possui</strong> direitos autorais sobre nenhuma letra de música ou cifra. O sistema funciona estritamente como um processador de texto no lado do cliente (no seu dispositivo). O usuário é o único e exclusivo responsável por qualquer conteúdo que decida inserir.</p>
+                  <h4 className="text-white font-bold mt-4">3. Isenção de Garantias</h4>
+                  <p>O serviço é fornecido "no estado em que se encontra". Não garantimos que a plataforma estará 100% livre de erros ou interrupções. Não nos responsabilizamos por eventuais perdas de dados armazenados localmente (Local Storage) ou problemas técnicos durante apresentações.</p>
+                  <h4 className="text-white font-bold mt-4">4. Modificações dos Termos</h4>
+                  <p>O PromptLab Brasil reserva-se o direito de revisar estes termos de serviço a qualquer momento, sem aviso prévio.</p>
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-slate-800 text-right bg-slate-900/50 rounded-b-xl">
+              <button onClick={() => setLegalModal(null)} className="btn-blue px-6 py-2 rounded font-bold text-xs uppercase inline-block">Compreendido</button>
             </div>
           </div>
         </div>
