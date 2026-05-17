@@ -65,17 +65,16 @@ export default function PromptLabPage() {
   }, [savedRepertoires])
 
 
-  // --- MOTOR DO TELEPROMPTER (NOVO) ---
+  // --- MOTOR DO TELEPROMPTER ---
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
     
     if (isPrompterPlaying && prompterRef.current) {
       intervalId = setInterval(() => {
         if (prompterRef.current) {
-          // A velocidade altera o quanto rola por vez. Em telas de celular, rolar de 1 em 1px é suave.
           prompterRef.current.scrollTop += prompterSpeed;
         }
-      }, 50); // Roda a cada 50ms
+      }, 50); 
     }
 
     return () => {
@@ -129,17 +128,18 @@ export default function PromptLabPage() {
     }
   }
 
-  // --- FUNÇÕES DE PESQUISA ---
-  const handleSearch = (engine: 'google' | 'cifraclub' | 'letras') => {
+  // --- FUNÇÕES DE PESQUISA CORRIGIDA ---
+  const handleSearch = (engine: 'google' | 'cifraclub' | 'letras' | 'missa') => {
     if (!searchQuery.trim()) return alert("Digite o nome de uma música antes de pesquisar!");
     const query = encodeURIComponent(searchQuery.trim());
     let url = engine === 'google' ? `https://www.google.com/search?q=${query}+cifra` :
               engine === 'cifraclub' ? `https://www.google.com/search?q=site:cifraclub.com.br+${query}` :
+              engine === 'missa' ? `https://www.google.com/search?q=site:musicasparamissa.com.br+${query}` :
               `https://www.google.com/search?q=site:letras.mus.br+${query}`;
     window.open(url, '_blank');
   }
 
-  // --- FUNÇÕES DO REPERTÓRIO (INTOUCHÁVEIS) ---
+  // --- FUNÇÕES DO REPERTÓRIO ---
   const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
   const updateSong = (index: number, field: 'title' | 'content', value: string) => {
     const newSongs = [...songs]; newSongs[index][field] = value; setSongs(newSongs);
@@ -189,7 +189,8 @@ export default function PromptLabPage() {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
-      const charLimit = 42; 
+      // CORREÇÃO AQUI: Limite aumentado para não fatiar a letra atoa
+      const charLimit = 85; 
       
       const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
       if (!hasContent) return alert("Adicione pelo menos uma música com conteúdo!");
@@ -350,8 +351,8 @@ export default function PromptLabPage() {
         .note-btn:hover { background: #334155; }
         .note-btn.active { background: #3b82f6; border-color: #60a5fa; color: white; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
 
-        /* Estilos específicos do Teleprompter */
-        .prompter-line { white-space: pre-wrap; word-break: break-word; min-height: 1.5rem; }
+        /* CORREÇÃO AQUI: white-space: pre garante que o texto não quebre e destrua as cifras */
+        .prompter-line { white-space: pre; min-height: 1.5rem; }
         .prompter-chord { color: #60a5fa; font-weight: bold; }
         .prompter-lyric { color: #ffffff; }
       `}</style>
@@ -371,7 +372,7 @@ export default function PromptLabPage() {
         </header>
       )}
 
-      {/* CONTEÚDO PRINCIPAL (SE O PROMPTER NÃO ESTIVER ABERTO) */}
+      {/* CONTEÚDO PRINCIPAL */}
       {!prompterSong && (
         <main className="max-w-3xl mx-auto space-y-6">
           
@@ -417,7 +418,6 @@ export default function PromptLabPage() {
                       </div>
                       
                       <div className="flex flex-wrap gap-2 w-full md:w-auto md:pt-5 justify-end items-center">
-                        {/* NOVO BOTÃO DO TELEPROMPTER */}
                         <button onClick={() => openPrompter(song)} className="btn-play mr-2" title="Modo Palco: Rolar letra automaticamente">
                           ▶️ Prompter
                         </button>
@@ -506,7 +506,7 @@ export default function PromptLabPage() {
             </section>
           )}
 
-          {/* ================= ABA 4: PESQUISAR ================= */}
+          {/* ================= ABA 4: PESQUISAR (CORRIGIDA) ================= */}
           {activeTab === 'search' && (
             <section className="panel border-l-4 border-yellow-500">
                <div className="mb-6 border-b border-slate-800 pb-4">
@@ -515,10 +515,13 @@ export default function PromptLabPage() {
               <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700 mb-8">
                 <label className="text-yellow-400 text-sm mb-2">Qual música você está procurando?</label>
                 <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch('google')} placeholder="Ex: Te Louvarei Diante do Trono" className="!mb-4 text-lg py-3 px-4" autoFocus />
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                
+                {/* 4 Botões Agora! */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <button onClick={() => handleSearch('cifraclub')} className="bg-[#ff6600]/20 text-[#ff8833] border border-[#ff6600]/50 py-3 rounded-lg font-bold">🎸 Cifra Club</button>
                   <button onClick={() => handleSearch('letras')} className="bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/50 py-3 rounded-lg font-bold">🎵 Letras.mus</button>
-                  <button onClick={() => handleSearch('google')} className="bg-blue-600/20 text-blue-400 border border-blue-600/50 py-3 rounded-lg font-bold">🌐 Google Geral</button>
+                  <button onClick={() => handleSearch('missa')} className="bg-purple-600/20 text-purple-400 border border-purple-600/50 py-3 rounded-lg font-bold">⛪ Missa</button>
+                  <button onClick={() => handleSearch('google')} className="bg-blue-600/20 text-blue-400 border border-blue-600/50 py-3 rounded-lg font-bold">🌐 Google</button>
                 </div>
               </div>
             </section>
@@ -526,7 +529,7 @@ export default function PromptLabPage() {
         </main>
       )}
 
-      {/* RODAPÉ PADRÃO (OCULTO DURANTE O PROMPTER) */}
+      {/* RODAPÉ PADRÃO */}
       {!prompterSong && (
         <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
           <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -537,31 +540,25 @@ export default function PromptLabPage() {
         </footer>
       )}
 
-      {/* ================= TELA DO TELEPROMPTER (MODAL FULLSCREEN) ================= */}
+      {/* ================= TELA DO TELEPROMPTER ================= */}
       {prompterSong && (
         <div className="fixed inset-0 bg-[#020617] z-50 flex flex-col animate-in fade-in duration-300">
           
-          {/* BARRA DE CONTROLE DO PROMPTER */}
           <div className="bg-[#0f172a] border-b border-slate-800 p-4 flex flex-wrap gap-4 items-center justify-between shadow-2xl z-10">
             <div className="flex items-center gap-4">
-              <button 
-                onClick={closePrompter} 
-                className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
-              >
+              <button onClick={closePrompter} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
                 &larr; Voltar
               </button>
               <h2 className="text-lg font-black text-white hidden sm:block truncate max-w-xs">{prompterSong.title || "Modo Palco"}</h2>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-6">
-              {/* Controle de Velocidade */}
               <div className="flex items-center bg-slate-800 rounded-lg p-1">
                 <button onClick={() => setPrompterSpeed(Math.max(1, prompterSpeed - 1))} className="px-3 py-1 font-bold text-slate-300 hover:text-white">-</button>
                 <span className="px-2 text-sm font-bold text-blue-400 whitespace-nowrap">Vel: {prompterSpeed}</span>
                 <button onClick={() => setPrompterSpeed(Math.min(10, prompterSpeed + 1))} className="px-3 py-1 font-bold text-slate-300 hover:text-white">+</button>
               </div>
 
-              {/* Botão Play/Pause Grande */}
               <button 
                 onClick={() => setIsPrompterPlaying(!isPrompterPlaying)}
                 className={`font-black uppercase py-2 px-6 rounded-lg transition-colors border-2 ${
@@ -575,13 +572,13 @@ export default function PromptLabPage() {
             </div>
           </div>
 
-          {/* ÁREA DO TEXTO ROLÁVEL */}
+          {/* CORREÇÃO AQUI: removido scroll-smooth que travava no celular, adicionado overflow-x-auto para cifras não quebrarem */}
           <div 
             ref={prompterRef}
-            className="flex-1 overflow-y-auto custom-scroll p-6 sm:p-12 pb-[60vh] scroll-smooth"
+            className="flex-1 overflow-y-auto overflow-x-auto custom-scroll p-6 sm:p-12 pb-[60vh]"
             style={{ fontSize: 'min(5vw, 2.5rem)', lineHeight: '1.6' }} 
           >
-            <div className="max-w-4xl mx-auto font-mono">
+            <div className="max-w-4xl mx-auto font-mono min-w-max">
               <h1 className="text-5xl sm:text-7xl font-black mb-12 text-slate-500 border-b border-slate-800 pb-8">{prompterSong.title}</h1>
               
               {prompterSong.content.split('\n').map((line, idx) => {
@@ -596,7 +593,6 @@ export default function PromptLabPage() {
             </div>
           </div>
           
-          {/* Sombra suave na parte inferior para dar efeito no texto subindo */}
           <div className="h-24 bg-gradient-to-t from-[#020617] to-transparent absolute bottom-0 left-0 right-0 pointer-events-none"></div>
         </div>
       )}
