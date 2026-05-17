@@ -665,3 +665,38 @@ export default function PromptLabPage() {
           >
             <div className="max-w-4xl mx-auto font-mono">
               <h1 className="text-5xl sm:text-7xl font-black mb-12 text-slate-500 border-b border-slate-800 pb-8">{prompterSong.title}</h1>
+              
+              {/* O TELEPROMPTER AGORA RENDERIZA AS LINHAS QUEBRADAS E ALINHADAS COMO O PDF */}
+              {getPrompterLines(prompterSong.content).map((lineObj, idx) => {
+                if (lineObj.type === 'empty') return <div key={idx} className="h-6 sm:h-8"></div>;
+                
+                if (lineObj.type === 'chord') {
+                  return <div key={idx} className="prompter-line prompter-chord">{lineObj.text}</div>;
+                } else {
+                  return <div key={idx} className="prompter-line prompter-lyric">{lineObj.text}</div>;
+                }
+              })}
+            </div>
+          </div>
+          
+          <div className="h-24 bg-gradient-to-t from-[#020617] to-transparent absolute bottom-0 left-0 right-0 pointer-events-none"></div>
+        </div>
+      )}
+
+      {/* Modal Legal */}
+      {legalModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center p-6 border-b border-slate-800">
+              <h3 className="text-lg font-black text-white uppercase">{legalModal === 'privacy' ? 'Política de Privacidade' : 'Termos de Uso'}</h3>
+              <button onClick={() => setLegalModal(null)} className="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+            <div className="p-6 overflow-y-auto text-sm text-slate-300">
+              <p>Textos legais simplificados para este teste. Feche para continuar.</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
