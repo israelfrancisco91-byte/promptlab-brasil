@@ -34,7 +34,7 @@ export default function PromptLabPage() {
 
   // --- ESTADOS DO TELEPROMPTER ---
   const [prompterSong, setPrompterSong] = useState<Song | null>(null)
-  const [prompterSpeed, setPrompterSpeed] = useState(1)
+  const [prompterSpeed, setPrompterSpeed] = useState(2) // Começa numa velocidade um pouco mais ágil
   const [isPrompterPlaying, setIsPrompterPlaying] = useState(false)
   const prompterRef = useRef<HTMLDivElement>(null)
 
@@ -65,21 +65,34 @@ export default function PromptLabPage() {
   }, [savedRepertoires])
 
 
-  // --- MOTOR DO TELEPROMPTER ---
+  // --- MOTOR DO TELEPROMPTER (REESCRITO PARA NÃO TRAVAR NO CELULAR) ---
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    
-    if (isPrompterPlaying && prompterRef.current) {
-      intervalId = setInterval(() => {
-        if (prompterRef.current) {
-          prompterRef.current.scrollTop += prompterSpeed;
+    let animationFrameId: number;
+    let lastTime = performance.now();
+    let accumulatedScroll = 0;
+
+    const scrollPrompter = (time: number) => {
+      if (isPrompterPlaying && prompterRef.current) {
+        const deltaTime = time - lastTime;
+        // Transforma a velocidade (1 a 10) em pixels por segundo reais
+        const pixelsPerSecond = prompterSpeed * 12; 
+        accumulatedScroll += (pixelsPerSecond * deltaTime) / 1000;
+
+        if (accumulatedScroll >= 1) {
+          prompterRef.current.scrollTop += Math.floor(accumulatedScroll);
+          accumulatedScroll -= Math.floor(accumulatedScroll);
         }
-      }, 50); 
+      }
+      lastTime = time;
+      animationFrameId = requestAnimationFrame(scrollPrompter);
+    };
+
+    if (isPrompterPlaying) {
+      lastTime = performance.now();
+      animationFrameId = requestAnimationFrame(scrollPrompter);
     }
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
+    return () => cancelAnimationFrame(animationFrameId);
   }, [isPrompterPlaying, prompterSpeed]);
 
   const openPrompter = (song: Song) => {
@@ -89,7 +102,7 @@ export default function PromptLabPage() {
     }
     setPrompterSong(song);
     setIsPrompterPlaying(false);
-    setPrompterSpeed(1);
+    setPrompterSpeed(2);
   }
 
   const closePrompter = () => {
@@ -97,6 +110,78 @@ export default function PromptLabPage() {
     setIsPrompterPlaying(false);
   }
 
+
+  // --- INTELIGÊNCIA DE QUEBRA DE LINHA DO PROMPTER (NOVO) ---
+  // Quebra a letra respeitando espaços e cifras, do mesmo jeito que o PDF!
+  const getPrompterLines = (content: string) => {
+    const charLimit = 40; // Limite ideal para telas de celular sem precisar rolar horizontalmente
+    const lines = content.split('\n');
+    let j = 0;
+    const result: { type: string, text: string }[] = [];
+
+    while (j < lines.length) {
+      const line = lines[j];
+      if (line.trim() === "") {
+        result.push({ type: 'empty', text: '' });
+        j++;
+        continue;
+      }
+
+      let chordLine = line;
+      let lyricLine = lines[j + 1] || "";
+
+      if (isChordLine(chordLine) && lyricLine.trim() !== "" && !isChordLine(lyricLine)) {
+        while (chordLine.length > 0 || lyricLine.length > 0) {
+          let breakIdx = charLimit;
+          let skipChars = 0;
+          const maxLen = Math.max(chordLine.length, lyricLine.length);
+
+          if (maxLen > charLimit) {
+            let lastSpace = lyricLine.substring(0, charLimit + 1).lastIndexOf(' ');
+            if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; }
+            else {
+              lastSpace = chordLine.substring(0, charLimit + 1).lastIndexOf(' ');
+              if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; }
+              else { breakIdx = charLimit; skipChars = 0; }
+            }
+          } else { breakIdx = maxLen; skipChars = 0; }
+
+          const cChunk = chordLine.substring(0, breakIdx);
+          const lChunk = lyricLine.substring(0, breakIdx);
+
+          if (cChunk.trim() !== "") {
+            result.push({ type: 'chord', text: cChunk });
+          }
+          result.push({ type: 'lyric', text: lChunk });
+
+          chordLine = chordLine.substring(breakIdx + skipChars);
+          lyricLine = lyricLine.substring(breakIdx + skipChars);
+        }
+        j += 2;
+      } else {
+        let remaining = line;
+        while (remaining.length > 0) {
+          let breakIdx = charLimit;
+          let skipChars = 0;
+          if (remaining.length > charLimit) {
+            const lastSpace = remaining.substring(0, charLimit + 1).lastIndexOf(' ');
+            if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; }
+            else { breakIdx = charLimit; skipChars = 0; }
+          } else { breakIdx = remaining.length; }
+
+          const chunk = remaining.substring(0, breakIdx);
+          if (isChordLine(line)) {
+            result.push({ type: 'chord', text: chunk });
+          } else {
+            result.push({ type: 'lyric', text: chunk });
+          }
+          remaining = remaining.substring(breakIdx + skipChars);
+        }
+        j++;
+      }
+    }
+    return result;
+  }
 
   // --- FUNÇÕES DA BIBLIOTECA ---
   const saveToLibrary = () => {
@@ -128,7 +213,7 @@ export default function PromptLabPage() {
     }
   }
 
-  // --- FUNÇÕES DE PESQUISA CORRIGIDA ---
+  // --- FUNÇÕES DE PESQUISA (COM MÚSICAS PARA MISSA INCLUSO) ---
   const handleSearch = (engine: 'google' | 'cifraclub' | 'letras' | 'missa') => {
     if (!searchQuery.trim()) return alert("Digite o nome de uma música antes de pesquisar!");
     const query = encodeURIComponent(searchQuery.trim());
@@ -185,12 +270,13 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   };
 
+  // ================= O MOTOR DE PDF PERFEITO =================
   const processPDF = async (action: 'download' | 'share') => {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
-      // CORREÇÃO AQUI: Limite aumentado para não fatiar a letra atoa
-      const charLimit = 85; 
+      // LIMITE ORIGINAL MANTIDO E INTOCÁVEL:
+      const charLimit = 42; 
       
       const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
       if (!hasContent) return alert("Adicione pelo menos uma música com conteúdo!");
@@ -336,7 +422,7 @@ export default function PromptLabPage() {
         .btn-play { background: #10b981; color: white; font-size: 0.75rem; font-weight: bold; border-radius: 6px; padding: 0 12px; height: 32px; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
         .btn-play:hover { background: #059669; }
         
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
@@ -351,8 +437,8 @@ export default function PromptLabPage() {
         .note-btn:hover { background: #334155; }
         .note-btn.active { background: #3b82f6; border-color: #60a5fa; color: white; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
 
-        /* CORREÇÃO AQUI: white-space: pre garante que o texto não quebre e destrua as cifras */
-        .prompter-line { white-space: pre; min-height: 1.5rem; }
+        /* REGRAS DO PROMPTER: Usa white-space pre-wrap e oculta scroll horizontal para caber tudo na tela de forma limpa */
+        .prompter-line { white-space: pre-wrap; min-height: 1.5em; word-break: break-word; }
         .prompter-chord { color: #60a5fa; font-weight: bold; }
         .prompter-lyric { color: #ffffff; }
       `}</style>
@@ -516,7 +602,6 @@ export default function PromptLabPage() {
                 <label className="text-yellow-400 text-sm mb-2">Qual música você está procurando?</label>
                 <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch('google')} placeholder="Ex: Te Louvarei Diante do Trono" className="!mb-4 text-lg py-3 px-4" autoFocus />
                 
-                {/* 4 Botões Agora! */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <button onClick={() => handleSearch('cifraclub')} className="bg-[#ff6600]/20 text-[#ff8833] border border-[#ff6600]/50 py-3 rounded-lg font-bold">🎸 Cifra Club</button>
                   <button onClick={() => handleSearch('letras')} className="bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/50 py-3 rounded-lg font-bold">🎵 Letras.mus</button>
@@ -572,45 +657,11 @@ export default function PromptLabPage() {
             </div>
           </div>
 
-          {/* CORREÇÃO AQUI: removido scroll-smooth que travava no celular, adicionado overflow-x-auto para cifras não quebrarem */}
           <div 
             ref={prompterRef}
-            className="flex-1 overflow-y-auto overflow-x-auto custom-scroll p-6 sm:p-12 pb-[60vh]"
-            style={{ fontSize: 'min(5vw, 2.5rem)', lineHeight: '1.6' }} 
+            className="flex-1 overflow-y-auto overflow-x-hidden custom-scroll p-6 sm:p-12 pb-[60vh]"
+            /* Fonte dinâmica min(3.8vw, 2.5rem) garante que 40 letras caibam perfeitamente na tela sem rolar pro lado */
+            style={{ fontSize: 'min(3.8vw, 2.5rem)', lineHeight: '1.6' }} 
           >
-            <div className="max-w-4xl mx-auto font-mono min-w-max">
+            <div className="max-w-4xl mx-auto font-mono">
               <h1 className="text-5xl sm:text-7xl font-black mb-12 text-slate-500 border-b border-slate-800 pb-8">{prompterSong.title}</h1>
-              
-              {prompterSong.content.split('\n').map((line, idx) => {
-                if (line.trim() === '') return <div key={idx} className="h-8"></div>;
-                
-                if (isChordLine(line)) {
-                  return <div key={idx} className="prompter-line prompter-chord">{line}</div>;
-                } else {
-                  return <div key={idx} className="prompter-line prompter-lyric">{line}</div>;
-                }
-              })}
-            </div>
-          </div>
-          
-          <div className="h-24 bg-gradient-to-t from-[#020617] to-transparent absolute bottom-0 left-0 right-0 pointer-events-none"></div>
-        </div>
-      )}
-
-      {/* Modal Legal */}
-      {legalModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
-            <div className="flex justify-between items-center p-6 border-b border-slate-800">
-              <h3 className="text-lg font-black text-white uppercase">{legalModal === 'privacy' ? 'Política de Privacidade' : 'Termos de Uso'}</h3>
-              <button onClick={() => setLegalModal(null)} className="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
-            </div>
-            <div className="p-6 overflow-y-auto text-sm text-slate-300">
-              <p>Textos legais simplificados para este teste. Feche para continuar.</p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
