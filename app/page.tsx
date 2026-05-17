@@ -38,41 +38,7 @@ export default function PromptLabPage() {
   const [isPrompterPlaying, setIsPrompterPlaying] = useState(false)
   const prompterRef = useRef<HTMLDivElement>(null)
 
-  // ================= NOVO: LEITOR DE LINK COMPARTILHADO =================
   useEffect(() => {
-    // Quando a página carrega, ele olha para a URL para ver se tem um "?share="
-    const urlParams = new URLSearchParams(window.location.search);
-    const sharedData = urlParams.get('share');
-
-    if (sharedData) {
-      try {
-        // Desempacota o link gigante
-        const decodedData = JSON.parse(decodeURIComponent(sharedData));
-        
-        if (decodedData && decodedData.songs) {
-          if (window.confirm("🎵 Alguém compartilhou um Repertório com você!\nDeseja carregá-lo agora na sua tela? (Isso substituirá o que está aberto no momento)")) {
-            setSongs(decodedData.songs);
-            setRepertoireHeader(decodedData.header || "");
-            setActiveTab('setlist');
-            alert("Repertório carregado com sucesso! Você pode editá-lo, usar o Teleprompter ou salvar na sua Biblioteca.");
-          }
-        }
-        
-        // Limpa a URL para que se o usuário atualizar a página não pergunte de novo
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } catch (error) {
-        console.error("Erro ao ler o link compartilhado:", error);
-        alert("Ops! Parece que o link de compartilhamento é inválido ou está quebrado.");
-      }
-    }
-  }, []);
-  // ================= FIM DO LEITOR DE LINK =================
-
-  // --- CARREGAMENTO LOCAL ---
-  useEffect(() => {
-    // Só carrega do LocalStorage se NÃO tiver acabado de carregar um link compartilhado
-    if (window.location.search.includes('share=')) return;
-
     const savedSongs = localStorage.getItem('promptlab_songs')
     const savedHeader = localStorage.getItem('promptlab_header')
     const savedLibrary = localStorage.getItem('promptlab_library')
@@ -97,31 +63,6 @@ export default function PromptLabPage() {
   useEffect(() => {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
-
-
-  // ================= NOVO: GERADOR DE LINK =================
-  const generateShareLink = () => {
-    try {
-      const dataToShare = {
-        header: repertoireHeader,
-        songs: songs
-      };
-      
-      // Empacota tudo em formato texto seguro para URL
-      const encodedData = encodeURIComponent(JSON.stringify(dataToShare));
-      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${encodedData}`;
-      
-      // Copia para a área de transferência do usuário
-      navigator.clipboard.writeText(shareUrl).then(() => {
-        alert("✅ Link do projeto copiado!\n\nAgora é só colar no WhatsApp da sua banda. Eles abrirão exatamente este repertório.");
-      }).catch(() => {
-        alert("Erro ao copiar. Seu navegador pode ter bloqueado esta ação.");
-      });
-    } catch (err) {
-      alert("Erro ao gerar link. O repertório pode ser grande demais.");
-    }
-  }
-  // ================= FIM DO GERADOR DE LINK =================
 
 
   // --- MOTOR DO TELEPROMPTER ---
@@ -526,12 +467,9 @@ export default function PromptLabPage() {
                     {showInstructions ? "Ocultar" : "Como usar"}
                   </button>
                 </div>
-                
-                {/* BOTÕES ATUALIZADOS: NOVO, LINK E SALVAR */}
-                <div className="flex w-full sm:w-auto gap-2 flex-wrap sm:flex-nowrap justify-end">
-                  <button onClick={clearCurrentSetlist} className="btn-icon !w-auto px-4 !bg-slate-800 hover:!bg-slate-700 text-xs font-bold uppercase" title="Apagar tudo">📄 Novo</button>
-                  <button onClick={generateShareLink} className="btn-icon !w-auto px-4 !bg-purple-600 hover:!bg-purple-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(147,51,234,0.3)]" title="Gerar link de compartilhamento para banda">🔗 Compartilhar Link</button>
-                  <button onClick={saveToLibrary} className="btn-icon !w-auto px-4 !bg-blue-600 hover:!bg-blue-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(37,99,235,0.4)]" title="Salvar localmente na sua biblioteca">💾 Salvar</button>
+                <div className="flex w-full sm:w-auto gap-2">
+                  <button onClick={clearCurrentSetlist} className="btn-icon !w-auto px-4 !bg-slate-800 hover:!bg-slate-700 text-xs font-bold uppercase" title="Apagar tudo e começar do zero">📄 Novo</button>
+                  <button onClick={saveToLibrary} className="btn-icon !w-auto px-4 !bg-blue-600 hover:!bg-blue-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(37,99,235,0.4)]" title="Salvar este repertório na sua biblioteca">💾 Salvar Repertório</button>
                 </div>
               </div>
               
@@ -540,8 +478,8 @@ export default function PromptLabPage() {
                   <h3 className="font-bold text-white text-base mb-2 border-b border-slate-700 pb-2">Guia Rápido de Uso</h3>
                   <ul className="space-y-3">
                     <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-blue-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">🔗</span><div><strong className="text-purple-400">Compartilhar com a Banda:</strong> Crie seu setlist, clique no botão "Compartilhar Link" e envie no WhatsApp. Seus amigos abrirão o site exatamente onde você parou!</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-purple-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
                   </ul>
                 </div>
               )}
@@ -671,28 +609,32 @@ export default function PromptLabPage() {
         </main>
       )}
 
-      {/* TEXTOS DE SEO E RODAPÉ */}
+      {/* ================= TEXTO DE SEO RESTAURADO (APROVAÇÃO ADSENSE) ================= */}
       {!prompterSong && (
-        <>
-          <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
-            <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
-            <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
-            <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
-            <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
-            <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
-            <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
-            <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
-            <p>Além de gerar arquivos PDF em alta qualidade, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
-          </section>
+        <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+          <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
+          <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
+          
+          <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
+          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
+          
+          <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
+          <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
 
-          <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
-            <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-              <button onClick={() => setLegalModal('privacy')} className="hover:text-blue-400">Política de Privacidade</button>
-              <button onClick={() => setLegalModal('terms')} className="hover:text-blue-400">Termos de Uso</button>
-            </div>
-            <p className="text-xs text-slate-600">© 2026 PromptLab Brasil. Todos os direitos reservados.</p>
-          </footer>
-        </>
+          <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
+          <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
+        </section>
+      )}
+
+      {/* RODAPÉ PADRÃO */}
+      {!prompterSong && (
+        <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
+          <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <button onClick={() => setLegalModal('privacy')} className="hover:text-blue-400">Política de Privacidade</button>
+            <button onClick={() => setLegalModal('terms')} className="hover:text-blue-400">Termos de Uso</button>
+          </div>
+          <p className="text-xs text-slate-600">© 2026 PromptLab Brasil. Todos os direitos reservados.</p>
+        </footer>
       )}
 
       {/* ================= TELA DO TELEPROMPTER ================= */}
@@ -751,7 +693,7 @@ export default function PromptLabPage() {
         </div>
       )}
 
-      {/* ================= MODAL DE TEXTOS LEGAIS ================= */}
+      {/* ================= MODAL DE TEXTOS LEGAIS RESTAURADO ================= */}
       {legalModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
@@ -764,21 +706,23 @@ export default function PromptLabPage() {
                 <div className="space-y-4">
                   <p>A sua privacidade é fundamental para nós no <strong>PromptLab Brasil</strong>. Esta política descreve como as suas informações são tratadas ao utilizar a nossa plataforma.</p>
                   <h4 className="text-white font-bold mt-4">1. Armazenamento Local (Local Storage)</h4>
-                  <p>O PromptLab Brasil foi projetado com foco na sua privacidade e segurança. Os repertórios, letras de músicas e configurações que você insere <strong>não são enviados ou salvos em nossos servidores</strong>. Utilizamos a tecnologia de <em>Local Storage</em> do seu navegador.</p>
+                  <p>O PromptLab Brasil foi projetado com foco na sua privacidade e segurança. Os repertórios, letras de músicas e configurações que você insere <strong>não são enviados ou salvos em nossos servidores</strong>. Utilizamos a tecnologia de <em>Local Storage</em> do seu navegador para garantir que você não perca seus dados ao fechar a aba acidentalmente, bem como para a sua Biblioteca pessoal de repertórios. Você tem controle total e pode apagar esses dados a qualquer momento limpando o cache do seu próprio navegador.</p>
                   <h4 className="text-white font-bold mt-4">2. Cookies e Google AdSense</h4>
                   <p>Para manter a ferramenta gratuita para todos os músicos, exibimos anúncios de parceiros fornecidos pelo Google AdSense. O Google utiliza cookies para veicular anúncios com base em suas visitas a este e a outros sites na Internet.</p>
                   <h4 className="text-white font-bold mt-4">3. Coleta de Dados Analíticos</h4>
-                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender, de forma totalmente anônima, o volume de acesso ao site.</p>
+                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender, de forma totalmente anônima, o volume de acesso ao site. Nenhuma informação pessoal é coletada neste processo.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <p>Bem-vindo ao <strong>PromptLab Brasil</strong>. Ao acessar e utilizar nossa plataforma, você concorda expressamente com os seguintes Termos de Uso.</p>
                   <h4 className="text-white font-bold mt-4">1. Natureza do Serviço</h4>
-                  <p>O PromptLab Brasil é uma ferramenta utilitária e gratuita projetada exclusivamente para auxiliar músicos na formatação, transposição algorítmica e geração de PDFs.</p>
+                  <p>O PromptLab Brasil é uma ferramenta utilitária e gratuita projetada exclusivamente para auxiliar músicos na formatação, transposição algorítmica e geração de PDFs para cifras musicais e setlists.</p>
                   <h4 className="text-white font-bold mt-4">2. Responsabilidade sobre o Conteúdo</h4>
-                  <p>A nossa plataforma <strong>não hospeda, não distribui e não possui</strong> direitos autorais sobre nenhuma letra de música ou cifra. O usuário é o único e exclusivo responsável por qualquer conteúdo que decida inserir ou compartilhar através de Links Mágicos gerados por nossa plataforma.</p>
+                  <p>A nossa plataforma <strong>não hospeda, não distribui e não possui</strong> direitos autorais sobre nenhuma letra de música ou cifra. O sistema funciona estritamente como um processador de texto no lado do cliente (no seu dispositivo). O usuário é o único e exclusivo responsável por qualquer conteúdo que decida inserir.</p>
                   <h4 className="text-white font-bold mt-4">3. Isenção de Garantias</h4>
-                  <p>O serviço é fornecido "no estado em que se encontra". Não nos responsabilizamos por eventuais perdas de dados armazenados localmente ou problemas técnicos durante apresentações.</p>
+                  <p>O serviço é fornecido "no estado em que se encontra". Não garantimos que a plataforma estará 100% livre de erros ou interrupções. Não nos responsabilizamos por eventuais perdas de dados armazenados localmente (Local Storage) ou problemas técnicos durante apresentações.</p>
+                  <h4 className="text-white font-bold mt-4">4. Modificações dos Termos</h4>
+                  <p>O PromptLab Brasil reserva-se o direito de revisar estes termos de serviço a qualquer momento, sem aviso prévio.</p>
                 </div>
               )}
             </div>
