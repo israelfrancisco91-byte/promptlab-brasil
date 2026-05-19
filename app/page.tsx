@@ -109,24 +109,21 @@ export default function PromptLabPage() {
     setIsPrompterPlaying(false);
   }
 
-  // ================= FUNÇÃO DE LIMPEZA DE TEXTO =================
-  // Essa função higieniza o texto de outros sites, removendo lixo invisível
+  // ================= FUNÇÃO DE LIMPEZA DE TEXTO (INVISÍVEL) =================
   const cleanText = (text: string) => {
     if (!text) return "";
     return text
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
-      // Converte todos os espaços especiais do HTML (\u00A0, etc) em espaços comuns
       .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
-      // Converte Tabs em espaços comuns
       .replace(/\t/g, '    ');
   }
-  // ==============================================================
+  // ==========================================================================
 
   // --- INTELIGÊNCIA DE QUEBRA DE LINHA DO PROMPTER ---
   const getPrompterLines = (content: string) => {
     const charLimit = 40; 
-    // Aplicamos o cleanText aqui para higienizar antes de quebrar a linha
+    // Aplicando a limpeza invisível aqui
     const lines = cleanText(content).split('\n');
     let j = 0;
     const result: { type: string, text: string }[] = [];
@@ -324,12 +321,12 @@ export default function PromptLabPage() {
 
         if (song.title.trim() !== "") {
           doc.setFont("times", "bold"); doc.setFontSize(14); doc.setTextColor(0, 0, 0);
-          // Limpando o título também para evitar quebras estranhas
+          // Aplicando limpeza no título
           const wrappedTitle = doc.splitTextToSize(cleanText(song.title.trim()), 85);
           wrappedTitle.forEach((t: string) => { checkSpace(8); doc.text(t.trim(), currentX, currentY); currentY += 8; });
         }
 
-        // APLICAÇÃO DO FILTRO: Limpa a letra e cifras antes de processar as linhas do PDF
+        // Aplicando limpeza no conteúdo gerado pelo PDF
         const lines = cleanText(song.content).split('\n');
         let j = 0;
 
@@ -726,4 +723,28 @@ export default function PromptLabPage() {
                   <h4 className="text-white font-bold mt-4">2. Cookies e Google AdSense</h4>
                   <p>Para manter a ferramenta gratuita para todos os músicos, exibimos anúncios de parceiros fornecidos pelo Google AdSense. O Google utiliza cookies para veicular anúncios com base em suas visitas a este e a outros sites na Internet.</p>
                   <h4 className="text-white font-bold mt-4">3. Coleta de Dados Analíticos</h4>
-                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender,
+                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender, de forma totalmente anônima, o volume de acesso ao site. Nenhuma informação pessoal é coletada neste processo.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p>Bem-vindo ao <strong>PromptLab Brasil</strong>. Ao acessar e utilizar nossa plataforma, você concorda expressamente com os seguintes Termos de Uso.</p>
+                  <h4 className="text-white font-bold mt-4">1. Natureza do Serviço</h4>
+                  <p>O PromptLab Brasil é uma ferramenta utilitária e gratuita projetada exclusivamente para auxiliar músicos na formatação, transposição algorítmica e geração de PDFs para cifras musicais e setlists.</p>
+                  <h4 className="text-white font-bold mt-4">2. Responsabilidade sobre o Conteúdo</h4>
+                  <p>A nossa plataforma <strong>não hospeda, não distribui e não possui</strong> direitos autorais sobre nenhuma letra de música ou cifra. O sistema funciona estritamente como um processador de texto no lado do cliente (no seu dispositivo). O usuário é o único e exclusivo responsável por qualquer conteúdo que decida inserir.</p>
+                  <h4 className="text-white font-bold mt-4">3. Isenção de Garantias</h4>
+                  <p>O serviço é fornecido "no estado em que se encontra". Não garantimos que a plataforma estará 100% livre de erros ou interrupções. Não nos responsabilizamos por eventuais perdas de dados armazenados localmente (Local Storage) ou problemas técnicos durante apresentações.</p>
+                  <h4 className="text-white font-bold mt-4">4. Modificações dos Termos</h4>
+                  <p>O PromptLab Brasil reserva-se o direito de revisar estes termos de serviço a qualquer momento, sem aviso prévio.</p>
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-slate-800 text-right bg-slate-900/50 rounded-b-xl">
+              <button onClick={() => setLegalModal(null)} className="btn-blue px-6 py-2 rounded font-bold text-xs uppercase inline-block">Compreendido</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
