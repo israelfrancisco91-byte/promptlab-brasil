@@ -614,4 +614,116 @@ export default function PromptLabPage() {
                 <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch('google')} placeholder="Ex: Te Louvarei Diante do Trono" className="!mb-4 text-lg py-3 px-4" autoFocus />
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <button onClick={() => handleSearch('cifraclub
+                  <button onClick={() => handleSearch('cifraclub')} className="bg-[#ff6600]/20 text-[#ff8833] border border-[#ff6600]/50 py-3 rounded-lg font-bold">🎸 Cifra Club</button>
+                  <button onClick={() => handleSearch('letras')} className="bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/50 py-3 rounded-lg font-bold">🎵 Letras.mus</button>
+                  <button onClick={() => handleSearch('missa')} className="bg-purple-600/20 text-purple-400 border border-purple-600/50 py-3 rounded-lg font-bold">⛪ Missa</button>
+                  <button onClick={() => handleSearch('google')} className="bg-blue-600/20 text-blue-400 border border-blue-600/50 py-3 rounded-lg font-bold">🌐 Google</button>
+                </div>
+              </div>
+            </section>
+          )}
+        </main>
+      )}
+
+      {/* ================= TEXTO DE SEO RESTAURADO (APROVAÇÃO ADSENSE) ================= */}
+      {!prompterSong && (
+        <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+          <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
+          <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
+          
+          <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
+          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
+          
+          <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
+          <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
+
+          <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
+          <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
+        </section>
+      )}
+
+      {/* RODAPÉ PADRÃO */}
+      {!prompterSong && (
+        <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
+          <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <button onClick={() => setLegalModal('privacy')} className="hover:text-blue-400">Política de Privacidade</button>
+            <button onClick={() => setLegalModal('terms')} className="hover:text-blue-400">Termos de Uso</button>
+          </div>
+          <p className="text-xs text-slate-600">© 2026 PromptLab Brasil. Todos os direitos reservados.</p>
+        </footer>
+      )}
+
+      {/* ================= TELA DO TELEPROMPTER ================= */}
+      {prompterSong && (
+        <div className="fixed inset-0 bg-[#020617] z-50 flex flex-col animate-in fade-in duration-300">
+          
+          <div className="bg-[#0f172a] border-b border-slate-800 p-4 flex flex-wrap gap-4 items-center justify-between shadow-2xl z-10">
+            <div className="flex items-center gap-4">
+              <button onClick={closePrompter} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
+                &larr; Voltar
+              </button>
+              <h2 className="text-lg font-black text-white hidden sm:block truncate max-w-xs">{prompterSong.title || "Modo Palco"}</h2>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-6">
+              <div className="flex items-center bg-slate-800 rounded-lg p-1">
+                <button onClick={() => setPrompterSpeed(Math.max(1, prompterSpeed - 1))} className="px-3 py-1 font-bold text-slate-300 hover:text-white">-</button>
+                <span className="px-2 text-sm font-bold text-blue-400 whitespace-nowrap">Vel: {prompterSpeed}</span>
+                <button onClick={() => setPrompterSpeed(Math.min(10, prompterSpeed + 1))} className="px-3 py-1 font-bold text-slate-300 hover:text-white">+</button>
+              </div>
+
+              <button 
+                onClick={() => setIsPrompterPlaying(!isPrompterPlaying)}
+                className={`font-black uppercase py-2 px-6 rounded-lg transition-colors border-2 ${
+                  isPrompterPlaying 
+                    ? 'bg-amber-500/20 text-amber-500 border-amber-500/50 hover:bg-amber-500/30' 
+                    : 'bg-green-500/20 text-green-500 border-green-500/50 hover:bg-green-500/30'
+                }`}
+              >
+                {isPrompterPlaying ? '⏸ Pausar' : '▶️ Tocar'}
+              </button>
+            </div>
+          </div>
+
+          <div 
+            ref={prompterRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden custom-scroll p-6 sm:p-12 pb-[60vh]"
+            style={{ fontSize: 'min(3.8vw, 2.5rem)', lineHeight: '1.6' }} 
+          >
+            <div className="max-w-4xl mx-auto font-mono">
+              <h1 className="text-5xl sm:text-7xl font-black mb-12 text-slate-500 border-b border-slate-800 pb-8">{prompterSong.title}</h1>
+              
+              {getPrompterLines(prompterSong.content).map((lineObj, idx) => {
+                if (lineObj.type === 'empty') return <div key={idx} className="h-6 sm:h-8"></div>;
+                
+                if (lineObj.type === 'chord') {
+                  return <div key={idx} className="prompter-line prompter-chord">{lineObj.text}</div>;
+                } else {
+                  return <div key={idx} className="prompter-line prompter-lyric">{lineObj.text}</div>;
+                }
+              })}
+            </div>
+          </div>
+          
+          <div className="h-24 bg-gradient-to-t from-[#020617] to-transparent absolute bottom-0 left-0 right-0 pointer-events-none"></div>
+        </div>
+      )}
+
+      {/* ================= MODAL DE TEXTOS LEGAIS RESTAURADO ================= */}
+      {legalModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center p-6 border-b border-slate-800">
+              <h3 className="text-lg font-black text-white uppercase">{legalModal === 'privacy' ? 'Política de Privacidade' : 'Termos de Uso'}</h3>
+              <button onClick={() => setLegalModal(null)} className="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+            <div className="p-6 overflow-y-auto text-sm text-slate-300">
+              {legalModal === 'privacy' ? (
+                <div className="space-y-4">
+                  <p>A sua privacidade é fundamental para nós no <strong>PromptLab Brasil</strong>. Esta política descreve como as suas informações são tratadas ao utilizar a nossa plataforma.</p>
+                  <h4 className="text-white font-bold mt-4">1. Armazenamento Local (Local Storage)</h4>
+                  <p>O PromptLab Brasil foi projetado com foco na sua privacidade e segurança. Os repertórios, letras de músicas e configurações que você insere <strong>não são enviados ou salvos em nossos servidores</strong>. Utilizamos a tecnologia de <em>Local Storage</em> do seu navegador para garantir que você não perca seus dados ao fechar a aba acidentalmente, bem como para a sua Biblioteca pessoal de repertórios. Você tem controle total e pode apagar esses dados a qualquer momento limpando o cache do seu próprio navegador.</p>
+                  <h4 className="text-white font-bold mt-4">2. Cookies e Google AdSense</h4>
+                  <p>Para manter a ferramenta gratuita para todos os músicos, exibimos anúncios de parceiros fornecidos pelo Google AdSense. O Google utiliza cookies para veicular anúncios com base em suas visitas a este e a outros sites na Internet.</p>
+                  <h4 className="text-white font-bold mt-4">3. Coleta de Dados Analíticos</h4>
+                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender,
