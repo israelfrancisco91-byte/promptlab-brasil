@@ -64,7 +64,7 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
 
-  // Função utilitária de detecção de cifra (precisa ser declarada antes para o handleToggleCase usar)
+  // Função utilitária de detecção de cifra
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 120) return false;
@@ -79,27 +79,22 @@ export default function PromptLabPage() {
 
     const lines = current.split('\n');
     
-    // Verifica o estado atual focando apenas nas linhas que são LETRA (ignora cifras)
     const lyricLines = lines.filter(line => !isChordLine(line) && line.trim().length > 0);
     const lyricsText = lyricLines.join('');
     
-    if (lyricsText.length === 0) return; // Se for só cifra, não faz nada
+    if (lyricsText.length === 0) return; 
 
     const isUpper = lyricsText === lyricsText.toUpperCase();
 
     newSongs[index].content = lines.map(line => {
-      // Mantém as cifras e as quebras de linha exatamente como são
       if (isChordLine(line) || line.trim() === "") {
         return line;
       }
       
-      // Se a letra estava toda em maiúscula, converte para minúscula capitalizando a primeira letra
       if (isUpper) {
         const lower = line.toLowerCase();
-        // Capitaliza apenas a primeira letra da linha (ex: "Senhor que viestes salvar")
         return lower.charAt(0).toUpperCase() + lower.slice(1);
       } else {
-        // Se estava minúscula, transforma tudo em MAIÚSCULA
         return line.toUpperCase();
       }
     }).join('\n');
@@ -580,29 +575,44 @@ export default function PromptLabPage() {
               <div className="space-y-4 mb-6">
                 {songs.map((song, index) => (
                   <div key={song.id} className="card relative group border-l-4 border-l-transparent focus-within:border-l-blue-500">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3">
-                      <div className="flex-1 w-full">
-                        <label className="!mb-1 text-slate-400">Título da Música {index + 1}</label>
-                        <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2 w-full md:w-auto md:pt-5 justify-end items-center">
-                        <button onClick={() => openPrompter(song)} className="btn-play mr-2" title="Modo Palco: Rolar letra automaticamente">
-                          ▶️ Prompter
-                        </button>
-                        
-                        <button onClick={() => transposeSong(index, -1)} className="btn-transpose">-½ Tom</button>
-                        <button onClick={() => transposeSong(index, 1)} className="btn-transpose mr-2">+½ Tom</button>
-                        <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30">⬆️</button>
-                        <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30">⬇️</button>
-                        <button onClick={() => removeSong(index)} className="btn-icon btn-danger">🗑️</button>
-                      </div>
+                    
+                    <div className="mb-3">
+                      <label className="!mb-1 text-slate-400">Título da Música {index + 1}</label>
+                      <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
                     </div>
                     
-                    {/* BARRAS DE FERRAMENTAS Aa e B */}
-                    <div className="flex gap-2 mb-2">
-                      <button onClick={() => handleToggleCase(index)} className="px-3 py-1 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-lg text-white shadow transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
-                      <button onClick={() => handleToggleBold(index)} className="px-3 py-1 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-lg text-white shadow transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                    {/* BARRA DE FERRAMENTAS UNIFICADA E RESPONSIVA */}
+                    <div className="flex flex-wrap items-center gap-2 mb-3 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50">
+                      
+                      {/* Grupo 1: Edição */}
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
+                        <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                      </div>
+                      
+                      {/* Divisor Desktop */}
+                      <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
+                      
+                      {/* Grupo 2: Transposição */}
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0">-½ Tom</button>
+                        <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0">+½ Tom</button>
+                      </div>
+
+                      {/* Divisor Desktop */}
+                      <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
+
+                      {/* Grupo 3: Prompter */}
+                      <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-1 sm:flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
+                        ▶️ Prompter
+                      </button>
+
+                      {/* Grupo 4: Ações da Música */}
+                      <div className="flex items-center gap-1 w-full sm:w-auto ml-auto justify-end sm:border-l sm:border-slate-700 sm:pl-3 mt-1 sm:mt-0">
+                        <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬆️</button>
+                        <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬇️</button>
+                        <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-8 !w-9">🗑️</button>
+                      </div>
                     </div>
 
                     <div>
