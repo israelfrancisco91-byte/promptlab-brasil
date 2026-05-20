@@ -64,6 +64,47 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
 
+  // --- FERRAMENTAS DE EDIÇÃO DE TEXTO ---
+  const handleToggleCase = (index: number) => {
+    const newSongs = [...songs];
+    const current = newSongs[index].content;
+    if (!current) return;
+    const isUpper = current === current.toUpperCase();
+    newSongs[index].content = isUpper ? current.toLowerCase() : current.toUpperCase();
+    setSongs(newSongs);
+  };
+
+  const handleToggleBold = (index: number) => {
+    const textarea = document.getElementById(`song-textarea-${index}`) as HTMLTextAreaElement;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = songs[index].content;
+    
+    if (start === end) {
+      alert("Selecione uma palavra ou trecho para colocar em negrito.");
+      return;
+    }
+    
+    const selected = text.substring(start, end);
+    const newText = text.substring(0, start) + "**" + selected + "**" + text.substring(end);
+    updateSong(index, 'content', newText);
+    
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start, end + 4);
+    }, 10);
+  };
+
+  // --- FILTRO DE LIMPEZA DE HTML ---
+  const cleanText = (text: string) => {
+    if (!text) return "";
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
+      .replace(/\t/g, '    ');
+  }
 
   // --- MOTOR DO TELEPROMPTER ---
   useEffect(() => {
@@ -109,11 +150,10 @@ export default function PromptLabPage() {
     setIsPrompterPlaying(false);
   }
 
-
   // --- INTELIGÊNCIA DE QUEBRA DE LINHA DO PROMPTER ---
   const getPrompterLines = (content: string) => {
     const charLimit = 40; 
-    const lines = content.split('\n');
+    const lines = cleanText(content).split('\n');
     let j = 0;
     const result: { type: string, text: string }[] = [];
 
@@ -281,8 +321,9 @@ export default function PromptLabPage() {
       let currentY = 32;
 
       const drawFixedElements = (pdfDoc: jsPDF) => {
+        // Upgrade PRO: Usando Helvetica para cabeçalhos e rodapés para visual mais limpo
         pdfDoc.setTextColor(150, 150, 150);
-        pdfDoc.setFont("times", "bold"); 
+        pdfDoc.setFont("helvetica", "bold"); 
         pdfDoc.setFontSize(10);
         pdfDoc.text(watermark, 105, 290, { align: "center" });
 
@@ -309,12 +350,13 @@ export default function PromptLabPage() {
         if (!song.title.trim() && !song.content.trim()) return;
 
         if (song.title.trim() !== "") {
-          doc.setFont("times", "bold"); doc.setFontSize(14); doc.setTextColor(0, 0, 0);
-          const wrappedTitle = doc.splitTextToSize(song.title.trim(), 85);
+          // Upgrade PRO: Títulos de músicas em Helvetica para contraste elegante
+          doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(0, 0, 0);
+          const wrappedTitle = doc.splitTextToSize(cleanText(song.title.trim()), 85);
           wrappedTitle.forEach((t: string) => { checkSpace(8); doc.text(t.trim(), currentX, currentY); currentY += 8; });
         }
 
-        const lines = song.content.split('\n');
+        const lines = cleanText(song.content).split('\n');
         let j = 0;
 
         while (j < lines.length) {
@@ -343,10 +385,20 @@ export default function PromptLabPage() {
 
               if (cChunk.trim() !== "") {
                 doc.setFont("courier", "bold"); doc.setFontSize(10); doc.setTextColor(37, 99, 235);
-                doc.text(cChunk, currentX, currentY); currentY += 4.5;
+                // Remove os asteriscos do negrito na hora de printar a cifra, caso existam acidentalmente
+                doc.text(cChunk.replace(/\*\*/g, ''), currentX, currentY); currentY += 4.5;
               }
-              doc.setFont("courier", "normal"); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
-              doc.text(lChunk, currentX, currentY); currentY += 6.5;
+              
+              // Tratamento para Negrito na letra
+              doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+              if (lChunk.includes('**')) {
+                doc.setFont("courier", "bold");
+                doc.text(lChunk.replace(/\*\*/g, ''), currentX, currentY);
+              } else {
+                doc.setFont("courier", "normal");
+                doc.text(lChunk, currentX, currentY);
+              }
+              currentY += 6.5;
 
               chordLine = chordLine.substring(breakIdx + skipChars); lyricLine = lyricLine.substring(breakIdx + skipChars);
             }
@@ -362,10 +414,22 @@ export default function PromptLabPage() {
               } else { breakIdx = remaining.length; }
 
               const chunk = remaining.substring(0, breakIdx);
-              if (isChordLine(line)) { doc.setFont("courier", "bold"); doc.setTextColor(37, 99, 235); }
-              else { doc.setFont("courier", "normal"); doc.setTextColor(0, 0, 0); }
+              doc.setFontSize(10); doc.setTextColor(0, 0, 0);
               
-              doc.setFontSize(10); doc.text(chunk, currentX, currentY); currentY += 5.5;
+              if (isChordLine(line)) { 
+                doc.setFont("courier", "bold"); doc.setTextColor(37, 99, 235); 
+                doc.text(chunk.replace(/\*\*/g, ''), currentX, currentY);
+              } else { 
+                if (chunk.includes('**')) {
+                  doc.setFont("courier", "bold");
+                  doc.text(chunk.replace(/\*\*/g, ''), currentX, currentY);
+                } else {
+                  doc.setFont("courier", "normal"); 
+                  doc.text(chunk, currentX, currentY);
+                }
+              }
+              
+              currentY += 5.5;
               remaining = remaining.substring(breakIdx + skipChars);
             }
             j++;
@@ -480,6 +544,7 @@ export default function PromptLabPage() {
                     <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-blue-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-purple-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">✏️</span><div><strong className="text-yellow-400">Edição:</strong> Use <span className="bg-slate-700 px-1 rounded">Aa</span> para alterar Maiúsculas/Minúsculas e <span className="bg-slate-700 px-1 rounded">B</span> para negrito.</div></li>
                   </ul>
                 </div>
               )}
@@ -511,8 +576,14 @@ export default function PromptLabPage() {
                       </div>
                     </div>
                     
+                    {/* BARRAS DE FERRAMENTAS Aa e B */}
+                    <div className="flex gap-2 mb-2">
+                      <button onClick={() => handleToggleCase(index)} className="px-3 py-1 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-lg text-white shadow transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
+                      <button onClick={() => handleToggleBold(index)} className="px-3 py-1 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-lg text-white shadow transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                    </div>
+
                     <div>
-                      <textarea rows={8} value={song.content} onChange={(e) => updateSong(index, 'content', e.target.value)} placeholder="Cole as estrofes e refrões cifrados aqui..." className="!mb-0 text-sm font-mono !bg-[#0f172a]" />
+                      <textarea id={`song-textarea-${index}`} rows={8} value={song.content} onChange={(e) => updateSong(index, 'content', e.target.value)} placeholder="Cole as estrofes e refrões cifrados aqui..." className="!mb-0 text-sm font-mono !bg-[#0f172a]" />
                     </div>
                   </div>
                 ))}
@@ -680,10 +751,18 @@ export default function PromptLabPage() {
               {getPrompterLines(prompterSong.content).map((lineObj, idx) => {
                 if (lineObj.type === 'empty') return <div key={idx} className="h-6 sm:h-8"></div>;
                 
+                // Trata a exibição visual do negrito (**) no teleprompter
+                let displayText = lineObj.text;
+                let isBold = false;
+                if (displayText.includes('**')) {
+                  isBold = true;
+                  displayText = displayText.replace(/\*\*/g, '');
+                }
+
                 if (lineObj.type === 'chord') {
-                  return <div key={idx} className="prompter-line prompter-chord">{lineObj.text}</div>;
+                  return <div key={idx} className="prompter-line prompter-chord">{displayText}</div>;
                 } else {
-                  return <div key={idx} className="prompter-line prompter-lyric">{lineObj.text}</div>;
+                  return <div key={idx} className={`prompter-line prompter-lyric ${isBold ? 'text-yellow-400 font-bold' : ''}`}>{displayText}</div>;
                 }
               })}
             </div>
