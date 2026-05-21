@@ -672,15 +672,17 @@ export default function PromptLabPage() {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {filteredRepertoires.map((rep) => (
-                    <div key={rep.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold text-white text-lg truncate pr-4">{rep.name}</h3>
-                        <span className="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">{rep.date}</span>
+                    // Card com overflow-hidden para não vazar nada nas bordas
+                    <div key={rep.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors overflow-hidden">
+                      {/* Flex com gap, flex-1 (encurtador) e shrink-0 (trava) */}
+                      <div className="flex justify-between items-start mb-2 gap-3">
+                        <h3 className="font-bold text-white text-lg truncate flex-1">{rep.name}</h3>
+                        <span className="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded shrink-0 whitespace-nowrap">{rep.date}</span>
                       </div>
-                      <p className="text-slate-400 text-xs mb-4">Músicas: {rep.songs.length}</p>
+                      <p className="text-slate-400 text-xs mb-4 truncate">Músicas: {rep.songs.length}</p>
                       <div className="flex gap-2">
-                        <button onClick={() => loadFromLibrary(rep)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-4 rounded-lg transition-colors">Carregar e Editar</button>
-                        <button onClick={() => deleteFromLibrary(rep.id)} className="bg-slate-700 hover:bg-red-500 text-white p-2 rounded-lg">🗑️</button>
+                        <button onClick={() => loadFromLibrary(rep)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-4 rounded-lg transition-colors truncate">Carregar e Editar</button>
+                        <button onClick={() => deleteFromLibrary(rep.id)} className="bg-slate-700 hover:bg-red-500 text-white p-2 rounded-lg shrink-0">🗑️</button>
                       </div>
                     </div>
                   ))}
