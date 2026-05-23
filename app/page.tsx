@@ -32,7 +32,7 @@ export default function PromptLabPage() {
   const [savedRepertoires, setSavedRepertoires] = useState<SavedRepertoire[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   
-  // --- NOVO ESTADO: Busca na Biblioteca ---
+  // --- ESTADO: Busca na Biblioteca ---
   const [librarySearchQuery, setLibrarySearchQuery] = useState("")
 
   // --- ESTADOS DO TELEPROMPTER ---
@@ -124,6 +124,52 @@ export default function PromptLabPage() {
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(start, end + 4);
+    }, 10);
+  };
+
+  // --- INTERCEPTADOR DE COLAGEM (MANTÉM O NEGRITO DA WEB) ---
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, index: number) => {
+    const htmlData = e.clipboardData.getData('text/html');
+    const textData = e.clipboardData.getData('text/plain');
+
+    // Se não houver HTML (copiou bloco de notas), deixa colar normalmente
+    if (!htmlData) return;
+
+    // Impede a colagem padrão "burra"
+    e.preventDefault();
+
+    // 1. Converte tags de negrito do HTML (<b> e <strong>) para nossos asteriscos duplos
+    // 2. Converte parágrafos e quebras de linha para \n
+    let cleanHtml = htmlData
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<b\b[^>]*>([\s\S]*?)<\/b>/gi, '**$1**')
+      .replace(/<strong\b[^>]*>([\s\S]*?)<\/strong>/gi, '**$1**')
+      .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n') 
+      .replace(/<br\s*[\/]?>/gi, '\n'); 
+
+    // Cria um elemento invisível para extrair apenas o texto puro do resto do HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = cleanHtml;
+    
+    let finalText = tempDiv.textContent || textData;
+    
+    // Limpa excesso de linhas em branco causadas pelas formatações HTML antigas
+    finalText = finalText.replace(/\n{3,}/g, '\n\n').trim();
+
+    // Insere o texto processado exatamente onde o cursor do usuário estava
+    const textarea = e.currentTarget;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentContent = songs[index].content;
+
+    const newContent = currentContent.substring(0, start) + finalText + currentContent.substring(end);
+    updateSong(index, 'content', newContent);
+
+    // Devolve o foco e o cursor para logo após o texto colado
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + finalText.length, start + finalText.length);
     }, 10);
   };
 
@@ -276,7 +322,52 @@ export default function PromptLabPage() {
     }
   }
 
-  // Filtro Dinâmico da Biblioteca
+  // --- EXPORTAR E IMPORTAR REPERTÓRIOS (.promptlab) ---
+  const exportRepertoire = (rep: SavedRepertoire) => {
+    try {
+      const dataStr = JSON.stringify(rep, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = rep.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      a.download = `${safeName}.promptlab`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Erro ao exportar o repertório.");
+    }
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const importedData = JSON.parse(content) as SavedRepertoire;
+        
+        if (importedData.songs && importedData.name) {
+          if (window.confirm(`Deseja carregar o repertório "${importedData.name}" na tela agora?`)) {
+            setSongs(importedData.songs);
+            setRepertoireHeader(importedData.header || importedData.name);
+            setActiveTab('setlist');
+          }
+        } else {
+          alert("Arquivo inválido. Certifique-se de usar um arquivo .promptlab gerado pelo sistema.");
+        }
+      } catch (err) {
+        alert("Erro ao ler o arquivo. Ele pode estar corrompido.");
+      }
+      e.target.value = ''; 
+    };
+    reader.readAsText(file);
+  };
+
   const filteredRepertoires = savedRepertoires.filter(rep => 
     rep.name.toLowerCase().includes(librarySearchQuery.toLowerCase())
   );
@@ -287,7 +378,7 @@ export default function PromptLabPage() {
     }
   }
 
-  // --- FUNÇÕES DE PESQUISA ---
+  // --- FUNÇÕES DE PESQUISA NA WEB ---
   const handleSearch = (engine: 'google' | 'cifraclub' | 'letras' | 'missa') => {
     if (!searchQuery.trim()) return alert("Digite o nome de uma música antes de pesquisar!");
     const query = encodeURIComponent(searchQuery.trim());
@@ -570,7 +661,7 @@ export default function PromptLabPage() {
                     <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-blue-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-purple-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">✏️</span><div><strong className="text-yellow-400">Edição:</strong> Use <span className="bg-slate-700 px-1 rounded">Aa</span> para alterar Maiúsculas/Minúsculas e <span className="bg-slate-700 px-1 rounded">B</span> para negrito.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">✏️</span><div><strong className="text-yellow-400">Edição:</strong> Use <span className="bg-slate-700 px-1 rounded">Aa</span> para alterar Maiúsculas/Minúsculas e <span className="bg-slate-700 px-1 rounded">B</span> para negrito. <span className="block mt-1 text-xs text-yellow-300">*Dica: Ao colar letras de sites da internet, o sistema mantém os negritos originais automaticamente!</span></div></li>
                   </ul>
                 </div>
               )}
@@ -624,7 +715,15 @@ export default function PromptLabPage() {
                     </div>
 
                     <div>
-                      <textarea id={`song-textarea-${index}`} rows={8} value={song.content} onChange={(e) => updateSong(index, 'content', e.target.value)} placeholder="Cole as estrofes e refrões cifrados aqui..." className="!mb-0 text-sm font-mono !bg-[#0f172a]" />
+                      <textarea 
+                        id={`song-textarea-${index}`} 
+                        rows={8} 
+                        value={song.content} 
+                        onChange={(e) => updateSong(index, 'content', e.target.value)}
+                        onPaste={(e) => handlePaste(e, index)} 
+                        placeholder="Cole as estrofes e refrões cifrados aqui..." 
+                        className="!mb-0 text-sm font-mono !bg-[#0f172a]" 
+                      />
                     </div>
                   </div>
                 ))}
@@ -641,9 +740,18 @@ export default function PromptLabPage() {
           {/* ================= ABA 2: BIBLIOTECA ================= */}
           {activeTab === 'library' && (
             <section className="panel border-l-4 border-blue-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="mb-6 border-b border-slate-800 pb-4">
-                <h2 className="text-xl font-black flex items-center gap-2 mb-2">📂 Meus Repertórios Salvos</h2>
-                <p className="text-slate-400 text-sm">Suas listas ficam armazenadas localmente no seu aparelho para você reutilizar quando quiser.</p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-slate-800 pb-4 gap-4">
+                <div>
+                  <h2 className="text-xl font-black flex items-center gap-2 mb-1">📂 Meus Repertórios Salvos</h2>
+                  <p className="text-slate-400 text-sm">Suas listas ficam armazenadas no seu aparelho.</p>
+                </div>
+                {/* BOTÃO DE IMPORTAR */}
+                <div>
+                  <input type="file" id="import-file" style={{ display: 'none' }} accept=".promptlab" onChange={handleImport} />
+                  <button onClick={() => document.getElementById('import-file')?.click()} className="btn-icon !w-auto px-4 !bg-emerald-600 hover:!bg-emerald-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    📥 Importar
+                  </button>
+                </div>
               </div>
 
               {/* BARRA DE PESQUISA DA BIBLIOTECA */}
@@ -672,17 +780,20 @@ export default function PromptLabPage() {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {filteredRepertoires.map((rep) => (
-                    // Card com overflow-hidden para não vazar nada nas bordas
-                    <div key={rep.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors overflow-hidden">
-                      {/* Flex com gap, flex-1 (encurtador) e shrink-0 (trava) */}
-                      <div className="flex justify-between items-start mb-2 gap-3">
-                        <h3 className="font-bold text-white text-lg truncate flex-1">{rep.name}</h3>
-                        <span className="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded shrink-0 whitespace-nowrap">{rep.date}</span>
+                    <div key={rep.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors overflow-hidden flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-2 gap-3">
+                          <h3 className="font-bold text-white text-lg truncate flex-1">{rep.name}</h3>
+                          <span className="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded shrink-0 whitespace-nowrap">{rep.date}</span>
+                        </div>
+                        <p className="text-slate-400 text-xs mb-4 truncate">Músicas: {rep.songs.length}</p>
                       </div>
-                      <p className="text-slate-400 text-xs mb-4 truncate">Músicas: {rep.songs.length}</p>
+                      
+                      {/* BOTOES DOS CARDS DA BIBLIOTECA COM EXPORTAR */}
                       <div className="flex gap-2">
-                        <button onClick={() => loadFromLibrary(rep)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-4 rounded-lg transition-colors truncate">Carregar e Editar</button>
-                        <button onClick={() => deleteFromLibrary(rep.id)} className="bg-slate-700 hover:bg-red-500 text-white p-2 rounded-lg shrink-0">🗑️</button>
+                        <button onClick={() => loadFromLibrary(rep)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-3 rounded-lg transition-colors truncate">Carregar</button>
+                        <button onClick={() => exportRepertoire(rep)} className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg shrink-0" title="Baixar arquivo para enviar no WhatsApp">📤</button>
+                        <button onClick={() => deleteFromLibrary(rep.id)} className="bg-slate-700 hover:bg-red-500 text-white p-2 rounded-lg shrink-0" title="Excluir repertório">🗑️</button>
                       </div>
                     </div>
                   ))}
@@ -754,7 +865,7 @@ export default function PromptLabPage() {
           <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
 
           <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
-          <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o link direto no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
+          <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o arquivo .promptlab no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
         </section>
       )}
 
