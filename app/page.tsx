@@ -127,37 +127,37 @@ export default function PromptLabPage() {
     }, 10);
   };
 
-  // --- INTERCEPTADOR DE COLAGEM (MANTÉM O NEGRITO DA WEB) ---
+  // --- INTERCEPTADOR DE COLAGEM (MANTÉM O NEGRITO DA WEB CORRIGIDO) ---
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, index: number) => {
     const htmlData = e.clipboardData.getData('text/html');
     const textData = e.clipboardData.getData('text/plain');
 
-    // Se não houver HTML (copiou bloco de notas), deixa colar normalmente
     if (!htmlData) return;
-
-    // Impede a colagem padrão "burra"
     e.preventDefault();
 
-    // 1. Converte tags de negrito do HTML (<b> e <strong>) para nossos asteriscos duplos
-    // 2. Converte parágrafos e quebras de linha para \n
+    // 1. Primeiro transformamos blocos e quebras do HTML em \n reais
     let cleanHtml = htmlData
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<b\b[^>]*>([\s\S]*?)<\/b>/gi, '**$1**')
-      .replace(/<strong\b[^>]*>([\s\S]*?)<\/strong>/gi, '**$1**')
       .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n') 
       .replace(/<br\s*[\/]?>/gi, '\n'); 
 
-    // Cria um elemento invisível para extrair apenas o texto puro do resto do HTML
+    // 2. Agora procuramos os negritos e aplicamos linha por linha
+    cleanHtml = cleanHtml.replace(/<(b|strong)\b[^>]*>([\s\S]*?)<\/\1>/gi, (match, tag, inner) => {
+      // Divide o que está dentro do negrito pelas quebras de linha
+      return inner.split('\n').map((line: string) => {
+        // Se a linha for vazia, não aplica os asteriscos duplos
+        if (line.trim() === '') return line;
+        return `**${line}**`;
+      }).join('\n');
+    });
+
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = cleanHtml;
     
     let finalText = tempDiv.textContent || textData;
-    
-    // Limpa excesso de linhas em branco causadas pelas formatações HTML antigas
     finalText = finalText.replace(/\n{3,}/g, '\n\n').trim();
 
-    // Insere o texto processado exatamente onde o cursor do usuário estava
     const textarea = e.currentTarget;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
@@ -166,7 +166,6 @@ export default function PromptLabPage() {
     const newContent = currentContent.substring(0, start) + finalText + currentContent.substring(end);
     updateSong(index, 'content', newContent);
 
-    // Devolve o foco e o cursor para logo após o texto colado
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(start + finalText.length, start + finalText.length);
