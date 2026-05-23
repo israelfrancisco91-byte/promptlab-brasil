@@ -67,11 +67,31 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
 
-  // Função utilitária de detecção de cifra
+  // --- NOVO RADAR DE CIFRAS BLINDADO ---
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 120) return false;
-    return /^(\s*([A-G][b#]?(m|min|maj|maj7|m7|add|sus|dim|aug|[\d])?(\/[A-G][b#]?)?|INTRO:|REFRÃO:|PONTE:|SOLO:|VAMP:|\(|\)|\||\d|\+)(\s+|$))+$/i.test(line);
+    
+    // Removemos marcadores, hifens, barras e tudo dentro de parênteses para testar a linha pura
+    let clean = trimmed
+      .toUpperCase()
+      .replace(/(INTRO|REFRÃO|CORO|PONTE|SOLO|VAMP|BIS|FIM|FINAL|[:||\-~xX*\d+])/g, ' ')
+      .replace(/\([^)]*\)/g, ' ')
+      .trim();
+      
+    if (!clean) return true; // Se sobrou nada, era só marcador musical (ex: só "INTRO:")
+    
+    const words = clean.split(/\s+/);
+    // Regex super rigorosa para acordes (evita pegar palavras como 'Deus' ou 'Paz')
+    const strictChordRegex = /^[A-G][B#]?(M|MIN|MAJ|DIM|AUG|SUS|ADD|[\d]+)*(\/[A-G][B#]?)?$/;
+    
+    let chordCount = 0;
+    for (const w of words) {
+      if (strictChordRegex.test(w)) chordCount++;
+    }
+    
+    // Se pelo menos 70% das palavras forem acordes exatos, a linha inteira é blindada como Cifra
+    return (chordCount / words.length) >= 0.7;
   };
 
   // --- FERRAMENTAS DE EDIÇÃO DE TEXTO ---
@@ -90,13 +110,17 @@ export default function PromptLabPage() {
     const isUpper = lyricsText === lyricsText.toUpperCase();
 
     newSongs[index].content = lines.map(line => {
+      // Se for linha de cifra (agora com o novo Radar), ele pula e NÃO altera a caixa
       if (isChordLine(line) || line.trim() === "") {
         return line;
       }
       
       if (isUpper) {
         const lower = line.toLowerCase();
-        return lower.charAt(0).toUpperCase() + lower.slice(1);
+        // Regex para capitalizar a primeira letra real, ignorando os asteriscos ** do negrito
+        return lower.replace(/^([^a-z-záàâãéèêíïóôõöúçñ]*)([a-z-záàâãéèêíïóôõöúçñ])/i, (match, prefix, letter) => {
+          return prefix + letter.toUpperCase();
+        });
       } else {
         return line.toUpperCase();
       }
@@ -135,18 +159,14 @@ export default function PromptLabPage() {
     if (!htmlData) return;
     e.preventDefault();
 
-    // 1. Primeiro transformamos blocos e quebras do HTML em \n reais
     let cleanHtml = htmlData
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n') 
       .replace(/<br\s*[\/]?>/gi, '\n'); 
 
-    // 2. Agora procuramos os negritos e aplicamos linha por linha
     cleanHtml = cleanHtml.replace(/<(b|strong)\b[^>]*>([\s\S]*?)<\/\1>/gi, (match, tag, inner) => {
-      // Divide o que está dentro do negrito pelas quebras de linha
       return inner.split('\n').map((line: string) => {
-        // Se a linha for vazia, não aplica os asteriscos duplos
         if (line.trim() === '') return line;
         return `**${line}**`;
       }).join('\n');
@@ -406,6 +426,7 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   }
 
+  // --- MUDANÇA DE TOM BLINDADA PARA NÃO PEGAR MARCADORES COMO "BIS" ---
   const transposeSong = (index: number, steps: number) => {
     const scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const flatToSharp: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
@@ -414,15 +435,21 @@ export default function PromptLabPage() {
 
     newSongs[index].content = lines.map(line => {
       if (!isChordLine(line)) return line;
-      return line.replace(/(^|[\s()|])([A-G][b#]?)([^\s()|/]*)(?:\/([A-G][b#]?))?(?=[\s()|]|$)/g, (match, prefix, root, suffix, bass) => {
+      
+      // Essa regex agora isola o acorde exato, impedindo que textos como (BIS) sejam alterados para (CIS)
+      return line.replace(/(^|[\s()|])([A-G][b#]?)((?:m|min|maj|M|dim|aug|sus|add|[\d]+)*)(\/[A-G][b#]?)?(?=[\s()|]|$)/g, (match, prefix, root, suffix, bass) => {
         const getNewNote = (note: string) => {
           if (!note) return '';
-          const n = flatToSharp[note] || note; 
+          const cleanNote = note.replace('/', '');
+          const n = flatToSharp[cleanNote] || cleanNote; 
           const idx = scale.indexOf(n);
           if (idx === -1) return note;
           return scale[(idx + steps + 12) % 12];
         };
-        return prefix + getNewNote(root) + (suffix || '') + (bass ? '/' + getNewNote(bass) : '');
+        
+        const newRoot = getNewNote(root);
+        const newBass = bass ? '/' + getNewNote(bass) : '';
+        return prefix + newRoot + (suffix || '') + newBass;
       });
     }).join('\n');
     setSongs(newSongs);
