@@ -35,13 +35,42 @@ export default function PromptLabPage() {
   // --- ESTADO: Busca na Biblioteca ---
   const [librarySearchQuery, setLibrarySearchQuery] = useState("")
 
+  // --- ESTADOS DO LINK DE COMPARTILHAMENTO MÁGICO ---
+  const [shareModal, setShareModal] = useState<string | null>(null)
+  const [isShareLoading, setIsShareLoading] = useState(false)
+
   // --- ESTADOS DO TELEPROMPTER ---
   const [prompterSong, setPrompterSong] = useState<Song | null>(null)
   const [prompterSpeed, setPrompterSpeed] = useState(2)
   const [isPrompterPlaying, setIsPrompterPlaying] = useState(false)
   const prompterRef = useRef<HTMLDivElement>(null)
 
+  // --- INTERCEPTADOR DE CAPTURA DE REPERTÓRIO COMPARTILHADO POR LINK ---
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedData = urlParams.get('rep');
+      if (sharedData) {
+        try {
+          // Decodificação robusta que aceita acentuação e caracteres especiais em Base64
+          const decodedStr = decodeURIComponent(escape(atob(sharedData)));
+          const parsed = JSON.parse(decodedStr);
+          
+          if (parsed && parsed.songs && parsed.songs.length > 0) {
+            const listName = parsed.header || parsed.name || "Compartilhado";
+            if (window.confirm(`🎵 Você recebeu o repertório "${listName}". Deseja carregar esta lista de cifras na sua tela agora?`)) {
+              setSongs(parsed.songs);
+              setRepertoireHeader(parsed.header || "");
+              // Limpa os parâmetros da URL para o aviso não reaparecer caso atualize a página
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao processar link compartilhado:", e);
+        }
+      }
+    }
+
     const savedSongs = localStorage.getItem('promptlab_songs')
     const savedHeader = localStorage.getItem('promptlab_header')
     const savedLibrary = localStorage.getItem('promptlab_library')
@@ -67,22 +96,20 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
 
-  // --- NOVO RADAR DE CIFRAS BLINDADO ---
+  // --- RADAR DE CIFRAS BLINDADO ---
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 120) return false;
     
-    // Removemos marcadores, hifens, barras e tudo dentro de parênteses para testar a linha pura
     let clean = trimmed
       .toUpperCase()
       .replace(/(INTRO|REFRÃO|CORO|PONTE|SOLO|VAMP|BIS|FIM|FINAL|[:||\-~xX*\d+])/g, ' ')
       .replace(/\([^)]*\)/g, ' ')
       .trim();
       
-    if (!clean) return true; // Se sobrou nada, era só marcador musical (ex: só "INTRO:")
+    if (!clean) return true; 
     
     const words = clean.split(/\s+/);
-    // Regex super rigorosa para acordes (evita pegar palavras como 'Deus' ou 'Paz')
     const strictChordRegex = /^[A-G][B#]?(M|MIN|MAJ|DIM|AUG|SUS|ADD|[\d]+)*(\/[A-G][B#]?)?$/;
     
     let chordCount = 0;
@@ -90,8 +117,49 @@ export default function PromptLabPage() {
       if (strictChordRegex.test(w)) chordCount++;
     }
     
-    // Se pelo menos 70% das palavras forem acordes exatos, a linha inteira é blindada como Cifra
     return (chordCount / words.length) >= 0.7;
+  };
+
+  // --- GERADOR DO LINK MÁGICO VIA TINYURL (PROMPTLAB LINK) ---
+  const handleGenerateShareLink = async () => {
+    const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
+    if (!hasContent) return alert("Adicione pelo menos uma música antes de gerar o link!");
+    
+    setIsShareLoading(true);
+    try {
+      const dataObj = {
+        name: repertoireHeader || `Repertório ${new Date().toLocaleDateString('pt-BR')}`,
+        header: repertoireHeader,
+        songs: songs
+      };
+      
+      const jsonStr = JSON.stringify(dataObj);
+      // Codificação robusta em Base64 compatível com UTF-8 (acentos brasileiros)
+      const base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
+      const longUrl = `${window.location.origin}${window.location.pathname}?rep=${base64Data}`;
+      
+      // Envio silencioso para a API gratuita do TinyURL
+      try {
+        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+        if (response.ok) {
+          const shortUrl = await response.text();
+          if (shortUrl && shortUrl.startsWith('http')) {
+            setShareModal(shortUrl);
+            setIsShareLoading(false);
+            return;
+          }
+        }
+      } catch (corsOrNetworkError) {
+        // Fallback de segurança caso ocorra bloqueio de CORS na máquina cliente: o link longo continua funcionando perfeitamente!
+        console.log("Utilizando fallback de link direto de segurança.");
+      }
+      
+      setShareModal(longUrl);
+    } catch (err) {
+      alert("Não foi possível gerar o link de compartilhamento.");
+    } finally {
+      setIsShareLoading(false);
+    }
   };
 
   // --- FERRAMENTAS DE EDIÇÃO DE TEXTO ---
@@ -110,14 +178,12 @@ export default function PromptLabPage() {
     const isUpper = lyricsText === lyricsText.toUpperCase();
 
     newSongs[index].content = lines.map(line => {
-      // Se for linha de cifra (agora com o novo Radar), ele pula e NÃO altera a caixa
       if (isChordLine(line) || line.trim() === "") {
         return line;
       }
       
       if (isUpper) {
         const lower = line.toLowerCase();
-        // Regex para capitalizar a primeira letra real, ignorando os asteriscos ** do negrito
         return lower.replace(/^([^a-z-záàâãéèêíïóôõöúçñ]*)([a-z-záàâãéèêíïóôõöúçñ])/i, (match, prefix, letter) => {
           return prefix + letter.toUpperCase();
         });
@@ -151,7 +217,7 @@ export default function PromptLabPage() {
     }, 10);
   };
 
-  // --- INTERCEPTADOR DE COLAGEM (MANTÉM O NEGRITO DA WEB CORRIGIDO) ---
+  // --- INTERCEPTADOR DE COLAGEM ---
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, index: number) => {
     const htmlData = e.clipboardData.getData('text/html');
     const textData = e.clipboardData.getData('text/plain');
@@ -192,7 +258,6 @@ export default function PromptLabPage() {
     }, 10);
   };
 
-  // --- FILTRO DE LIMPEZA DE HTML ---
   const cleanText = (text: string) => {
     if (!text) return "";
     return text
@@ -246,7 +311,6 @@ export default function PromptLabPage() {
     setIsPrompterPlaying(false);
   }
 
-  // --- INTELIGÊNCIA DE QUEBRA DE LINHA DO PROMPTER ---
   const getPrompterLines = (content: string) => {
     const charLimit = 40; 
     const lines = cleanText(content).split('\n');
@@ -341,7 +405,6 @@ export default function PromptLabPage() {
     }
   }
 
-  // --- EXPORTAR E IMPORTAR REPERTÓRIOS (.promptlab) ---
   const exportRepertoire = (rep: SavedRepertoire) => {
     try {
       const dataStr = JSON.stringify(rep, null, 2);
@@ -397,7 +460,6 @@ export default function PromptLabPage() {
     }
   }
 
-  // --- FUNÇÕES DE PESQUISA NA WEB ---
   const handleSearch = (engine: 'google' | 'cifraclub' | 'letras' | 'missa') => {
     if (!searchQuery.trim()) return alert("Digite o nome de uma música antes de pesquisar!");
     const query = encodeURIComponent(searchQuery.trim());
@@ -408,7 +470,6 @@ export default function PromptLabPage() {
     window.open(url, '_blank');
   }
 
-  // --- FUNÇÕES DO REPERTÓRIO ---
   const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
   const updateSong = (index: number, field: 'title' | 'content', value: string) => {
     const newSongs = [...songs]; newSongs[index][field] = value; setSongs(newSongs);
@@ -426,7 +487,6 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   }
 
-  // --- MUDANÇA DE TOM BLINDADA PARA NÃO PEGAR MARCADORES COMO "BIS" ---
   const transposeSong = (index: number, steps: number) => {
     const scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const flatToSharp: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
@@ -436,7 +496,6 @@ export default function PromptLabPage() {
     newSongs[index].content = lines.map(line => {
       if (!isChordLine(line)) return line;
       
-      // Essa regex agora isola o acorde exato, impedindo que textos como (BIS) sejam alterados para (CIS)
       return line.replace(/(^|[\s()|])([A-G][b#]?)((?:m|min|maj|M|dim|aug|sus|add|[\d]+)*)(\/[A-G][b#]?)?(?=[\s()|]|$)/g, (match, prefix, root, suffix, bass) => {
         const getNewNote = (note: string) => {
           if (!note) return '';
@@ -455,6 +514,7 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   };
 
+  // --- MODELO FORMATADO DE PROPRIEDADE DO PDF (PRESERVADO INTEGRALMENTE) ---
   const processPDF = async (action: 'download' | 'share') => {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
@@ -589,7 +649,7 @@ export default function PromptLabPage() {
           await navigator.share({ files: [file], title: 'Repertório Digital', text: 'Crie o seu repertório digital no promptlabbrasil.com.br' }).catch(() => doc.save(fName));
         } else doc.save(fName);
       }
-    } catch (err) { alert("Erro interno. A geração do PDF foi interrompida."); }
+    } catch (err) { alert("Erro interno. A generation do PDF foi interrompida."); }
   };
 
   const calculateCapoFret = () => {
@@ -685,7 +745,7 @@ export default function PromptLabPage() {
                   <h3 className="font-bold text-white text-base mb-2 border-b border-slate-700 pb-2">Guia Rápido de Uso</h3>
                   <ul className="space-y-3">
                     <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-blue-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em any música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-purple-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">✏️</span><div><strong className="text-yellow-400">Edição:</strong> Use <span className="bg-slate-700 px-1 rounded">Aa</span> para alterar Maiúsculas/Minúsculas e <span className="bg-slate-700 px-1 rounded">B</span> para negrito. <span className="block mt-1 text-xs text-yellow-300">*Dica: Ao colar letras de sites da internet, o sistema mantém os negritos originais automaticamente!</span></div></li>
                   </ul>
@@ -756,9 +816,20 @@ export default function PromptLabPage() {
               </div>
 
               <button onClick={addSong} className="w-full p-4 rounded-xl border-2 border-dashed border-slate-600 text-slate-400 font-bold hover:border-blue-500 hover:text-blue-500 transition-colors mb-8">➕ Adicionar Nova Música</button>
-              <div className="pt-4 border-t border-slate-800">
-                <button onClick={() => processPDF('download')} className="btn btn-green">📄 Gerar PDF</button>
-                <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Compartilhar WhatsApp</button>
+              
+              {/* COMPONENTE DE BOTÕES DE FECHAMENTO COM LINK DO WHATSAPP REESTRUTURADO */}
+              <div className="pt-4 border-t border-slate-800 space-y-3">
+                <button 
+                  onClick={handleGenerateShareLink}
+                  disabled={isShareLoading}
+                  className="btn bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black shadow-[0_4px_15px_rgba(147,51,234,0.3)] disabled:opacity-50"
+                >
+                  {isShareLoading ? "⏳ Processando Link..." : "🔗 Criar Link de Acesso (WhatsApp)"}
+                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 !mt-2">
+                  <button onClick={() => processPDF('download')} className="btn btn-green !mb-0">📄 Gerar PDF</button>
+                  <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Enviar PDF via WhatsApp</button>
+                </div>
               </div>
             </section>
           )}
@@ -771,7 +842,6 @@ export default function PromptLabPage() {
                   <h2 className="text-xl font-black flex items-center gap-2 mb-1">📂 Meus Repertórios Salvos</h2>
                   <p className="text-slate-400 text-sm">Suas listas ficam armazenadas no seu aparelho.</p>
                 </div>
-                {/* BOTÃO DE IMPORTAR */}
                 <div>
                   <input type="file" id="import-file" style={{ display: 'none' }} accept=".promptlab" onChange={handleImport} />
                   <button onClick={() => document.getElementById('import-file')?.click()} className="btn-icon !w-auto px-4 !bg-emerald-600 hover:!bg-emerald-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(16,185,129,0.3)]">
@@ -780,7 +850,6 @@ export default function PromptLabPage() {
                 </div>
               </div>
 
-              {/* BARRA DE PESQUISA DA BIBLIOTECA */}
               {savedRepertoires.length > 0 && (
                 <div className="mb-6">
                   <input 
@@ -815,7 +884,6 @@ export default function PromptLabPage() {
                         <p className="text-slate-400 text-xs mb-4 truncate">Músicas: {rep.songs.length}</p>
                       </div>
                       
-                      {/* BOTOES DOS CARDS DA BIBLIOTECA COM EXPORTAR */}
                       <div className="flex gap-2">
                         <button onClick={() => loadFromLibrary(rep)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-3 rounded-lg transition-colors truncate">Carregar</button>
                         <button onClick={() => exportRepertoire(rep)} className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg shrink-0" title="Baixar arquivo para enviar no WhatsApp">📤</button>
@@ -878,14 +946,14 @@ export default function PromptLabPage() {
         </main>
       )}
 
-      {/* ================= TEXTO DE SEO RESTAURADO (APROVAÇÃO ADSENSE) ================= */}
+      {/* ================= TEXTO DE SEO PRESERVADO (APROVAÇÃO ADSENSE) ================= */}
       {!prompterSong && (
         <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
           <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
           <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
           
           <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
-          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
+          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso system inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
           
           <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
           <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
@@ -949,7 +1017,6 @@ export default function PromptLabPage() {
               {getPrompterLines(prompterSong.content).map((lineObj, idx) => {
                 if (lineObj.type === 'empty') return <div key={idx} className="h-6 sm:h-8"></div>;
                 
-                // Trata a exibição visual do negrito (**) no teleprompter
                 let displayText = lineObj.text;
                 let isBold = false;
                 if (displayText.includes('**')) {
@@ -970,7 +1037,53 @@ export default function PromptLabPage() {
         </div>
       )}
 
-      {/* ================= MODAL DE TEXTOS LEGAIS RESTAURADO ================= */}
+      {/* ================= MODAL DO LINK MÁGICO DO WHATSAPP ================= */}
+      {shareModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button onClick={() => setShareModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-2">🔗</div>
+              <h3 className="text-lg font-black text-white uppercase tracking-wider">Link de Compartilhamento</h3>
+              <p className="text-slate-400 text-xs mt-1">Sua banda pode abrir esse repertório instantaneamente clicando nele!</p>
+            </div>
+
+            <div className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 mb-6 flex items-center justify-between gap-2 overflow-hidden">
+              <span className="text-sm text-blue-400 font-mono truncate select-all flex-1">{shareModal}</span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(shareModal);
+                  alert("📋 Link copiado com sucesso!");
+                }} 
+                className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs py-2 px-3 rounded-md shrink-0 transition-colors"
+              >
+                Copiar
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <button 
+                onClick={() => {
+                  const msg = encodeURIComponent(`🎵 Fala, pessoal! Montei o nosso repertório digital no PromptLab Brasil. Clica no link para abrir a lista completa com as cifras no tom certo: ${shareModal}`);
+                  window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+                }}
+                className="w-full bg-[#25d366] hover:bg-[#20ba5a] text-white font-black text-xs py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors uppercase tracking-wider shadow-[0_4px_12px_rgba(37,211,102,0.2)]"
+              >
+                🟢 Enviar para o WhatsApp
+              </button>
+              <button 
+                onClick={() => setShareModal(null)}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors uppercase"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE TEXTOS LEGAIS */}
       {legalModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
