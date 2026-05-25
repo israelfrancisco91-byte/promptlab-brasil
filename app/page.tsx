@@ -32,55 +32,78 @@ export default function PromptLabPage() {
   const [savedRepertoires, setSavedRepertoires] = useState<SavedRepertoire[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   
-  // --- ESTADO: Busca na Biblioteca ---
   const [librarySearchQuery, setLibrarySearchQuery] = useState("")
 
-  // --- ESTADOS DO LINK DE COMPARTILHAMENTO MÁGICO ---
   const [shareModal, setShareModal] = useState<string | null>(null)
   const [isShareLoading, setIsShareLoading] = useState(false)
 
-  // --- ESTADOS DO TELEPROMPTER ---
   const [prompterSong, setPrompterSong] = useState<Song | null>(null)
   const [prompterSpeed, setPrompterSpeed] = useState(2)
   const [isPrompterPlaying, setIsPrompterPlaying] = useState(false)
   const prompterRef = useRef<HTMLDivElement>(null)
 
-  // --- INTERCEPTADOR DE CAPTURA DE REPERTÓRIO COMPARTILHADO POR LINK ---
+  // --- INTERCEPTADOR DO LINK MÁGICO (AGORA BLINDADO CONTRA COLISÃO DE MEMÓRIA) ---
   useEffect(() => {
+    let loadedFromUrl = false;
+
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const sharedData = urlParams.get('rep');
+      
       if (sharedData) {
         try {
-          // Decodificação robusta que aceita acentuação e caracteres especiais em Base64
-          const decodedStr = decodeURIComponent(escape(atob(sharedData)));
+          // Prevenção de perda do sinal de + na URL
+          const fixedBase64 = sharedData.replace(/ /g, '+');
+          const decodedStr = decodeURIComponent(escape(atob(fixedBase64)));
           const parsed = JSON.parse(decodedStr);
           
-          if (parsed && parsed.songs && parsed.songs.length > 0) {
-            const listName = parsed.header || parsed.name || "Compartilhado";
+          const hasNewFormat = parsed && parsed.s && parsed.s.length > 0;
+          const hasOldFormat = parsed && parsed.songs && parsed.songs.length > 0;
+
+          if (hasNewFormat || hasOldFormat) {
+            const listName = parsed.h || parsed.header || parsed.name || "Compartilhado";
+            
             if (window.confirm(`🎵 Você recebeu o repertório "${listName}". Deseja carregar esta lista de cifras na sua tela agora?`)) {
-              setSongs(parsed.songs);
-              setRepertoireHeader(parsed.header || "");
-              // Limpa os parâmetros da URL para o aviso não reaparecer caso atualize a página
+              
+              // Descomprime o formato novo otimizado
+              if (hasNewFormat) {
+                const expandedSongs = parsed.s.map((song: any, idx: number) => ({
+                  id: `shared-${Date.now()}-${idx}`,
+                  title: song.t || "",
+                  content: song.c || ""
+                }));
+                setSongs(expandedSongs);
+              } else {
+                setSongs(parsed.songs);
+              }
+              
+              setRepertoireHeader(parsed.h || parsed.header || "");
+              loadedFromUrl = true;
+              
+              // Limpa a URL para não recarregar se apertar F5
               window.history.replaceState({}, document.title, window.location.pathname);
             }
           }
         } catch (e) {
           console.error("Erro ao processar link compartilhado:", e);
+          alert("Ops! O link compartilhado parece estar inválido ou corrompido.");
         }
       }
     }
 
-    const savedSongs = localStorage.getItem('promptlab_songs')
-    const savedHeader = localStorage.getItem('promptlab_header')
-    const savedLibrary = localStorage.getItem('promptlab_library')
-    
-    if (savedSongs) {
-      try { setSongs(JSON.parse(savedSongs)) } catch (e) { console.error(e) }
-    }
-    if (savedHeader) setRepertoireHeader(savedHeader)
-    if (savedLibrary) {
-      try { setSavedRepertoires(JSON.parse(savedLibrary)) } catch (e) { console.error(e) }
+    // SÓ CARREGA A MEMÓRIA LOCAL SE NÃO TIVER CARREGADO NADA DO LINK
+    if (!loadedFromUrl) {
+      const savedSongs = localStorage.getItem('promptlab_songs')
+      const savedHeader = localStorage.getItem('promptlab_header')
+      const savedLibrary = localStorage.getItem('promptlab_library')
+      
+      if (savedSongs) {
+        try { setSongs(JSON.parse(savedSongs)) } catch (e) { console.error(e) }
+      }
+      if (savedHeader) setRepertoireHeader(savedHeader)
+      if (savedLibrary) {
+        try { setSavedRepertoires(JSON.parse(savedLibrary)) } catch (e) { console.error(e) }
+      }
     }
   }, [])
 
@@ -96,7 +119,7 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
 
-  // --- RADAR DE CIFRAS BLINDADO ---
+
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 120) return false;
@@ -120,25 +143,31 @@ export default function PromptLabPage() {
     return (chordCount / words.length) >= 0.7;
   };
 
-  // --- GERADOR DO LINK MÁGICO VIA TINYURL (PROMPTLAB LINK) ---
+  // --- GERADOR DO LINK MÁGICO (COM ALGORITMO DE COMPRESSÃO) ---
   const handleGenerateShareLink = async () => {
     const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
     if (!hasContent) return alert("Adicione pelo menos uma música antes de gerar o link!");
     
     setIsShareLoading(true);
     try {
+      // Compressão Extrema: Troca 'title' por 't' e 'content' por 'c' para economizar peso no link
+      const minifiedSongs = songs.map(s => ({
+        t: s.title,
+        c: s.content
+      }));
+      
       const dataObj = {
-        name: repertoireHeader || `Repertório ${new Date().toLocaleDateString('pt-BR')}`,
-        header: repertoireHeader,
-        songs: songs
+        h: repertoireHeader,
+        s: minifiedSongs
       };
       
       const jsonStr = JSON.stringify(dataObj);
-      // Codificação robusta em Base64 compatível com UTF-8 (acentos brasileiros)
       const base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
-      const longUrl = `${window.location.origin}${window.location.pathname}?rep=${base64Data}`;
       
-      // Envio silencioso para a API gratuita do TinyURL
+      // Uso do encodeURIComponent obrigatório para não perder dados na URL
+      const encodedParam = encodeURIComponent(base64Data);
+      const longUrl = `${window.location.origin}${window.location.pathname}?rep=${encodedParam}`;
+      
       try {
         const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
         if (response.ok) {
@@ -150,7 +179,6 @@ export default function PromptLabPage() {
           }
         }
       } catch (corsOrNetworkError) {
-        // Fallback de segurança caso ocorra bloqueio de CORS na máquina cliente: o link longo continua funcionando perfeitamente!
         console.log("Utilizando fallback de link direto de segurança.");
       }
       
@@ -162,14 +190,13 @@ export default function PromptLabPage() {
     }
   };
 
-  // --- FERRAMENTAS DE EDIÇÃO DE TEXTO ---
+
   const handleToggleCase = (index: number) => {
     const newSongs = [...songs];
     const current = newSongs[index].content;
     if (!current) return;
 
     const lines = current.split('\n');
-    
     const lyricLines = lines.filter(line => !isChordLine(line) && line.trim().length > 0);
     const lyricsText = lyricLines.join('');
     
@@ -217,7 +244,6 @@ export default function PromptLabPage() {
     }, 10);
   };
 
-  // --- INTERCEPTADOR DE COLAGEM ---
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, index: number) => {
     const htmlData = e.clipboardData.getData('text/html');
     const textData = e.clipboardData.getData('text/plain');
@@ -267,7 +293,6 @@ export default function PromptLabPage() {
       .replace(/\t/g, '    ');
   }
 
-  // --- MOTOR DO TELEPROMPTER ---
   useEffect(() => {
     let animationFrameId: number;
     let lastTime = performance.now();
@@ -381,7 +406,6 @@ export default function PromptLabPage() {
     return result;
   }
 
-  // --- FUNÇÕES DA BIBLIOTECA ---
   const saveToLibrary = () => {
     const defaultName = repertoireHeader || `Repertório ${new Date().toLocaleDateString('pt-BR')}`
     const name = window.prompt("Dê um nome para salvar este repertório:", defaultName)
@@ -514,7 +538,6 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   };
 
-  // --- MODELO FORMATADO DE PROPRIEDADE DO PDF (PRESERVADO INTEGRALMENTE) ---
   const processPDF = async (action: 'download' | 'share') => {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
@@ -649,7 +672,7 @@ export default function PromptLabPage() {
           await navigator.share({ files: [file], title: 'Repertório Digital', text: 'Crie o seu repertório digital no promptlabbrasil.com.br' }).catch(() => doc.save(fName));
         } else doc.save(fName);
       }
-    } catch (err) { alert("Erro interno. A generation do PDF foi interrompida."); }
+    } catch (err) { alert("Erro interno. A geração do PDF foi interrompida."); }
   };
 
   const calculateCapoFret = () => {
@@ -745,7 +768,7 @@ export default function PromptLabPage() {
                   <h3 className="font-bold text-white text-base mb-2 border-b border-slate-700 pb-2">Guia Rápido de Uso</h3>
                   <ul className="space-y-3">
                     <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-blue-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em any música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-purple-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">✏️</span><div><strong className="text-yellow-400">Edição:</strong> Use <span className="bg-slate-700 px-1 rounded">Aa</span> para alterar Maiúsculas/Minúsculas e <span className="bg-slate-700 px-1 rounded">B</span> para negrito. <span className="block mt-1 text-xs text-yellow-300">*Dica: Ao colar letras de sites da internet, o sistema mantém os negritos originais automaticamente!</span></div></li>
                   </ul>
@@ -766,33 +789,26 @@ export default function PromptLabPage() {
                       <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
                     </div>
                     
-                    {/* BARRA DE FERRAMENTAS UNIFICADA E RESPONSIVA */}
                     <div className="flex flex-wrap items-center gap-2 mb-3 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50">
                       
-                      {/* Grupo 1: Edição */}
                       <div className="flex items-center gap-1">
                         <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
                         <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
                       </div>
                       
-                      {/* Divisor Desktop */}
                       <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
                       
-                      {/* Grupo 2: Transposição */}
                       <div className="flex items-center gap-1">
                         <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0">-½ Tom</button>
                         <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0">+½ Tom</button>
                       </div>
 
-                      {/* Divisor Desktop */}
                       <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
 
-                      {/* Grupo 3: Prompter */}
                       <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-1 sm:flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
                         ▶️ Prompter
                       </button>
 
-                      {/* Grupo 4: Ações da Música */}
                       <div className="flex items-center gap-1 w-full sm:w-auto ml-auto justify-end sm:border-l sm:border-slate-700 sm:pl-3 mt-1 sm:mt-0">
                         <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬆️</button>
                         <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬇️</button>
@@ -817,14 +833,13 @@ export default function PromptLabPage() {
 
               <button onClick={addSong} className="w-full p-4 rounded-xl border-2 border-dashed border-slate-600 text-slate-400 font-bold hover:border-blue-500 hover:text-blue-500 transition-colors mb-8">➕ Adicionar Nova Música</button>
               
-              {/* COMPONENTE DE BOTÕES DE FECHAMENTO COM LINK DO WHATSAPP REESTRUTURADO */}
               <div className="pt-4 border-t border-slate-800 space-y-3">
                 <button 
                   onClick={handleGenerateShareLink}
                   disabled={isShareLoading}
                   className="btn bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black shadow-[0_4px_15px_rgba(147,51,234,0.3)] disabled:opacity-50"
                 >
-                  {isShareLoading ? "⏳ Processando Link..." : "🔗 Criar Link de Acesso (WhatsApp)"}
+                  {isShareLoading ? "⏳ Otimizando Arquivo..." : "🔗 Criar Link de Acesso (WhatsApp)"}
                 </button>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 !mt-2">
                   <button onClick={() => processPDF('download')} className="btn btn-green !mb-0">📄 Gerar PDF</button>
@@ -946,14 +961,14 @@ export default function PromptLabPage() {
         </main>
       )}
 
-      {/* ================= TEXTO DE SEO PRESERVADO (APROVAÇÃO ADSENSE) ================= */}
+      {/* ================= TEXTO DE SEO PRESERVADO ================= */}
       {!prompterSong && (
         <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
           <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
           <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
           
           <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
-          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso system inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
+          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
           
           <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
           <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
