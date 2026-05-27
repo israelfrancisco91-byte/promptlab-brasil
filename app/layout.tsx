@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: 'PromptLab BR — Ferramentas Profissionais para Músicos',
   description: 'Gerador de repertório em PDF, cifras, teleprompter inteligente e calculadora de capotraste 100% gratuito.',
   generator: 'v0.app',
+  keywords: ['cifras', 'repertório', 'música', 'louvor', 'pdf', 'transposição', 'setlist'],
   icons: {
     icon: [
       {
