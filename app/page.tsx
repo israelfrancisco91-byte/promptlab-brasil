@@ -42,7 +42,6 @@ export default function PromptLabPage() {
   const [isPrompterPlaying, setIsPrompterPlaying] = useState(false)
   const prompterRef = useRef<HTMLDivElement>(null)
 
-  // --- INTERCEPTADOR DO LINK MÁGICO ---
   useEffect(() => {
     let loadedFromUrl = false;
 
@@ -182,7 +181,6 @@ export default function PromptLabPage() {
       setIsShareLoading(false);
     }
   };
-
 
   const handleToggleCase = (index: number) => {
     const newSongs = [...songs];
@@ -487,7 +485,6 @@ export default function PromptLabPage() {
     window.open(url, '_blank');
   }
 
-  // --- FUNÇÕES DE MÚSICA (AGORA COM INSERÇÃO INTELIGENTE NO MEIO) ---
   const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
   
   const insertSongAfter = (index: number) => {
@@ -541,6 +538,7 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   };
 
+  // --- PDF ENGINE ATUALIZADA (FONTES 100% ESPELHADAS) ---
   const processPDF = async (action: 'download' | 'share') => {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
@@ -612,19 +610,21 @@ export default function PromptLabPage() {
                 }
               } else { breakIdx = maxLen; skipChars = 0; }
 
-              const cChunk = chordLine.substring(0, breakIdx); const lChunk = lyricLine.substring(0, breakIdx);
+              const cChunk = chordLine.substring(0, breakIdx); 
+              const lChunk = lyricLine.substring(0, breakIdx);
 
               if (cChunk.trim() !== "") {
-                doc.setFont("courier", "bold"); doc.setFontSize(10); doc.setTextColor(37, 99, 235);
-                doc.text(cChunk.replace(/\*\*/g, ''), currentX, currentY); currentY += 4.5;
+                doc.setFont("Courier", "bold"); doc.setFontSize(10); doc.setTextColor(37, 99, 235);
+                doc.text(cChunk.replace(/\*\*/g, ''), currentX, currentY); 
               }
+              currentY += 4.5;
               
               doc.setFontSize(10); doc.setTextColor(0, 0, 0);
               if (lChunk.includes('**')) {
-                doc.setFont("courier", "bold");
+                doc.setFont("Courier", "bold");
                 doc.text(lChunk.replace(/\*\*/g, ''), currentX, currentY);
               } else {
-                doc.setFont("courier", "normal");
+                doc.setFont("Courier", "normal");
                 doc.text(lChunk, currentX, currentY);
               }
               currentY += 6.5;
@@ -646,14 +646,14 @@ export default function PromptLabPage() {
               doc.setFontSize(10); doc.setTextColor(0, 0, 0);
               
               if (isChordLine(line)) { 
-                doc.setFont("courier", "bold"); doc.setTextColor(37, 99, 235); 
+                doc.setFont("Courier", "bold"); doc.setTextColor(37, 99, 235); 
                 doc.text(chunk.replace(/\*\*/g, ''), currentX, currentY);
               } else { 
                 if (chunk.includes('**')) {
-                  doc.setFont("courier", "bold");
+                  doc.setFont("Courier", "bold");
                   doc.text(chunk.replace(/\*\*/g, ''), currentX, currentY);
                 } else {
-                  doc.setFont("courier", "normal"); 
+                  doc.setFont("Courier", "normal"); 
                   doc.text(chunk, currentX, currentY);
                 }
               }
@@ -695,8 +695,13 @@ export default function PromptLabPage() {
         .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; transition: 0.2s; }
         .card:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
-        input, textarea { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
+        
+        input { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
+        textarea { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; font-family: 'Courier New', Courier, monospace !important; }
         input:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+        
+        .font-mono { font-family: 'Courier New', Courier, monospace !important; }
+
         .btn { padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; }
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-green:hover { background: #16a34a; }
@@ -783,7 +788,7 @@ export default function PromptLabPage() {
                 <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo, Show de Rock..." className="bg-[#0f172a]" />
               </div>
 
-              {/* LISTA DE MÚSICAS COM O NOVO BOTÃO DE INSERÇÃO */}
+              {/* LISTA DE MÚSICAS */}
               <div className="mb-6 space-y-1">
                 {songs.map((song, index) => (
                   <div key={song.id} className="relative">
@@ -833,7 +838,6 @@ export default function PromptLabPage() {
                       </div>
                     </div>
                     
-                    {/* NOVO: BOTÃO SUTIL "INSERIR ABAIXO" */}
                     <div className="flex justify-center my-2 opacity-60 hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => insertSongAfter(index)}
@@ -977,7 +981,7 @@ export default function PromptLabPage() {
         </main>
       )}
 
-      {/* ================= TEXTO DE SEO PRESERVADO ================= */}
+      {/* ================= TEXTO DE SEO ================= */}
       {!prompterSong && (
         <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
           <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
@@ -994,7 +998,7 @@ export default function PromptLabPage() {
         </section>
       )}
 
-      {/* RODAPÉ PADRÃO */}
+      {/* RODAPÉ */}
       {!prompterSong && (
         <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
           <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -1068,7 +1072,7 @@ export default function PromptLabPage() {
         </div>
       )}
 
-      {/* ================= MODAL DO LINK MÁGICO DO WHATSAPP ================= */}
+      {/* ================= MODAL DO LINK MÁGICO ================= */}
       {shareModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
