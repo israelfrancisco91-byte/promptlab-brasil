@@ -42,7 +42,7 @@ export default function PromptLabPage() {
   const [isPrompterPlaying, setIsPrompterPlaying] = useState(false)
   const prompterRef = useRef<HTMLDivElement>(null)
 
-  // --- INTERCEPTADOR DO LINK MÁGICO (AGORA BLINDADO CONTRA COLISÃO DE MEMÓRIA) ---
+  // --- INTERCEPTADOR DO LINK MÁGICO ---
   useEffect(() => {
     let loadedFromUrl = false;
 
@@ -52,7 +52,6 @@ export default function PromptLabPage() {
       
       if (sharedData) {
         try {
-          // Prevenção de perda do sinal de + na URL
           const fixedBase64 = sharedData.replace(/ /g, '+');
           const decodedStr = decodeURIComponent(escape(atob(fixedBase64)));
           const parsed = JSON.parse(decodedStr);
@@ -65,7 +64,6 @@ export default function PromptLabPage() {
             
             if (window.confirm(`🎵 Você recebeu o repertório "${listName}". Deseja carregar esta lista de cifras na sua tela agora?`)) {
               
-              // Descomprime o formato novo otimizado
               if (hasNewFormat) {
                 const expandedSongs = parsed.s.map((song: any, idx: number) => ({
                   id: `shared-${Date.now()}-${idx}`,
@@ -80,7 +78,6 @@ export default function PromptLabPage() {
               setRepertoireHeader(parsed.h || parsed.header || "");
               loadedFromUrl = true;
               
-              // Limpa a URL para não recarregar se apertar F5
               window.history.replaceState({}, document.title, window.location.pathname);
             }
           }
@@ -91,7 +88,6 @@ export default function PromptLabPage() {
       }
     }
 
-    // SÓ CARREGA A MEMÓRIA LOCAL SE NÃO TIVER CARREGADO NADA DO LINK
     if (!loadedFromUrl) {
       const savedSongs = localStorage.getItem('promptlab_songs')
       const savedHeader = localStorage.getItem('promptlab_header')
@@ -143,14 +139,12 @@ export default function PromptLabPage() {
     return (chordCount / words.length) >= 0.7;
   };
 
-  // --- GERADOR DO LINK MÁGICO (COM ALGORITMO DE COMPRESSÃO) ---
   const handleGenerateShareLink = async () => {
     const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
     if (!hasContent) return alert("Adicione pelo menos uma música antes de gerar o link!");
     
     setIsShareLoading(true);
     try {
-      // Compressão Extrema: Troca 'title' por 't' e 'content' por 'c' para economizar peso no link
       const minifiedSongs = songs.map(s => ({
         t: s.title,
         c: s.content
@@ -164,7 +158,6 @@ export default function PromptLabPage() {
       const jsonStr = JSON.stringify(dataObj);
       const base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
       
-      // Uso do encodeURIComponent obrigatório para não perder dados na URL
       const encodedParam = encodeURIComponent(base64Data);
       const longUrl = `${window.location.origin}${window.location.pathname}?rep=${encodedParam}`;
       
@@ -494,14 +487,24 @@ export default function PromptLabPage() {
     window.open(url, '_blank');
   }
 
+  // --- FUNÇÕES DE MÚSICA (AGORA COM INSERÇÃO INTELIGENTE NO MEIO) ---
   const addSong = () => setSongs([...songs, { id: Date.now().toString(), title: "", content: "" }])
+  
+  const insertSongAfter = (index: number) => {
+    const newSongs = [...songs];
+    newSongs.splice(index + 1, 0, { id: Date.now().toString(), title: "", content: "" });
+    setSongs(newSongs);
+  }
+
   const updateSong = (index: number, field: 'title' | 'content', value: string) => {
     const newSongs = [...songs]; newSongs[index][field] = value; setSongs(newSongs);
   }
+  
   const removeSong = (index: number) => {
     if (songs.length === 1) return setSongs([{ id: Date.now().toString(), title: "", content: "" }]);
     setSongs(songs.filter((_, i) => i !== index));
   }
+  
   const moveSong = (index: number, direction: 'up' | 'down') => {
     if (direction === 'up' && index === 0) return;
     if (direction === 'down' && index === songs.length - 1) return;
@@ -689,7 +692,7 @@ export default function PromptLabPage() {
     <div className="min-h-screen bg-[#020617] text-white font-sans p-4 relative">
       <style jsx global>{`
         .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
-        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-bottom: 16px; transition: 0.2s; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; transition: 0.2s; }
         .card:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
         input, textarea { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
@@ -770,7 +773,7 @@ export default function PromptLabPage() {
                     <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-blue-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-purple-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">✏️</span><div><strong className="text-yellow-400">Edição:</strong> Use <span className="bg-slate-700 px-1 rounded">Aa</span> para alterar Maiúsculas/Minúsculas e <span className="bg-slate-700 px-1 rounded">B</span> para negrito. <span className="block mt-1 text-xs text-yellow-300">*Dica: Ao colar letras de sites da internet, o sistema mantém os negritos originais automaticamente!</span></div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">✏️</span><div><strong className="text-yellow-400">Edição:</strong> Use <span className="bg-slate-700 px-1 rounded">Aa</span> para alterar Maiúsculas/Minúsculas e <span className="bg-slate-700 px-1 rounded">B</span> para negrito.</div></li>
                   </ul>
                 </div>
               )}
@@ -780,58 +783,71 @@ export default function PromptLabPage() {
                 <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo, Show de Rock..." className="bg-[#0f172a]" />
               </div>
 
-              <div className="space-y-4 mb-6">
+              {/* LISTA DE MÚSICAS COM O NOVO BOTÃO DE INSERÇÃO */}
+              <div className="mb-6 space-y-1">
                 {songs.map((song, index) => (
-                  <div key={song.id} className="card relative group border-l-4 border-l-transparent focus-within:border-l-blue-500">
-                    
-                    <div className="mb-3">
-                      <label className="!mb-1 text-slate-400">Título da Música {index + 1}</label>
-                      <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
+                  <div key={song.id} className="relative">
+                    <div className="card relative group border-l-4 border-l-transparent focus-within:border-l-blue-500 z-10">
+                      
+                      <div className="mb-3">
+                        <label className="!mb-1 text-slate-400">Título da Música {index + 1}</label>
+                        <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-2 mb-3 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
+                          <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                        </div>
+                        
+                        <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
+                        
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0">-½ Tom</button>
+                          <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0">+½ Tom</button>
+                        </div>
+
+                        <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
+
+                        <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-1 sm:flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
+                          ▶️ Prompter
+                        </button>
+
+                        <div className="flex items-center gap-1 w-full sm:w-auto ml-auto justify-end sm:border-l sm:border-slate-700 sm:pl-3 mt-1 sm:mt-0">
+                          <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬆️</button>
+                          <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬇️</button>
+                          <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-8 !w-9">🗑️</button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <textarea 
+                          id={`song-textarea-${index}`} 
+                          rows={8} 
+                          value={song.content} 
+                          onChange={(e) => updateSong(index, 'content', e.target.value)}
+                          onPaste={(e) => handlePaste(e, index)} 
+                          placeholder="Cole as estrofes e refrões cifrados aqui..." 
+                          className="!mb-0 text-sm font-mono !bg-[#0f172a]" 
+                        />
+                      </div>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-2 mb-3 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50">
-                      
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
-                        <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
-                      </div>
-                      
-                      <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
-                      
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0">-½ Tom</button>
-                        <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0">+½ Tom</button>
-                      </div>
-
-                      <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
-
-                      <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-1 sm:flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
-                        ▶️ Prompter
+                    {/* NOVO: BOTÃO SUTIL "INSERIR ABAIXO" */}
+                    <div className="flex justify-center my-2 opacity-60 hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => insertSongAfter(index)}
+                        className="bg-[#0f172a] text-slate-400 hover:text-blue-400 text-xs font-bold py-1 px-4 rounded-full border border-dashed border-slate-600 hover:border-blue-500 transition-all flex items-center gap-2 shadow-sm"
+                        title="Adicionar uma nova música neste espaço"
+                      >
+                        ➕ Inserir Abaixo
                       </button>
-
-                      <div className="flex items-center gap-1 w-full sm:w-auto ml-auto justify-end sm:border-l sm:border-slate-700 sm:pl-3 mt-1 sm:mt-0">
-                        <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬆️</button>
-                        <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬇️</button>
-                        <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-8 !w-9">🗑️</button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <textarea 
-                        id={`song-textarea-${index}`} 
-                        rows={8} 
-                        value={song.content} 
-                        onChange={(e) => updateSong(index, 'content', e.target.value)}
-                        onPaste={(e) => handlePaste(e, index)} 
-                        placeholder="Cole as estrofes e refrões cifrados aqui..." 
-                        className="!mb-0 text-sm font-mono !bg-[#0f172a]" 
-                      />
                     </div>
                   </div>
                 ))}
               </div>
 
-              <button onClick={addSong} className="w-full p-4 rounded-xl border-2 border-dashed border-slate-600 text-slate-400 font-bold hover:border-blue-500 hover:text-blue-500 transition-colors mb-8">➕ Adicionar Nova Música</button>
+              <button onClick={addSong} className="w-full p-4 rounded-xl border-2 border-dashed border-slate-600 text-slate-400 font-bold hover:border-blue-500 hover:text-blue-500 transition-colors mb-8 mt-4">➕ Adicionar Nova Música no Final</button>
               
               <div className="pt-4 border-t border-slate-800 space-y-3">
                 <button 
