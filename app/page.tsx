@@ -689,16 +689,27 @@ export default function PromptLabPage() {
   const capoResult = calculateCapoFret();
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-sans p-4 relative">
+     <div className="min-h-screen text-white font-sans p-4 relative z-0">
+      
+      {/* BACKGROUND TEMA SÃO JOÃO SOFISTICADO */}
+      <div className="fixed inset-0 z-[-1] bg-[#020617]">
+        {/* Textura de estrelas/ruído suave */}
+        <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
+        {/* Degradê Lilás vindo de baixo (Cores da sua logo) */}
+        <div className="absolute bottom-0 left-0 right-0 h-[80vh] bg-gradient-to-t from-purple-900/30 to-transparent"></div>
+        {/* Reflexo quente da Fogueira no canto superior direito */}
+        <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-orange-600/10 blur-[120px] pointer-events-none"></div>
+      </div>
+
       <style jsx global>{`
-        .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
-        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; transition: 0.2s; }
-        .card:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+        .panel { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(30, 41, 59, 0.8); border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7); }
+        .card { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(8px); border: 1px solid rgba(51, 65, 85, 0.8); border-radius: 12px; padding: 16px; transition: 0.2s; }
+        .card:focus-within { border-color: #a855f7; box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2); }
         label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
         
-        input { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
-        textarea { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; font-family: 'Courier New', Courier, monospace !important; }
-        input:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+        input { background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
+        textarea { background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; font-family: 'Courier New', Courier, monospace !important; }
+        input:focus, textarea:focus { outline: none; border-color: #a855f7; }
         
         .font-mono { font-family: 'Courier New', Courier, monospace !important; }
 
@@ -717,22 +728,22 @@ export default function PromptLabPage() {
         .btn-play:hover { background: #059669; }
         
         .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; border-radius: 8px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 8px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
         .nav-tab { padding: 10px 12px; font-weight: 800; text-transform: uppercase; font-size: 0.70rem; border-radius: 8px; cursor: pointer; transition: 0.2s; flex: 1 1 auto; text-align: center; white-space: nowrap; }
         @media (min-width: 640px) { .nav-tab { font-size: 0.80rem; padding: 12px 20px; } }
-        .nav-tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .nav-tab.active { background: linear-gradient(135deg, #3b82f6 0%, #a855f7 100%); color: white; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4); }
         .nav-tab.inactive { background: transparent; color: #94a3b8; border: 1px solid transparent; }
-        .nav-tab.inactive:hover { background: #1e293b; color: white; }
+        .nav-tab.inactive:hover { background: rgba(30, 41, 59, 0.8); color: white; }
         
-        .note-btn { background: #1e293b; border: 1px solid #334155; padding: 12px 0; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; color: #cbd5e1; }
-        .note-btn:hover { background: #334155; }
-        .note-btn.active { background: #3b82f6; border-color: #60a5fa; color: white; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
+        .note-btn { background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; padding: 12px 0; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; color: #cbd5e1; }
+        .note-btn:hover { background: #475569; }
+        .note-btn.active { background: #a855f7; border-color: #d8b4fe; color: white; box-shadow: 0 0 15px rgba(168, 85, 247, 0.5); }
 
         .prompter-line { white-space: pre-wrap; min-height: 1.5em; word-break: break-word; }
-        .prompter-chord { color: #60a5fa; font-weight: bold; }
+        .prompter-chord { color: #d8b4fe; font-weight: bold; }
         .prompter-lyric { color: #ffffff; }
       `}</style>
 
