@@ -810,29 +810,50 @@ export default function PromptLabPage() {
                         <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
                       </div>
                       
-                      <div className="flex flex-wrap items-center gap-2 mb-3 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50">
+                      {/* TOOLBAR DESKTOP (Invisível no Mobile) */}
+                      <div className="hidden sm:flex flex-wrap items-center gap-2 mb-3 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50">
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
                           <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
                         </div>
                         
-                        <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
+                        <div className="w-px h-5 bg-slate-700 mx-1"></div>
                         
                         <div className="flex items-center gap-1">
                           <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0">-½ Tom</button>
                           <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0">+½ Tom</button>
                         </div>
 
-                        <div className="w-px h-5 bg-slate-700 mx-1 hidden sm:block"></div>
+                        <div className="w-px h-5 bg-slate-700 mx-1"></div>
 
-                        <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-1 sm:flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
+                        <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
                           ▶️ Prompter
                         </button>
 
-                        <div className="flex items-center gap-1 w-full sm:w-auto ml-auto justify-end sm:border-l sm:border-slate-700 sm:pl-3 mt-1 sm:mt-0">
+                        <div className="flex items-center gap-1 ml-auto justify-end border-l border-slate-700 pl-3">
                           <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬆️</button>
                           <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬇️</button>
                           <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-8 !w-9">🗑️</button>
+                        </div>
+                      </div>
+
+                      {/* TOOLBAR MOBILE: PARTE SUPERIOR (Invisível no Desktop) */}
+                      <div className="flex sm:hidden flex-col gap-3 mb-3 bg-[#0f172a] p-3 rounded-lg border border-slate-700/50">
+                        <button onClick={() => openPrompter(song)} className="btn-play !m-0 w-full justify-center whitespace-nowrap !h-10 text-sm" title="Modo Palco: Rolar letra automaticamente">
+                          ▶️ Prompter
+                        </button>
+
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0 !px-3 !h-9 text-xs">-½ Tom</button>
+                            <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0 !px-3 !h-9 text-xs">+½ Tom</button>
+                          </div>
+
+                          <div className="flex items-center gap-2 border-l border-slate-700 pl-3">
+                            <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-9 !w-10 text-sm">⬆️</button>
+                            <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-9 !w-10 text-sm">⬇️</button>
+                            <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-9 !w-10 text-sm">🗑️</button>
+                          </div>
                         </div>
                       </div>
 
@@ -847,6 +868,13 @@ export default function PromptLabPage() {
                           className="!mb-0 text-sm font-mono !bg-[#0f172a]" 
                         />
                       </div>
+
+                      {/* TOOLBAR MOBILE: PARTE INFERIOR (Invisível no Desktop) */}
+                      <div className="flex sm:hidden items-center gap-2 mt-2 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50 w-max">
+                        <button onClick={() => handleToggleCase(index)} className="h-8 px-5 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
+                        <button onClick={() => handleToggleBold(index)} className="h-8 px-5 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                      </div>
+
                     </div>
                     
                     <div className="flex justify-center my-2 opacity-60 hover:opacity-100 transition-opacity">
