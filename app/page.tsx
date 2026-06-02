@@ -1112,7 +1112,7 @@ export default function PromptLabPage() {
       )}
 
       {/* ================= MODAL DO LINK MÁGICO ================= */}
-      {shareModal && (
+       {shareModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
             <button onClick={() => setShareModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
@@ -1155,5 +1155,4 @@ export default function PromptLabPage() {
             </div>
           </div>
         </div>
-  )
-}
+      )}
