@@ -1156,3 +1156,6 @@ export default function PromptLabPage() {
           </div>
         </div>
       )}
+</div>
+  )
+}
