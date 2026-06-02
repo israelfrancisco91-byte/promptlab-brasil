@@ -1040,11 +1040,11 @@ export default function PromptLabPage() {
       {/* RODAPÉ */}
       {!prompterSong && (
         <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
-          <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-            <button onClick={() => setLegalModal('privacy')} className="hover:text-blue-400">Política de Privacidade</button>
-            <button onClick={() => setLegalModal('terms')} className="hover:text-blue-400">Termos de Uso</button>
-          </div>
-          <p className="text-xs text-slate-600">© 2026 PromptLab Brasil. Todos os direitos reservados.</p>
+          <nav className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <a href="/privacidade" className="hover:text-blue-400">Política de Privacidade</a>
+            <a href="/termos" className="hover:text-blue-400">Termos de Uso</a>
+          </nav>
+          <p className="text-xs text-slate-600">© {new Date().getFullYear()} PromptLab Brasil. Todos os direitos reservados.</p>
         </footer>
       )}
 
@@ -1156,46 +1156,3 @@ export default function PromptLabPage() {
           </div>
         </div>
       )}
-
-      {/* MODAL DE TEXTOS LEGAIS */}
-      {legalModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
-            <div className="flex justify-between items-center p-6 border-b border-slate-800">
-              <h3 className="text-lg font-black text-white uppercase">{legalModal === 'privacy' ? 'Política de Privacidade' : 'Termos de Uso'}</h3>
-              <button onClick={() => setLegalModal(null)} className="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
-            </div>
-            <div className="p-6 overflow-y-auto text-sm text-slate-300">
-              {legalModal === 'privacy' ? (
-                <div className="space-y-4">
-                  <p>A sua privacidade é fundamental para nós no <strong>PromptLab Brasil</strong>. Esta política descreve como as suas informações são tratadas ao utilizar a nossa plataforma.</p>
-                  <h4 className="text-white font-bold mt-4">1. Armazenamento Local (Local Storage)</h4>
-                  <p>O PromptLab Brasil foi projetado com foco na sua privacidade e segurança. Os repertórios, letras de músicas e configurações que você insere <strong>não são enviados ou salvos em nossos servidores</strong>. Utilizamos a tecnologia de <em>Local Storage</em> do seu navegador para garantir que você não perca seus dados ao fechar a aba acidentalmente, bem como para a sua Biblioteca pessoal de repertórios. Você tem controle total e pode apagar esses dados a qualquer momento limpando o cache do seu próprio navegador.</p>
-                  <h4 className="text-white font-bold mt-4">2. Cookies e Google AdSense</h4>
-                  <p>Para manter a ferramenta gratuita para todos os músicos, exibimos anúncios de parceiros fornecidos pelo Google AdSense. O Google utiliza cookies para veicular anúncios com base em suas visitas a este e a outros sites na Internet.</p>
-                  <h4 className="text-white font-bold mt-4">3. Coleta de Dados Analíticos</h4>
-                  <p>Utilizamos ferramentas padrão da indústria para análise de tráfego a fim de entender, de forma totalmente anônima, o volume de acesso ao site. Nenhuma informação pessoal é coletada neste processo.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p>Bem-vindo ao <strong>PromptLab Brasil</strong>. Ao acessar e utilizar nossa plataforma, você concorda expressamente com os seguintes Termos de Uso.</p>
-                  <h4 className="text-white font-bold mt-4">1. Natureza do Serviço</h4>
-                  <p>O PromptLab Brasil é uma ferramenta utilitária e gratuita projetada exclusivamente para auxiliar músicos na formatação, transposição algorítmica e geração de PDFs para cifras musicais e setlists.</p>
-                  <h4 className="text-white font-bold mt-4">2. Responsabilidade sobre o Conteúdo</h4>
-                  <p>A nossa plataforma <strong>não hospeda, não distribui e não possui</strong> direitos autorais sobre nenhuma letra de música ou cifra. O sistema funciona estritamente como um processador de texto no lado do cliente (no seu dispositivo). O usuário é o único e exclusivo responsável por qualquer conteúdo que decida inserir.</p>
-                  <h4 className="text-white font-bold mt-4">3. Isenção de Garantias</h4>
-                  <p>O serviço é fornecido "no estado em que se encontra". Não garantimos que a plataforma estará 100% livre de erros ou interrupções. Não nos responsabilizamos por eventuais perdas de dados armazenados localmente (Local Storage) ou problemas técnicos durante apresentações.</p>
-                  <h4 className="text-white font-bold mt-4">4. Modificações dos Termos</h4>
-                  <p>O PromptLab Brasil reserva-se o direito de revisar estes termos de serviço a qualquer momento, sem aviso prévio.</p>
-                </div>
-              )}
-            </div>
-            <div className="p-6 border-t border-slate-800 text-right bg-slate-900/50 rounded-b-xl">
-              <button onClick={() => setLegalModal(null)} className="btn-blue px-6 py-2 rounded font-bold text-xs uppercase inline-block">Compreendido</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
