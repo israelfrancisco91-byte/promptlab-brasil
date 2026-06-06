@@ -890,4 +890,282 @@ export default function PromptLabPage() {
                     <div className="flex justify-center my-2 opacity-60 hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => insertSongAfter(index)}
-                        className="bg-[#0f172a] text-slate-400 hover:text-blue-400 text-xs font-bold py-1 px-4 rounded-full border border-dashed border-slate-600 hover:border-blue-500 transition-all flex items-center gap-2
+                        className="bg-[#0f172a] text-slate-400 hover:text-blue-400 text-xs font-bold py-1 px-4 rounded-full border border-dashed border-slate-600 hover:border-blue-500 transition-all flex items-center gap-2 shadow-sm"
+                        title="Adicionar uma nova música neste espaço"
+                      >
+                        ➕ Inserir Abaixo
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={addSong} className="w-full p-4 rounded-xl border-2 border-dashed border-slate-600 text-slate-400 font-bold hover:border-blue-500 hover:text-blue-500 transition-colors mb-8 mt-4">➕ Adicionar Nova Música no Final</button>
+              
+              <div className="pt-4 border-t border-slate-800 space-y-3">
+                <button 
+                  onClick={handleGenerateShareLink}
+                  disabled={isShareLoading}
+                  className="btn bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black shadow-[0_4px_15px_rgba(147,51,234,0.3)] disabled:opacity-50"
+                >
+                  {isShareLoading ? "⏳ Otimizando Arquivo..." : "🔗 Criar Link de Acesso (WhatsApp)"}
+                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 !mt-2">
+                  <button onClick={() => processPDF('download')} className="btn btn-green !mb-0">📄 Gerar PDF</button>
+                  <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Enviar PDF via WhatsApp</button>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ================= ABA 2: BIBLIOTECA ================= */}
+          {activeTab === 'library' && (
+            <section className="panel border-l-4 border-blue-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-slate-800 pb-4 gap-4">
+                <div>
+                  <h2 className="text-xl font-black flex items-center gap-2 mb-1">📂 Meus Repertórios Salvos</h2>
+                  <p className="text-slate-400 text-sm">Suas listas ficam armazenadas no seu aparelho.</p>
+                </div>
+                <div>
+                  <input type="file" id="import-file" style={{ display: 'none' }} accept=".promptlab" onChange={handleImport} />
+                  <button onClick={() => document.getElementById('import-file')?.click()} className="btn-icon !w-auto px-4 !bg-emerald-600 hover:!bg-emerald-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    📥 Importar
+                  </button>
+                </div>
+              </div>
+
+              {savedRepertoires.length > 0 && (
+                <div className="mb-6">
+                  <input 
+                    type="text" 
+                    value={librarySearchQuery} 
+                    onChange={(e) => setLibrarySearchQuery(e.target.value)} 
+                    placeholder="🔍 Pesquisar repertório salvo..." 
+                    className="!bg-[#1e293b] !border-slate-700 !mb-0 shadow-inner" 
+                  />
+                </div>
+              )}
+
+              {savedRepertoires.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed border-slate-800 rounded-xl">
+                  <div className="text-4xl mb-4 opacity-50">📁</div>
+                  <h3 className="text-lg font-bold text-slate-300 mb-2">Sua biblioteca está vazia</h3>
+                  <button onClick={() => setActiveTab('setlist')} className="mt-6 text-blue-400 font-bold hover:underline">Criar meu primeiro repertório &rarr;</button>
+                </div>
+              ) : filteredRepertoires.length === 0 ? (
+                <div className="text-center py-10 border border-slate-800 rounded-xl bg-[#0f172a]">
+                  <p className="text-slate-400">Nenhum repertório encontrado com <strong className="text-white">"{librarySearchQuery}"</strong></p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {filteredRepertoires.map((rep) => (
+                    <div key={rep.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors overflow-hidden flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-2 gap-3">
+                          <h3 className="font-bold text-white text-lg truncate flex-1">{rep.name}</h3>
+                          <span className="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded shrink-0 whitespace-nowrap">{rep.date}</span>
+                        </div>
+                        <p className="text-slate-400 text-xs mb-4 truncate">Músicas: {rep.songs.length}</p>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button onClick={() => loadFromLibrary(rep)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-3 rounded-lg transition-colors truncate">Carregar</button>
+                        <button onClick={() => exportRepertoire(rep)} className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg shrink-0" title="Baixar arquivo para enviar no WhatsApp">📤</button>
+                        <button onClick={() => deleteFromLibrary(rep.id)} className="bg-slate-700 hover:bg-red-500 text-white p-2 rounded-lg shrink-0" title="Excluir repertório">🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ================= ABA 3: CAPOTRASTE ================= */}
+          {activeTab === 'capo' && (
+            <section className="panel border-l-4 border-purple-500">
+               <div className="mb-6 border-b border-slate-800 pb-4">
+                <h2 className="text-xl font-black flex items-center gap-2 mb-2">🎸 Calculadora Capo</h2>
+              </div>
+              <div className="grid md:grid-cols-2 gap-8 mb-8">
+                <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
+                  <label className="text-blue-400">1. Tom da Música (Cantor)</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {notesArray.map(n => <button key={`o-${n}`} onClick={() => setOriginalTone(n)} className={`note-btn ${originalTone === n ? 'active' : ''}`}>{n}</button>)}
+                  </div>
+                </div>
+                <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
+                  <label className="text-purple-400">2. Acordes que farei (Shape)</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {notesArray.map(n => <button key={`s-${n}`} onClick={() => setShapeTone(n)} className={`note-btn ${shapeTone === n ? 'active' : ''}`}>{n}</button>)}
+                  </div>
+                </div>
+              </div>
+              <div className={`p-8 rounded-xl text-center border-2 transition-all ${capoResult === 0 ? 'bg-slate-800/50 border-slate-700' : 'bg-gradient-to-br from-blue-900/40 to-purple-900/40 border-purple-500'}`}>
+                <h3 className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2">Resultado</h3>
+                {capoResult === 0 ? <div className="text-3xl font-black text-slate-300">Sem Capotraste</div> : 
+                  <div className="text-4xl md:text-5xl font-black text-white mb-2">Capo na <span className="text-purple-400">{capoResult}ª</span> Casa</div>}
+              </div>
+            </section>
+          )}
+
+          {/* ================= ABA 4: PESQUISAR ================= */}
+          {activeTab === 'search' && (
+            <section className="panel border-l-4 border-yellow-500">
+               <div className="mb-6 border-b border-slate-800 pb-4">
+                <h2 className="text-xl font-black flex items-center gap-2 mb-2">🔍 Encontrar Letras e Cifras</h2>
+              </div>
+              <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700 mb-8">
+                <label className="text-yellow-400 text-sm mb-2">Qual música você está procurando?</label>
+                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch('google')} placeholder="Ex: Te Louvarei Diante do Trono" className="!mb-4 text-lg py-3 px-4" autoFocus />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <button onClick={() => handleSearch('cifraclub')} className="bg-[#ff6600]/20 text-[#ff8833] border border-[#ff6600]/50 py-3 rounded-lg font-bold">🎸 Cifra Club</button>
+                  <button onClick={() => handleSearch('letras')} className="bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/50 py-3 rounded-lg font-bold">🎵 Letras.mus</button>
+                  <button onClick={() => handleSearch('missa')} className="bg-purple-600/20 text-purple-400 border border-purple-600/50 py-3 rounded-lg font-bold">⛪ Missa</button>
+                  <button onClick={() => handleSearch('google')} className="bg-blue-600/20 text-blue-400 border border-blue-600/50 py-3 rounded-lg font-bold">🌐 Google</button>
+                </div>
+              </div>
+            </section>
+          )}
+        </main>
+      )}
+
+      {/* ================= TEXTO DE SEO ================= */}
+      {!prompterSong && (
+        <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+          <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
+          <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
+          
+          <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
+          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
+          
+          <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
+          <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
+
+          <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
+          <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o arquivo .promptlab no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
+        </section>
+      )}
+
+      {/* RODAPÉ */}
+      {!prompterSong && (
+        <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
+          <nav className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <a href="/privacidade" className="hover:text-blue-400">Política de Privacidade</a>
+            <a href="/termos" className="hover:text-blue-400">Termos de Uso</a>
+          </nav>
+          <p className="text-xs text-slate-600">© {new Date().getFullYear()} PromptLab Brasil. Todos os direitos reservados.</p>
+        </footer>
+      )}
+
+      {/* ================= TELA DO TELEPROMPTER ================= */}
+      {prompterSong && (
+        <div className="fixed inset-0 bg-[#020617] z-50 flex flex-col animate-in fade-in duration-300">
+          
+          <div className="bg-[#0f172a] border-b border-slate-800 p-4 flex flex-wrap gap-4 items-center justify-between shadow-2xl z-10">
+            <div className="flex items-center gap-4">
+              <button onClick={closePrompter} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
+                &larr; Voltar
+              </button>
+              <h2 className="text-lg font-black text-white hidden sm:block truncate max-w-xs">{prompterSong.title || "Modo Palco"}</h2>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-6">
+              <div className="flex items-center bg-slate-800 rounded-lg p-1">
+                <button onClick={() => setPrompterSpeed(Math.max(1, prompterSpeed - 1))} className="px-3 py-1 font-bold text-slate-300 hover:text-white">-</button>
+                <span className="px-2 text-sm font-bold text-blue-400 whitespace-nowrap">Vel: {prompterSpeed}</span>
+                <button onClick={() => setPrompterSpeed(Math.min(10, prompterSpeed + 1))} className="px-3 py-1 font-bold text-slate-300 hover:text-white">+</button>
+              </div>
+
+              <button 
+                onClick={() => setIsPrompterPlaying(!isPrompterPlaying)}
+                className={`font-black uppercase py-2 px-6 rounded-lg transition-colors border-2 ${
+                  isPrompterPlaying 
+                    ? 'bg-amber-500/20 text-amber-500 border-amber-500/50 hover:bg-amber-500/30' 
+                    : 'bg-green-500/20 text-green-500 border-green-500/50 hover:bg-green-500/30'
+                }`}
+              >
+                {isPrompterPlaying ? '⏸ Pausar' : '▶️ Tocar'}
+              </button>
+            </div>
+          </div>
+
+          <div 
+            ref={prompterRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden custom-scroll p-6 sm:p-12 pb-[60vh]"
+            style={{ fontSize: 'min(3.8vw, 2.5rem)', lineHeight: '1.6' }} 
+          >
+            <div className="max-w-4xl mx-auto font-mono">
+              <h1 className="text-5xl sm:text-7xl font-black mb-12 text-slate-500 border-b border-slate-800 pb-8">{prompterSong.title}</h1>
+              
+              {getPrompterLines(prompterSong.content).map((lineObj, idx) => {
+                if (lineObj.type === 'empty') return <div key={idx} className="h-6 sm:h-8"></div>;
+                
+                let displayText = lineObj.text;
+                let isBold = false;
+                if (displayText.includes('**')) {
+                  isBold = true;
+                  displayText = displayText.replace(/\*\*/g, '');
+                }
+
+                if (lineObj.type === 'chord') {
+                  return <div key={idx} className="prompter-line prompter-chord">{displayText}</div>;
+                } else {
+                  return <div key={idx} className={`prompter-line prompter-lyric ${isBold ? 'text-yellow-400 font-bold' : ''}`}>{displayText}</div>;
+                }
+              })}
+            </div>
+          </div>
+          
+          <div className="h-24 bg-gradient-to-t from-[#020617] to-transparent absolute bottom-0 left-0 right-0 pointer-events-none"></div>
+        </div>
+      )}
+
+      {/* ================= MODAL DO LINK MÁGICO ================= */}
+       {shareModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button onClick={() => setShareModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-2">🔗</div>
+              <h3 className="text-lg font-black text-white uppercase tracking-wider">Link de Compartilhamento</h3>
+              <p className="text-slate-400 text-xs mt-1">Sua banda pode abrir esse repertório instantaneamente clicando nele!</p>
+            </div>
+
+            <div className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 mb-6 flex items-center justify-between gap-2 overflow-hidden">
+              <span className="text-sm text-blue-400 font-mono truncate select-all flex-1">{shareModal}</span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(shareModal);
+                  alert("📋 Link copiado com sucesso!");
+                }} 
+                className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs py-2 px-3 rounded-md shrink-0 transition-colors"
+              >
+                Copiar
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <button 
+                onClick={() => {
+                  const msg = encodeURIComponent(`🎵 Fala, pessoal! Montei o nosso repertório digital no PromptLab Brasil. Clica no link para abrir a lista completa com as cifras no tom certo: ${shareModal}`);
+                  window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+                }}
+                className="w-full bg-[#25d366] hover:bg-[#20ba5a] text-white font-black text-xs py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors uppercase tracking-wider shadow-[0_4px_12px_rgba(37,211,102,0.2)]"
+              >
+                🟢 Enviar para o WhatsApp
+              </button>
+              <button 
+                onClick={() => setShareModal(null)}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors uppercase"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+</div>
+  )
+}
