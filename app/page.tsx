@@ -757,9 +757,23 @@ export default function PromptLabPage() {
         .prompter-lyric { color: #ffffff; }
       `}</style>
 
+      {/* NAVEGAÇÃO GLOBAL (HEADER CLÁSSICO PARA O ADSENSE) */}
+      {!prompterSong && (
+        <nav className="max-w-3xl mx-auto bg-[#0f172a] border border-slate-800 rounded-xl px-6 py-4 mb-6 flex items-center justify-between shadow-lg">
+          <a href="/" className="font-black text-xl tracking-tighter text-white hover:opacity-80 transition-opacity">
+            PromptLab<span className="text-purple-500">.</span>
+          </a>
+          <div className="flex items-center gap-4 sm:gap-6 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
+            <a href="/" className="hover:text-blue-400 text-white transition-colors">App / Início</a>
+            <a href="/blog" className="hover:text-blue-400 transition-colors">Blog</a>
+            <a href="/privacidade" className="hover:text-blue-400 transition-colors hidden sm:inline-block">Privacidade</a>
+          </div>
+        </nav>
+      )}
+
       {/* CABEÇALHO PADRÃO */}
       {!prompterSong && (
-        <header className="max-w-3xl mx-auto text-center py-8">
+        <header className="max-w-3xl mx-auto text-center pb-8">
           <h1 className="text-5xl font-black tracking-tighter mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
           <p className="text-slate-400 font-medium mb-8">Ferramentas Profissionais para Músicos</p>
           
