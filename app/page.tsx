@@ -1050,7 +1050,8 @@ export default function PromptLabPage() {
       {/* RODAPÉ */}
       {!prompterSong && (
         <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
-          <nav className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+          <nav className="flex flex-wrap items-center justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <a href="/blog" className="hover:text-white text-blue-400 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-md transition-colors">Blog do Músico</a>
             <a href="/privacidade" className="hover:text-blue-400">Política de Privacidade</a>
             <a href="/termos" className="hover:text-blue-400">Termos de Uso</a>
           </nav>
