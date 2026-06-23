@@ -245,6 +245,20 @@ export default function PromptLabPage() {
       normalizedSong = parts.slice(1).join(' - ') || normalizedSong;
     }
 
+    // Ajuda em buscas como: "Em Teu Altar de Walmir Alencar".
+    // Só aplica se a parte depois de "de/do/da" parece nome de artista com 2+ palavras.
+    if (!inferredArtist && normalizedSong) {
+      const byArtistMatch = normalizedSong.match(/^(.+?)\s+(?:de|do|da|dos|das)\s+([A-Za-zÀ-ÿ0-9'.&\s]{5,})$/i);
+      if (byArtistMatch) {
+        const possibleSong = byArtistMatch[1].trim();
+        const possibleArtist = byArtistMatch[2].trim();
+        if (possibleArtist.split(/\s+/).length >= 2 && possibleSong.split(/\s+/).length >= 2) {
+          normalizedSong = possibleSong;
+          inferredArtist = possibleArtist;
+        }
+      }
+    }
+
     const cleanArtist = inferredArtist
       .split(/ feat\.? | ft\.? | participação | participacao | & |,/i)[0]
       .trim();
@@ -534,6 +548,32 @@ export default function PromptLabPage() {
     }
   };
 
+  const isDefinitelyNavigationText = (text: string) => {
+    const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+    if (lines.length === 0) return true;
+
+    const compactText = lines.join(' ');
+    if (/Curta\s+mais\s+m[uú]sicas\s+com\s+op[cç][oõ]es\s+exclusivas/i.test(compactText)) return true;
+    if (/Assine\s+e\s+libere\s+benef[ií]cios/i.test(compactText)) return true;
+    if (/Explore\s*M[uú]sicas/i.test(compactText)) return true;
+    if (/Prote[cç][aã]o\s+de\s+Dados/i.test(compactText) && /Corre[cç][oõ]es\s+de\s+letras/i.test(compactText)) return true;
+
+    const singleAlphabetLines = lines.filter(line => /^[A-Z#]$/i.test(line)).length;
+    if (singleAlphabetLines >= 5) return true;
+
+    const navWords = [
+      'artistas', 'álbuns', 'albuns', 'playlists', 'atualizações', 'atualizacoes',
+      'lançamentos', 'lancamentos', 'participe', 'envie letra', 'envie letras',
+      'correções de letras', 'correcoes de letras', 'sobre o letras', 'proteção de dados',
+      'protecao de dados', 'blog', 'login', 'cadastro', 'assine'
+    ];
+    const navCount = lines.filter(line => navWords.some(word => line.toLowerCase() === word || line.toLowerCase().includes(word))).length;
+    if (navCount >= 5 && singleAlphabetLines >= 2) return true;
+    if (navCount >= 8) return true;
+
+    return false;
+  };
+
   const cleanupImportedLyrics = (rawText: string) => {
     const decoded = decodeHtmlEntities(rawText)
       .replace(/\r\n/g, '\n')
@@ -607,7 +647,23 @@ export default function PromptLabPage() {
       /^%+$/i,
       /^\d+(\.\d+)?\s+em\s+\d+\s+votos/i,
       /^½\s*tom/i,
-      /^tom\s*½/i
+      /^tom\s*½/i,
+      /^curta\s+mais\s+m[uú]sicas/i,
+      /^assine(\s+e\s+libere)?/i,
+      /^benef[ií]cios/i,
+      /^explorar\s*m[uú]sicas/i,
+      /^explorem[uú]sicas/i,
+      /^artistas$/i,
+      /^[áa]lbuns$/i,
+      /^playlists$/i,
+      /^atualiza[cç][oõ]es$/i,
+      /^lan[cç]amentos$/i,
+      /^participe$/i,
+      /^envie letras?$/i,
+      /^corre[cç][oõ]es de letras$/i,
+      /^sobre o letras$/i,
+      /^prote[cç][aã]o de dados$/i,
+      /^[a-z#]$/i
     ];
 
     const lines = decoded
@@ -694,16 +750,27 @@ export default function PromptLabPage() {
 
   const scoreLyricsCandidate = (text: string) => {
     const clean = cleanupImportedLyrics(text);
-    const usefulLines = clean.split('\n').map(line => line.trim()).filter(Boolean);
+    if (!clean || isDefinitelyNavigationText(clean)) return 0;
 
+    const usefulLines = clean.split('\n').map(line => line.trim()).filter(Boolean);
     if (clean.length < 90 || usefulLines.length < 4) return 0;
     if (clean.length > 18000) return 0;
 
     const chordLikeLines = usefulLines.filter(line => isChordLine(line)).length;
-    const lyricLikeLines = usefulLines.length - chordLikeLines;
-    const noisePenalty = /(blog|comentários|comentarios|privacidade|cookie|assinatura|aplicativo|login|cadastro|premium|pro)/i.test(clean) ? 600 : 0;
+    const lyricLikeLines = usefulLines.filter(line => {
+      if (isChordLine(line)) return false;
+      if (/^[A-Z#]$/i.test(line)) return false;
+      return /[a-záàâãéêíóôõúç]{2,}/i.test(line);
+    }).length;
 
-    return Math.min(clean.length, 6000) + lyricLikeLines * 35 + chordLikeLines * 20 - noisePenalty;
+    if (lyricLikeLines < 4) return 0;
+
+    const navIndicators = usefulLines.filter(line => /^(assine|artistas|álbuns|albuns|playlists|lançamentos|lancamentos|participe|envie|correções|correcoes|proteção|protecao|sobre o letras)$/i.test(line)).length;
+    if (navIndicators >= 4) return 0;
+
+    const noisePenalty = /(blog|comentários|comentarios|privacidade|cookie|assinatura|aplicativo|login|cadastro|premium|pro|curta mais músicas|curta mais musicas|exploremúsicas|explorar músicas)/i.test(clean) ? 6000 : 0;
+
+    return Math.min(clean.length, 6000) + lyricLikeLines * 80 + chordLikeLines * 20 - noisePenalty;
   };
 
   const extractJsonEmbeddedLyrics = (html: string) => {
@@ -744,14 +811,16 @@ export default function PromptLabPage() {
     const selectors = [
       '.cnt-letra',
       '[class*="cnt-letra"]',
-      '[class*="letra"]',
-      '[id*="letra"]',
+      '[class*="cnt_traducao"]',
+      '[class*="letra-cnt"]',
       '[class*="lyrics"]',
       '[id*="lyrics"]',
-      '[class*="cifra"]',
-      '[id*="cifra"]',
-      '.entry-content',
-      '.post-content',
+      '[class*="lyric"]',
+      '[id*="lyric"]',
+      '[class*="song-text"]',
+      '[class*="songtext"]',
+      '[class*="song-lyrics"]',
+      '[class*="musica-letra"]',
       'article',
       'main'
     ];
@@ -765,8 +834,8 @@ export default function PromptLabPage() {
       });
     });
 
-    const bodyText = doc.body ? elementToReadableText(doc.body) : '';
-    if (bodyText) candidates.push(bodyText);
+    // Não usamos o body inteiro como candidato: em sites de letras ele pode trazer menu,
+    // alfabeto de artistas e chamadas de assinatura no lugar da letra.
 
     const ranked = candidates
       .map(text => ({ text: cleanupImportedLyrics(text), score: scoreLyricsCandidate(text) }))
