@@ -54,6 +54,7 @@ export default function PromptLabPage() {
   const [vagalumeResults, setVagalumeResults] = useState<{artist: string, song: string, thumb: string}[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isVagalumeLoading, setIsVagalumeLoading] = useState(false)
+  const [lyricsImportNotice, setLyricsImportNotice] = useState("")
 
   // --- EFEITO DE AUTOCOMPLETAR (DEBOUNCE) ---
   useEffect(() => {
@@ -231,79 +232,167 @@ export default function PromptLabPage() {
     }
   };
 
-  // --- FUNÇÃO PARA PEGAR A LETRA FINAL NO VAGALUME (COM BYPASS E FALLBACK) ---
-  const handleFetchLyrics = async (artist: string, song: string) => {
-    setIsVagalumeLoading(true);
+  // --- FUNÇÕES PARA BUSCAR E IMPORTAR LETRA COM MAIS ESTABILIDADE ---
+  const cleanSongInfo = (artist: string, song: string) => {
+    const cleanArtist = artist
+      .replace(/\s+/g, ' ')
+      .split(/ feat\.? | ft\.? | participação | participacao | & |,| - /i)[0]
+      .trim();
+
+    const cleanSong = song
+      .replace(/\s+/g, ' ')
+      .replace(/\(.*?\)|\[.*?\]/g, '')
+      .replace(/ - .*$/g, '')
+      .replace(/ ao vivo| live| playback| remaster(ed)?| versão acústica| versao acustica/gi, '')
+      .trim();
+
+    return { cleanArtist, cleanSong };
+  };
+
+  const openLyricsModal = (index: number) => {
+    setLyricsImportNotice("");
+    setVagalumeResults([]);
+    setVagalumeModalIndex(index);
+    setVagalumeQuery(songs[index]?.title || "");
+  };
+
+  const closeLyricsModal = () => {
+    setVagalumeModalIndex(null);
+    setVagalumeQuery("");
+    setVagalumeResults([]);
+    setLyricsImportNotice("");
+    setIsVagalumeLoading(false);
+  };
+
+  const appendLyricsToSong = (index: number, fallbackTitle: string, lyrics: string) => {
+    const finalLyrics = lyrics.trim();
+    if (!finalLyrics) return;
+
+    setSongs(prevSongs => {
+      const newSongs = [...prevSongs];
+      const currentSong = newSongs[index];
+      if (!currentSong) return prevSongs;
+
+      newSongs[index] = {
+        ...currentSong,
+        title: currentSong.title.trim() ? currentSong.title : fallbackTitle,
+        content: currentSong.content.trim()
+          ? `${currentSong.content.trimEnd()}\n\n${finalLyrics}`
+          : finalLyrics
+      };
+
+      return newSongs;
+    });
+  };
+
+  const fillSongTitleIfEmpty = (index: number, fallbackTitle: string) => {
+    setSongs(prevSongs => {
+      const newSongs = [...prevSongs];
+      const currentSong = newSongs[index];
+      if (!currentSong || currentSong.title.trim()) return prevSongs;
+      newSongs[index] = { ...currentSong, title: fallbackTitle };
+      return newSongs;
+    });
+  };
+
+  const fetchJsonWithTimeout = async (url: string, timeoutMs = 12000) => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-      // 1. Limpeza Inteligente: O iTunes traz "Ao Vivo", "Remastered" que o Vagalume não entende.
-      const cleanArtist = artist.split(/ feat\. | & | , /i)[0].trim();
-      const cleanSong = song.split(/ - | \(| \[/)[0].trim();
+      const response = await fetch(url, {
+        signal: controller.signal,
+        cache: 'no-store'
+      });
 
-      // 2. Chamar a API usando a chave pública do Vagalume para evitar bloqueio de CORS
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const text = await response.text();
+      if (!text.trim()) {
+        throw new Error("Resposta vazia");
+      }
+
+      return JSON.parse(text);
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
+
+  const extractLyricsFromResponse = (data: any) => {
+    if ((data?.type === 'exact' || data?.type === 'aprox') && Array.isArray(data?.mus)) {
+      const lyrics = data.mus.find((item: any) => typeof item?.text === 'string' && item.text.trim())?.text;
+      if (lyrics) return lyrics.trim();
+    }
+
+    if (typeof data?.lyrics === 'string' && data.lyrics.trim()) {
+      return data.lyrics.trim();
+    }
+
+    return "";
+  };
+
+  const handleManualLyricSearch = () => {
+    const typedQuery = vagalumeQuery.trim();
+    const currentTitle = vagalumeModalIndex !== null ? songs[vagalumeModalIndex]?.title?.trim() : "";
+    const query = typedQuery || currentTitle;
+
+    if (!query) {
+      alert("Digite o nome da música antes de abrir a busca manual.");
+      return;
+    }
+
+    window.open(`https://www.google.com/search?q=${encodeURIComponent(`${query} letra cifra`)}`, '_blank');
+  };
+
+  const handleFetchLyrics = async (artist: string, song: string) => {
+    if (vagalumeModalIndex === null || isVagalumeLoading) return;
+
+    setIsVagalumeLoading(true);
+    setLyricsImportNotice("");
+
+    const { cleanArtist, cleanSong } = cleanSongInfo(artist, song);
+    const fallbackTitle = `${cleanArtist} - ${cleanSong}`;
+
+    try {
       const apiKey = "660a4395f992ff67786584e238f501aa";
-      const url = `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(cleanArtist)}&mus=${encodeURIComponent(cleanSong)}&apikey=${apiKey}`;
+      const vagalumeUrl = `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(cleanArtist)}&mus=${encodeURIComponent(cleanSong)}&apikey=${apiKey}`;
 
-      const res = await fetch(url);
-      
-      if (!res.ok) {
-        throw new Error("Falha na conexão com o Vagalume");
-      }
+      const urlsToTry = [
+        vagalumeUrl,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(vagalumeUrl)}`,
+        `https://corsproxy.io/?${encodeURIComponent(vagalumeUrl)}`,
+        `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanSong)}`
+      ];
 
-      const data = await res.json();
+      let importedLyrics = "";
+      let lastError: unknown = null;
 
-      if (data.type === 'exact' || data.type === 'aprox') {
-        const lyrics = data.mus[0].text;
-        
-        if (vagalumeModalIndex !== null) {
-          const currentContent = songs[vagalumeModalIndex].content;
-          const newContent = currentContent ? currentContent + "\n\n" + lyrics : lyrics;
-          updateSong(vagalumeModalIndex, 'content', newContent);
-          
-          if (!songs[vagalumeModalIndex].title) {
-            updateSong(vagalumeModalIndex, 'title', `${cleanArtist} - ${cleanSong}`);
-          }
-        }
-        
-        setVagalumeModalIndex(null);
-        setVagalumeQuery("");
-        setVagalumeResults([]);
-      } else {
-        // 3. Plano B: Tentar buscar em outra API pública (Lyrics.ovh) se o Vagalume não tiver a música
+      for (const url of urlsToTry) {
         try {
-          const fallbackRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanSong)}`);
-          if (fallbackRes.ok) {
-            const fallbackData = await fallbackRes.json();
-            if (fallbackData.lyrics) {
-              if (vagalumeModalIndex !== null) {
-                const currentContent = songs[vagalumeModalIndex].content;
-                const newContent = currentContent ? currentContent + "\n\n" + fallbackData.lyrics : fallbackData.lyrics;
-                updateSong(vagalumeModalIndex, 'content', newContent);
-                if (!songs[vagalumeModalIndex].title) {
-                  updateSong(vagalumeModalIndex, 'title', `${cleanArtist} - ${cleanSong}`);
-                }
-              }
-              setVagalumeModalIndex(null);
-              setVagalumeQuery("");
-              setVagalumeResults([]);
-              return;
-            }
-          }
-        } catch (fallbackError) {
-          console.log("Fallback também falhou.");
+          const data = await fetchJsonWithTimeout(url);
+          importedLyrics = extractLyricsFromResponse(data);
+          if (importedLyrics) break;
+        } catch (error) {
+          lastError = error;
+          console.warn("Falha ao tentar importar letra por esta fonte:", error);
         }
+      }
 
-        alert(`🎵 Letra não encontrada nos bancos de dados para: ${cleanArtist} - ${cleanSong}. Tente buscar manualmente.`);
+      if (!importedLyrics) {
+        console.warn("Nenhuma fonte retornou letra válida.", lastError);
+        fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
+        setLyricsImportNotice(`Não consegui importar automaticamente agora. Preenchi o título como "${fallbackTitle}". Use o botão de busca manual, copie a letra/cifra e cole no card.`);
+        return;
       }
+
+      appendLyricsToSong(vagalumeModalIndex, fallbackTitle, importedLyrics);
+      closeLyricsModal();
     } catch (err) {
-      console.error("Erro na busca:", err);
-      alert("⚠️ O servidor bloqueou o acesso temporariamente. O nome da música será preenchido para você colar a cifra manualmente.");
-      // Pelo menos preenche o título para ajudar o usuário
-      if (vagalumeModalIndex !== null && !songs[vagalumeModalIndex].title) {
-        const cleanArtist = artist.split(/ feat\. | & | , /i)[0].trim();
-        const cleanSong = song.split(/ - | \(| \[/)[0].trim();
-        updateSong(vagalumeModalIndex, 'title', `${cleanArtist} - ${cleanSong}`);
-      }
-      setVagalumeModalIndex(null);
+      console.error("Erro na importação da letra:", err);
+      fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
+      setLyricsImportNotice(`Não consegui importar automaticamente agora. Preenchi o título como "${fallbackTitle}". Use o botão de busca manual, copie a letra/cifra e cole no card.`);
     } finally {
       setIsVagalumeLoading(false);
     }
@@ -964,7 +1053,7 @@ export default function PromptLabPage() {
                         <div className="w-px h-5 bg-slate-700 mx-1"></div>
                         
                         {/* NOVO BOTÃO API VAGALUME DESKTOP */}
-                        <button onClick={() => setVagalumeModalIndex(index)} className="h-8 px-3 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Importar letra automaticamente da internet">
+                        <button onClick={() => openLyricsModal(index)} className="h-8 px-3 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Importar letra automaticamente da internet">
                           🔍 Letra
                         </button>
                         
@@ -1028,7 +1117,7 @@ export default function PromptLabPage() {
                         <div className="w-px h-5 bg-slate-700 mx-1 shrink-0"></div>
                         
                         {/* NOVO BOTÃO API VAGALUME MOBILE */}
-                        <button onClick={() => setVagalumeModalIndex(index)} className="h-8 px-4 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-2 shrink-0">
+                        <button onClick={() => openLyricsModal(index)} className="h-8 px-4 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-2 shrink-0">
                           🔍 Importar Letra
                         </button>
                       </div>
@@ -1211,7 +1300,7 @@ export default function PromptLabPage() {
       {vagalumeModalIndex !== null && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <button onClick={() => { setVagalumeModalIndex(null); setVagalumeQuery(""); setVagalumeResults([]); }} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            <button onClick={closeLyricsModal} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
             
             <div className="text-center mb-6">
               <div className="text-4xl mb-2">🔍</div>
@@ -1222,7 +1311,7 @@ export default function PromptLabPage() {
             <div className="mb-4 relative">
               <input 
                 value={vagalumeQuery} 
-                onChange={(e) => setVagalumeQuery(e.target.value)} 
+                onChange={(e) => { setVagalumeQuery(e.target.value); setLyricsImportNotice(""); }} 
                 placeholder="Ex: Te Louvarei Diante do Trono" 
                 className="!mb-0 w-full pl-10 py-3 text-lg"
                 autoFocus
@@ -1247,6 +1336,7 @@ export default function PromptLabPage() {
                     <button 
                       key={idx}
                       onClick={() => handleFetchLyrics(item.artist, item.song)}
+                      disabled={isVagalumeLoading}
                       className="flex items-center gap-4 p-3 hover:bg-slate-700/50 border-b border-slate-700/50 transition-colors text-left"
                     >
                       {item.thumb ? (
@@ -1269,13 +1359,28 @@ export default function PromptLabPage() {
             </div>
 
             <div className="space-y-2 mt-auto">
+              {lyricsImportNotice && (
+                <div className="w-full bg-amber-500/10 text-amber-200 border border-amber-500/30 text-xs leading-relaxed py-3 px-4 rounded-lg">
+                  {lyricsImportNotice}
+                </div>
+              )}
+
+              {lyricsImportNotice && (
+                <button
+                  onClick={handleManualLyricSearch}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-xs py-3 px-4 rounded-lg transition-colors uppercase tracking-wider"
+                >
+                  🌐 Abrir busca manual
+                </button>
+              )}
+
               {isVagalumeLoading && (
                 <div className="w-full bg-indigo-600/50 text-white font-black text-xs py-3 px-4 rounded-lg flex items-center justify-center gap-2 uppercase tracking-wider mb-2 animate-pulse">
                   ⏳ Importando Letra...
                 </div>
               )}
               <button 
-                onClick={() => { setVagalumeModalIndex(null); setVagalumeQuery(""); setVagalumeResults([]); }}
+                onClick={closeLyricsModal}
                 className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-3 px-4 rounded-lg transition-colors uppercase"
               >
                 Cancelar
