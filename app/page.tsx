@@ -55,6 +55,7 @@ export default function PromptLabPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [isVagalumeLoading, setIsVagalumeLoading] = useState(false)
   const [lyricsImportNotice, setLyricsImportNotice] = useState("")
+  const [musicImportMode, setMusicImportMode] = useState<'lyrics' | 'chords'>('lyrics')
 
   // --- EFEITO DE AUTOCOMPLETAR (DEBOUNCE) ---
   useEffect(() => {
@@ -232,24 +233,33 @@ export default function PromptLabPage() {
     }
   };
 
-  // --- FUNÇÕES PARA BUSCAR E IMPORTAR LETRA COM MAIS ESTABILIDADE ---
+  // --- FUNÇÕES PARA BUSCAR E IMPORTAR LETRAS/CIFRAS COM MAIS ESTABILIDADE ---
   const cleanSongInfo = (artist: string, song: string) => {
-    const cleanArtist = artist
-      .replace(/\s+/g, ' ')
-      .split(/ feat\.? | ft\.? | participação | participacao | & |,| - /i)[0]
+    const normalizedArtist = artist.replace(/\s+/g, ' ').trim();
+    let normalizedSong = song.replace(/\s+/g, ' ').trim();
+    let inferredArtist = normalizedArtist;
+
+    if (!inferredArtist && /\s+-\s+/.test(normalizedSong)) {
+      const parts = normalizedSong.split(/\s+-\s+/);
+      inferredArtist = parts[0] || '';
+      normalizedSong = parts.slice(1).join(' - ') || normalizedSong;
+    }
+
+    const cleanArtist = inferredArtist
+      .split(/ feat\.? | ft\.? | participação | participacao | & |,/i)[0]
       .trim();
 
-    const cleanSong = song
-      .replace(/\s+/g, ' ')
+    const cleanSong = normalizedSong
       .replace(/\(.*?\)|\[.*?\]/g, '')
-      .replace(/ - .*$/g, '')
+      .replace(/\s+-\s+(ao vivo|live|playback|remaster(ed)?|versão acústica|versao acustica).*$/gi, '')
       .replace(/ ao vivo| live| playback| remaster(ed)?| versão acústica| versao acustica/gi, '')
       .trim();
 
     return { cleanArtist, cleanSong };
   };
 
-  const openLyricsModal = (index: number) => {
+  const openLyricsModal = (index: number, mode: 'lyrics' | 'chords' = 'lyrics') => {
+    setMusicImportMode(mode);
     setLyricsImportNotice("");
     setVagalumeResults([]);
     setVagalumeModalIndex(index);
@@ -779,7 +789,60 @@ export default function PromptLabPage() {
     return '';
   };
 
-  const handleManualLyricSearch = (source: 'google' | 'letras' | 'missa' = 'google') => {
+  const tryImportChordsFromServer = async (cleanArtist: string, cleanSong: string) => {
+    const query = `${cleanArtist} ${cleanSong}`.trim() || cleanSong.trim();
+    if (!query) return "";
+
+    try {
+      const response = await fetch('/api/import-cifra', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ artist: cleanArtist, song: cleanSong, query })
+      });
+
+      if (!response.ok) return "";
+
+      const data = await response.json();
+      const imported = typeof data?.content === 'string' ? cleanupImportedLyrics(data.content) : "";
+      return imported && scoreLyricsCandidate(imported) > 0 ? imported : "";
+    } catch (error) {
+      console.warn('Falha ao importar cifra pela API interna:', error);
+      return "";
+    }
+  };
+
+  const tryKnownWebChords = async (cleanArtist: string, cleanSong: string) => {
+    const artistSlug = slugifyMusicUrl(cleanArtist);
+    const songSlug = slugifyMusicUrl(cleanSong);
+    const query = `${cleanArtist} ${cleanSong}`.trim() || cleanSong.trim();
+
+    const directUrls = Array.from(new Set([
+      artistSlug && songSlug ? `https://www.cifraclub.com.br/${artistSlug}/${songSlug}/` : '',
+      artistSlug && songSlug ? `https://www.cifraclub.com.br/${artistSlug}/${songSlug}/simplificada.html` : '',
+      songSlug ? `https://musicasparamissa.com.br/musica/${songSlug}/` : ''
+    ].filter(Boolean)));
+
+    for (const url of directUrls) {
+      const content = await tryImportFromPageUrl(url);
+      if (content) return content;
+    }
+
+    if (query) {
+      const siteSearches: { url: string; site: 'missa' }[] = [
+        { url: `https://musicasparamissa.com.br/?s=${encodeURIComponent(query)}`, site: 'missa' },
+        { url: `https://musicasparamissa.com.br/?s=${encodeURIComponent(cleanSong || query)}`, site: 'missa' }
+      ];
+
+      for (const search of siteSearches) {
+        const content = await trySearchSiteAndImport(search.url, search.site);
+        if (content) return content;
+      }
+    }
+
+    return '';
+  };
+
+  const handleManualLyricSearch = (source: 'google' | 'letras' | 'missa' | 'cifraclub' = 'google') => {
     const typedQuery = vagalumeQuery.trim();
     const currentTitle = vagalumeModalIndex !== null ? songs[vagalumeModalIndex]?.title?.trim() : "";
     const query = typedQuery || currentTitle;
@@ -792,7 +855,8 @@ export default function PromptLabPage() {
     const urls = {
       google: `https://www.google.com/search?q=${encodeURIComponent(`${query} letra cifra`)}`,
       letras: `https://www.google.com/search?q=${encodeURIComponent(`site:letras.mus.br ${query} letra`)}`,
-      missa: `https://www.google.com/search?q=${encodeURIComponent(`site:musicasparamissa.com.br/musica ${query} letra cifra`)}`
+      missa: `https://www.google.com/search?q=${encodeURIComponent(`site:musicasparamissa.com.br/musica ${query} letra cifra`)}`,
+      cifraclub: `https://www.google.com/search?q=${encodeURIComponent(`site:cifraclub.com.br ${query} cifra`)}`
     };
 
     window.open(urls[source], '_blank');
@@ -808,28 +872,46 @@ export default function PromptLabPage() {
     const fallbackTitle = cleanArtist ? `${cleanArtist} - ${cleanSong}` : cleanSong;
 
     try {
-      let importedLyrics = await tryExactLyrics(cleanArtist, cleanSong);
+      let importedContent = "";
 
-      if (!importedLyrics) {
-        importedLyrics = await trySearchLyricsByQuery(cleanArtist, cleanSong);
+      if (musicImportMode === 'chords') {
+        importedContent = await tryImportChordsFromServer(cleanArtist, cleanSong);
+
+        if (!importedContent) {
+          importedContent = await tryKnownWebChords(cleanArtist, cleanSong);
+        }
+      } else {
+        importedContent = await tryExactLyrics(cleanArtist, cleanSong);
+
+        if (!importedContent) {
+          importedContent = await trySearchLyricsByQuery(cleanArtist, cleanSong);
+        }
+
+        if (!importedContent) {
+          importedContent = await tryKnownWebLyrics(cleanArtist, cleanSong);
+        }
       }
 
-      if (!importedLyrics) {
-        importedLyrics = await tryKnownWebLyrics(cleanArtist, cleanSong);
-      }
-
-      if (!importedLyrics) {
+      if (!importedContent) {
         fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
-        setLyricsImportNotice(`Ainda não encontrei essa letra automaticamente. Tentei Vagalume, Lyrics.ovh, Letras.mus, Cifra Club e Músicas para Missa. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra/cifra e colar no card.`);
+        setLyricsImportNotice(
+          musicImportMode === 'chords'
+            ? `Ainda não consegui importar a cifra automaticamente. Tentei a API interna com Cifra Club e páginas de cifras disponíveis. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a cifra e colar no card.`
+            : `Ainda não encontrei essa letra automaticamente. Tentei Vagalume, Lyrics.ovh, Letras.mus e Músicas para Missa. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra e colar no card.`
+        );
         return;
       }
 
-      appendLyricsToSong(vagalumeModalIndex, fallbackTitle, importedLyrics);
+      appendLyricsToSong(vagalumeModalIndex, fallbackTitle, importedContent);
       closeLyricsModal();
     } catch (err) {
-      console.error("Erro na importação da letra:", err);
+      console.error("Erro na importação:", err);
       fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
-      setLyricsImportNotice(`Ainda não encontrei essa letra automaticamente. Tentei Vagalume, Lyrics.ovh, Letras.mus, Cifra Club e Músicas para Missa. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra/cifra e colar no card.`);
+      setLyricsImportNotice(
+        musicImportMode === 'chords'
+          ? `Ainda não consegui importar a cifra automaticamente. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a cifra e colar no card.`
+          : `Ainda não encontrei essa letra automaticamente. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra e colar no card.`
+      );
     } finally {
       setIsVagalumeLoading(false);
     }
@@ -1489,9 +1571,12 @@ export default function PromptLabPage() {
                         
                         <div className="w-px h-5 bg-slate-700 mx-1"></div>
                         
-                        {/* NOVO BOTÃO API VAGALUME DESKTOP */}
-                        <button onClick={() => openLyricsModal(index)} className="h-8 px-3 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Importar letra automaticamente da internet">
+                        {/* BOTÕES DE IMPORTAÇÃO DESKTOP */}
+                        <button onClick={() => openLyricsModal(index, 'lyrics')} className="h-8 px-3 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Importar letra automaticamente da internet">
                           🔍 Letra
+                        </button>
+                        <button onClick={() => openLyricsModal(index, 'chords')} className="h-8 px-3 bg-orange-600/20 hover:bg-orange-600/40 text-orange-300 border border-orange-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Importar cifra automaticamente quando possível">
+                          🎸 Cifra
                         </button>
                         
                         <div className="w-px h-5 bg-slate-700 mx-1"></div>
@@ -1553,9 +1638,12 @@ export default function PromptLabPage() {
                         
                         <div className="w-px h-5 bg-slate-700 mx-1 shrink-0"></div>
                         
-                        {/* NOVO BOTÃO API VAGALUME MOBILE */}
-                        <button onClick={() => openLyricsModal(index)} className="h-8 px-4 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-2 shrink-0">
+                        {/* BOTÕES DE IMPORTAÇÃO MOBILE */}
+                        <button onClick={() => openLyricsModal(index, 'lyrics')} className="h-8 px-4 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-2 shrink-0">
                           🔍 Importar Letra
+                        </button>
+                        <button onClick={() => openLyricsModal(index, 'chords')} className="h-8 px-4 bg-orange-600/20 hover:bg-orange-600/40 text-orange-300 border border-orange-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-2 shrink-0">
+                          🎸 Importar Cifra
                         </button>
                       </div>
 
@@ -1733,16 +1821,31 @@ export default function PromptLabPage() {
         </footer>
       )}
 
-      {/* ================= MODAL API VAGALUME (AUTOCOMPLETE) ================= */}
+      {/* ================= MODAL DE IMPORTAÇÃO DE LETRA/CIFRA ================= */}
       {vagalumeModalIndex !== null && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <button onClick={closeLyricsModal} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
             
             <div className="text-center mb-6">
-              <div className="text-4xl mb-2">🔍</div>
-              <h3 className="text-lg font-black text-white uppercase tracking-wider">Buscar Música</h3>
-              <p className="text-slate-400 text-xs mt-1">Digite o nome da música e do artista.</p>
+              <div className="text-4xl mb-2">{musicImportMode === 'chords' ? '🎸' : '🔍'}</div>
+              <h3 className="text-lg font-black text-white uppercase tracking-wider">{musicImportMode === 'chords' ? 'Buscar Cifra' : 'Buscar Letra'}</h3>
+              <p className="text-slate-400 text-xs mt-1">Digite o nome da música e, se souber, o artista.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-4 bg-slate-900/60 border border-slate-700 rounded-lg p-1">
+              <button
+                onClick={() => { setMusicImportMode('lyrics'); setLyricsImportNotice(''); }}
+                className={`py-2 rounded-md text-xs font-black uppercase transition-colors ${musicImportMode === 'lyrics' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+              >
+                🔍 Letra
+              </button>
+              <button
+                onClick={() => { setMusicImportMode('chords'); setLyricsImportNotice(''); }}
+                className={`py-2 rounded-md text-xs font-black uppercase transition-colors ${musicImportMode === 'chords' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+              >
+                🎸 Cifra
+              </button>
             </div>
 
             <div className="mb-4 relative">
@@ -1761,7 +1864,7 @@ export default function PromptLabPage() {
                 disabled={isVagalumeLoading}
                 className="w-full mb-3 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/30 text-xs font-bold rounded-lg py-3 px-4 transition-colors text-left disabled:opacity-60"
               >
-                🔎 Buscar/importar exatamente: <span className="text-white">{vagalumeQuery.trim()}</span>
+                {musicImportMode === 'chords' ? '🎸 Buscar/importar cifra: ' : '🔎 Buscar/importar letra: '}<span className="text-white">{vagalumeQuery.trim()}</span>
               </button>
             )}
 
@@ -1812,7 +1915,7 @@ export default function PromptLabPage() {
               )}
 
               {lyricsImportNotice && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                   <button
                     onClick={() => handleManualLyricSearch('google')}
                     className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-xs py-3 px-3 rounded-lg transition-colors uppercase tracking-wider"
@@ -1831,12 +1934,18 @@ export default function PromptLabPage() {
                   >
                     ⛪ Missa
                   </button>
+                  <button
+                    onClick={() => handleManualLyricSearch('cifraclub')}
+                    className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black text-xs py-3 px-3 rounded-lg transition-colors uppercase tracking-wider"
+                  >
+                    🎸 Cifra
+                  </button>
                 </div>
               )}
 
               {isVagalumeLoading && (
                 <div className="w-full bg-indigo-600/50 text-white font-black text-xs py-3 px-4 rounded-lg flex items-center justify-center gap-2 uppercase tracking-wider mb-2 animate-pulse">
-                  ⏳ Importando Letra...
+                  {musicImportMode === 'chords' ? '⏳ Importando Cifra...' : '⏳ Importando Letra...'}
                 </div>
               )}
               <button 
