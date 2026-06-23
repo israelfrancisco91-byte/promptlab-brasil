@@ -885,6 +885,34 @@ export default function PromptLabPage() {
     return '';
   };
 
+  const tryImportLyricsFromServer = async (cleanArtist: string, cleanSong: string) => {
+    const query = `${cleanArtist} ${cleanSong}`.trim() || cleanSong.trim();
+    if (!query) return "";
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+
+    try {
+      const response = await fetch('/api/import-letra', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ artist: cleanArtist, song: cleanSong, query })
+      });
+
+      if (!response.ok) return "";
+
+      const data = await response.json();
+      const imported = typeof data?.content === 'string' ? cleanupImportedLyrics(data.content) : "";
+      return imported && scoreLyricsCandidate(imported) > 0 ? imported : "";
+    } catch (error) {
+      console.warn('Falha ao importar letra pela API interna:', error);
+      return "";
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
+
   const tryImportChordsFromServer = async (cleanArtist: string, cleanSong: string) => {
     const query = `${cleanArtist} ${cleanSong}`.trim() || cleanSong.trim();
     if (!query) return "";
@@ -983,14 +1011,16 @@ export default function PromptLabPage() {
           importedContent = await tryKnownWebChords(cleanArtist, cleanSong);
         }
       } else {
-        importedContent = await tryExactLyrics(cleanArtist, cleanSong);
+        importedContent = await tryImportLyricsFromServer(cleanArtist, cleanSong);
 
+        // Fallback leve: se a API interna não retornar nada, ainda tentamos as APIs públicas diretas.
+        // A parte pesada de páginas HTML agora fica na rota /api/import-letra, para evitar CORS e demora no navegador.
         if (!importedContent) {
-          importedContent = await trySearchLyricsByQuery(cleanArtist, cleanSong);
+          importedContent = await tryExactLyrics(cleanArtist, cleanSong);
         }
 
         if (!importedContent) {
-          importedContent = await tryKnownWebLyrics(cleanArtist, cleanSong);
+          importedContent = await trySearchLyricsByQuery(cleanArtist, cleanSong);
         }
       }
 
@@ -999,7 +1029,7 @@ export default function PromptLabPage() {
         setLyricsImportNotice(
           musicImportMode === 'chords'
             ? `Não encontrei uma cifra liberada para importação automática nesta busca. Tentei Cifra Club e Músicas para Missa sem demorar demais. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a cifra e colar no card.`
-            : `Não encontrei uma letra liberada para importação automática nesta busca. Tentei Vagalume, Lyrics.ovh, Letras.mus e Músicas para Missa sem demorar demais. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra e colar no card.`
+            : `Não encontrei uma letra liberada para importação automática nesta busca. Tentei a API interna de letras com Vagalume, Lyrics.ovh, Letras.mus e Músicas para Missa. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra e colar no card.`
         );
         return;
       }
