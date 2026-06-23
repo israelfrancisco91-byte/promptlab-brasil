@@ -307,7 +307,7 @@ export default function PromptLabPage() {
     });
   };
 
-  const fetchJsonWithTimeout = async (url: string, timeoutMs = 7000) => {
+  const fetchJsonWithTimeout = async (url: string, timeoutMs = 4500) => {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
@@ -347,6 +347,59 @@ export default function PromptLabPage() {
       `https://api.allorigins.win/raw?url=${encodeURIComponent(targetWithCacheBuster)}`,
       `https://corsproxy.io/?${encodeURIComponent(targetWithCacheBuster)}`
     ];
+  };
+
+  const firstSuccessful = async <T,>(tasks: (() => Promise<T>)[], isValid: (value: T) => boolean) => {
+    if (!tasks.length) return null;
+
+    try {
+      return await Promise.any(
+        tasks.map(async (task) => {
+          const value = await task();
+          if (isValid(value)) return value;
+          throw new Error('empty-result');
+        })
+      );
+    } catch {
+      return null;
+    }
+  };
+
+  const tryJsonUrlList = async (urls: string[], extractor: (data: any) => string) => {
+    const uniqueUrls = Array.from(new Set(urls)).slice(0, 8);
+    const result = await firstSuccessful(
+      uniqueUrls.map(url => async () => {
+        try {
+          const data = await fetchJsonWithTimeout(url);
+          return extractor(data);
+        } catch (error) {
+          console.warn('Fonte JSON falhou:', url, error);
+          return '';
+        }
+      }),
+      value => typeof value === 'string' && value.trim().length > 0
+    );
+
+    return result || '';
+  };
+
+  const tryTextUrlList = async (urls: string[], extractor: (html: string) => Promise<string> | string) => {
+    const uniqueUrls = Array.from(new Set(urls)).slice(0, 8);
+    const result = await firstSuccessful(
+      uniqueUrls.map(url => async () => {
+        try {
+          const html = await fetchTextWithTimeout(url);
+          const extracted = await extractor(html);
+          return extracted || '';
+        } catch (error) {
+          console.warn('Fonte HTML falhou:', url, error);
+          return '';
+        }
+      }),
+      value => typeof value === 'string' && value.trim().length > 0
+    );
+
+    return result || '';
   };
 
   const extractLyricsFromResponse = (data: any) => {
@@ -392,25 +445,10 @@ export default function PromptLabPage() {
       const exactWithKey = `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(cleanArtist)}&mus=${encodeURIComponent(cleanSong)}&apikey=${apiKey}`;
       const exactWithoutKey = `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(cleanArtist)}&mus=${encodeURIComponent(cleanSong)}`;
       urls.push(...makeProxiedUrls(exactWithKey), ...makeProxiedUrls(exactWithoutKey));
-    }
-
-    if (cleanArtist && cleanSong) {
       urls.push(`https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanSong)}`);
     }
 
-    const uniqueUrls = Array.from(new Set(urls));
-
-    for (const url of uniqueUrls) {
-      try {
-        const data = await fetchJsonWithTimeout(url);
-        const lyrics = extractLyricsFromResponse(data);
-        if (lyrics) return lyrics;
-      } catch (error) {
-        console.warn("Falha ao tentar importar letra por esta fonte:", error);
-      }
-    }
-
-    return "";
+    return await tryJsonUrlList(urls, extractLyricsFromResponse);
   };
 
   const trySearchLyricsByQuery = async (cleanArtist: string, cleanSong: string) => {
@@ -468,7 +506,7 @@ export default function PromptLabPage() {
     return textarea.value;
   };
 
-  const fetchTextWithTimeout = async (url: string, timeoutMs = 9000) => {
+  const fetchTextWithTimeout = async (url: string, timeoutMs = 4500) => {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
@@ -766,18 +804,10 @@ export default function PromptLabPage() {
 
   const tryImportFromPageUrl = async (targetUrl: string) => {
     const urls = Array.from(new Set(makeProxiedUrls(targetUrl)));
-
-    for (const url of urls) {
-      try {
-        const html = await fetchTextWithTimeout(url);
-        const lyrics = extractLyricsFromHtmlPage(html);
-        if (lyrics && scoreLyricsCandidate(lyrics) > 0) return lyrics;
-      } catch (error) {
-        console.warn('Falha ao tentar importar por página HTML:', targetUrl, error);
-      }
-    }
-
-    return '';
+    return await tryTextUrlList(urls, async (html) => {
+      const lyrics = extractLyricsFromHtmlPage(html);
+      return lyrics && scoreLyricsCandidate(lyrics) > 0 ? lyrics : '';
+    });
   };
 
   const extractFirstMusicLinkFromSearchHtml = (html: string, baseUrl: string, site: 'letras' | 'missa') => {
@@ -814,21 +844,11 @@ export default function PromptLabPage() {
 
   const trySearchSiteAndImport = async (searchUrl: string, site: 'letras' | 'missa') => {
     const urls = Array.from(new Set(makeProxiedUrls(searchUrl)));
-
-    for (const url of urls) {
-      try {
-        const html = await fetchTextWithTimeout(url);
-        const foundLink = extractFirstMusicLinkFromSearchHtml(html, searchUrl, site);
-        if (!foundLink) continue;
-
-        const lyrics = await tryImportFromPageUrl(foundLink);
-        if (lyrics) return lyrics;
-      } catch (error) {
-        console.warn('Falha ao pesquisar fonte HTML:', searchUrl, error);
-      }
-    }
-
-    return '';
+    return await tryTextUrlList(urls, async (html) => {
+      const foundLink = extractFirstMusicLinkFromSearchHtml(html, searchUrl, site);
+      if (!foundLink) return '';
+      return await tryImportFromPageUrl(foundLink);
+    });
   };
 
   const tryKnownWebLyrics = async (cleanArtist: string, cleanSong: string) => {
@@ -869,9 +889,13 @@ export default function PromptLabPage() {
     const query = `${cleanArtist} ${cleanSong}`.trim() || cleanSong.trim();
     if (!query) return "";
 
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 14000);
+
     try {
       const response = await fetch('/api/import-cifra', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ artist: cleanArtist, song: cleanSong, query })
       });
@@ -884,6 +908,8 @@ export default function PromptLabPage() {
     } catch (error) {
       console.warn('Falha ao importar cifra pela API interna:', error);
       return "";
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   };
 
@@ -972,8 +998,8 @@ export default function PromptLabPage() {
         fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
         setLyricsImportNotice(
           musicImportMode === 'chords'
-            ? `Ainda não consegui importar a cifra automaticamente. Tentei a API interna com Cifra Club e páginas de cifras disponíveis. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a cifra e colar no card.`
-            : `Ainda não encontrei essa letra automaticamente. Tentei Vagalume, Lyrics.ovh, Letras.mus e Músicas para Missa. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra e colar no card.`
+            ? `Não encontrei uma cifra liberada para importação automática nesta busca. Tentei Cifra Club e Músicas para Missa sem demorar demais. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a cifra e colar no card.`
+            : `Não encontrei uma letra liberada para importação automática nesta busca. Tentei Vagalume, Lyrics.ovh, Letras.mus e Músicas para Missa sem demorar demais. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra e colar no card.`
         );
         return;
       }
@@ -985,8 +1011,8 @@ export default function PromptLabPage() {
       fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
       setLyricsImportNotice(
         musicImportMode === 'chords'
-          ? `Ainda não consegui importar a cifra automaticamente. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a cifra e colar no card.`
-          : `Ainda não encontrei essa letra automaticamente. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra e colar no card.`
+          ? `Não encontrei uma cifra liberada para importação automática nesta busca. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a cifra e colar no card.`
+          : `Não encontrei uma letra liberada para importação automática nesta busca. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra e colar no card.`
       );
     } finally {
       setIsVagalumeLoading(false);
@@ -2021,7 +2047,7 @@ export default function PromptLabPage() {
 
               {isVagalumeLoading && (
                 <div className="w-full bg-indigo-600/50 text-white font-black text-xs py-3 px-4 rounded-lg flex items-center justify-center gap-2 uppercase tracking-wider mb-2 animate-pulse">
-                  {musicImportMode === 'chords' ? '⏳ Importando Cifra...' : '⏳ Importando Letra...'}
+                  {musicImportMode === 'chords' ? '⏳ Procurando cifra nas fontes liberadas...' : '⏳ Procurando letra nas fontes liberadas...'}
                 </div>
               )}
               <button 
