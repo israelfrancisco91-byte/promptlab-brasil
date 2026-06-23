@@ -216,22 +216,59 @@ export default function PromptLabPage() {
   const handleToggleBold = (index: number) => {
     const textarea = document.getElementById(`song-textarea-${index}`) as HTMLTextAreaElement;
     if (!textarea) return;
+
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = songs[index].content;
-    
+
     if (start === end) {
       alert("Selecione uma palavra ou trecho para colocar em negrito.");
       return;
     }
-    
+
     const selected = text.substring(start, end);
-    const newText = text.substring(0, start) + "**" + selected + "**" + text.substring(end);
+
+    const applyBoldToLine = (line: string) => {
+      // Linhas vazias permanecem vazias.
+      if (line.trim() === "") return line;
+
+      // Cifras já aparecem em negrito/azul no PDF. Evita colocar ** em acordes.
+      if (isChordLine(line)) return line;
+
+      const match = line.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      if (!match) return line;
+
+      const leading = match[1] || "";
+      const core = match[2] || "";
+      const trailing = match[3] || "";
+
+      if (!core.trim()) return line;
+
+      // Evita duplicar ** quando a linha selecionada já estiver inteira em negrito.
+      if (core.startsWith("**") && core.endsWith("**")) return line;
+
+      return `${leading}**${core}**${trailing}`;
+    };
+
+    let formattedSelected = "";
+
+    if (/\r?\n/.test(selected)) {
+      // Quando a seleção tem várias linhas, aplica ** em cada linha individualmente.
+      // Isso evita o erro em que só a primeira e a última linha ficavam em negrito.
+      formattedSelected = selected
+        .split(/(\r?\n)/)
+        .map(part => (/^\r?\n$/.test(part) ? part : applyBoldToLine(part)))
+        .join("");
+    } else {
+      formattedSelected = applyBoldToLine(selected);
+    }
+
+    const newText = text.substring(0, start) + formattedSelected + text.substring(end);
     updateSong(index, 'content', newText);
-    
+
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start, end + 4);
+      textarea.setSelectionRange(start, start + formattedSelected.length);
     }, 10);
   };
 
