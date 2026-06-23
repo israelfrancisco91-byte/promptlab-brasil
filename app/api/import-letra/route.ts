@@ -105,6 +105,32 @@ const isChordLine = (line: string) => {
 }
 
 
+
+const isSiteUiOrControlText = (text: string) => {
+  const compact = text.replace(/\s+/g, ' ').trim()
+  if (!compact) return true
+
+  const uiPhrases = [
+    /Adicionar aos favoritos/i,
+    /Tamanho do texto/i,
+    /Rolagem autom[aá]tica/i,
+    /Anota[cç][oõ]es\s+Ativadas\s+Desativadas/i,
+    /Curta mais m[uú]sicas com op[cç][oõ]es exclusivas/i,
+    /Assine e libere benef[ií]cios/i,
+    /Explore\s*M[uú]sicas/i,
+    /Prote[cç][aã]o de Dados/i,
+    /Corre[cç][oõ]es de letras/i
+  ]
+
+  const hits = uiPhrases.filter(pattern => pattern.test(compact)).length
+  if (hits >= 2) return true
+
+  // Quando vem só o painel de controle do Cifra Club/Letras, normalmente é curto e sem versos.
+  if (compact.length < 260 && /(Adicionar aos favoritos|Tamanho do texto|Rolagem autom[aá]tica|Anota[cç][oõ]es)/i.test(compact)) return true
+
+  return false
+}
+
 const isDefinitelyNavigationText = (text: string) => {
   const lines = text.split('\n').map(line => line.trim()).filter(Boolean)
   if (lines.length === 0) return true
@@ -114,6 +140,7 @@ const isDefinitelyNavigationText = (text: string) => {
   if (/Assine\s+e\s+libere\s+benef[ií]cios/i.test(compactText)) return true
   if (/Explore\s*M[uú]sicas/i.test(compactText)) return true
   if (/Prote[cç][aã]o\s+de\s+Dados/i.test(compactText) && /Corre[cç][oõ]es\s+de\s+letras/i.test(compactText)) return true
+  if (isSiteUiOrControlText(compactText)) return true
 
   const singleAlphabetLines = lines.filter(line => /^[A-Z#]$/i.test(line)).length
   if (singleAlphabetLines >= 5) return true
@@ -147,6 +174,13 @@ const cleanupLyrics = (raw: string) => {
     /^compartilhar$/i,
     /^imprimir$/i,
     /^corrigir letra$/i,
+    /^corrigir$/i,
+    /^adicionar aos favoritos$/i,
+    /^tamanho do texto$/i,
+    /^rolagem autom[aá]tica$/i,
+    /^anota[cç][oõ]es(\s+ativadas\s+desativadas)?$/i,
+    /^ativadas$/i,
+    /^desativadas$/i,
     /^favoritar/i,
     /^adicionar à playlist/i,
     /^adicionar a playlist/i,
@@ -245,7 +279,7 @@ const cleanupLyrics = (raw: string) => {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/^\n+|\n+$/g, '')
 
-  if (isDefinitelyNavigationText(text)) return ''
+  if (isDefinitelyNavigationText(text) || isSiteUiOrControlText(text)) return ''
 
   const endMarkers = [
     /\n\s*Composição de[\s\S]*$/i,
@@ -262,12 +296,12 @@ const cleanupLyrics = (raw: string) => {
   ]
 
   const cleaned = endMarkers.reduce((acc, marker) => acc.replace(marker, ''), text).replace(/^\n+|\n+$/g, '')
-  return isDefinitelyNavigationText(cleaned) ? '' : cleaned
+  return (isDefinitelyNavigationText(cleaned) || isSiteUiOrControlText(cleaned)) ? '' : cleaned
 }
 
 const scoreLyrics = (text: string) => {
   const clean = cleanupLyrics(text)
-  if (!clean || isDefinitelyNavigationText(clean)) return 0
+  if (!clean || isDefinitelyNavigationText(clean) || isSiteUiOrControlText(clean)) return 0
 
   const usefulLines = clean.split('\n').map(line => line.trim()).filter(Boolean)
   if (clean.length < 90 || usefulLines.length < 4) return 0
