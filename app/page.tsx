@@ -275,8 +275,10 @@ export default function PromptLabPage() {
   };
 
   const appendLyricsToSong = (index: number, fallbackTitle: string, lyrics: string) => {
-    const finalLyrics = lyrics.trim();
-    if (!finalLyrics) return;
+    // Não use trim() aqui: em cifras, os espaços no começo da linha são importantes
+    // para manter os acordes alinhados nas sílabas corretas.
+    const finalLyrics = lyrics.replace(/^\n+|\n+$/g, '');
+    if (!finalLyrics.trim()) return;
 
     setSongs(prevSongs => {
       const newSongs = [...prevSongs];
@@ -499,9 +501,7 @@ export default function PromptLabPage() {
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
       .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
-      .replace(/[ \t]+\n/g, '\n')
-      .replace(/\n[ \t]+/g, '\n')
-      .replace(/[ \t]{2,}/g, ' ');
+      .replace(/[ \t]+\n/g, '\n');
 
     const noisePatterns = [
       /^letra$/i,
@@ -521,6 +521,9 @@ export default function PromptLabPage() {
       /^visualizacao padrao/i,
       /^auto rolagem/i,
       /^repetir$/i,
+      /^repetir\s+modo\s+teatro/i,
+      /^outros\s+vídeos/i,
+      /^outros\s+videos/i,
       /^fechar/i,
       /^cancelar ok$/i,
       /^criar$/i,
@@ -535,6 +538,16 @@ export default function PromptLabPage() {
       /^cifra club pro/i,
       /^entre para o cifra club/i,
       /^blog do cifra club/i,
+      /^cifra club:?\s+esta cifra/i,
+      /^esta cifra foi revisada/i,
+      /^atender aos critérios/i,
+      /^atender aos criterios/i,
+      /^equipe de qualidade/i,
+      /^selo cifra club/i,
+      /^cifra:\s*principal/i,
+      /^cifra:\s*simplificada/i,
+      /^tom:\s*/i,
+      /^ver mais/i,
       /^veja mais/i,
       /^todos os artistas/i,
       /^aplicativos/i,
@@ -548,6 +561,12 @@ export default function PromptLabPage() {
       /^colaboracao/i,
       /^composição de/i,
       /^composicao de/i,
+      /^listas?aprenda/i,
+      /^enviar\s+cifra/i,
+      /^p\s*[áa]\s*g\s*i\s*n\s*a\s+i\s*n\s*i\s*c\s*i\s*a\s*l/i,
+      /^g\s*o\s*s\s*p\s*e\s*l\s*\/\s*r\s*e\s*l\s*i\s*g\s*i\s*o\s*s\s*o/i,
+      /^frei\s+gilson\s*%/i,
+      /^%+$/i,
       /^\d+(\.\d+)?\s+em\s+\d+\s+votos/i,
       /^½\s*tom/i,
       /^tom\s*½/i
@@ -565,7 +584,64 @@ export default function PromptLabPage() {
     return lines
       .join('\n')
       .replace(/\n{3,}/g, '\n\n')
-      .trim();
+      .replace(/^\n+|\n+$/g, '');
+  };
+
+  const cleanupImportedChords = (rawText: string) => {
+    const base = cleanupImportedLyrics(rawText);
+    const lines = base.split('\n');
+
+    const nextNonEmptyIndex = (from: number) => {
+      for (let i = from; i < lines.length; i++) {
+        if (lines[i].trim()) return i;
+      }
+      return -1;
+    };
+
+    let startIndex = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const current = lines[i];
+      if (!current.trim()) continue;
+
+      const nextIndex = nextNonEmptyIndex(i + 1);
+      const nextLine = nextIndex >= 0 ? lines[nextIndex] : '';
+
+      // Em uma cifra bem extraída, geralmente aparece: linha de acordes + linha da letra.
+      // Cortamos tudo que vem antes disso: menus, título duplicado, artista, aviso do Cifra Club etc.
+      if (isChordLine(current) && nextLine.trim() && !isChordLine(nextLine)) {
+        startIndex = i;
+        break;
+      }
+    }
+
+    const endPatterns = [
+      /^repetir\s+modo\s+teatro/i,
+      /^outros\s+vídeos/i,
+      /^outros\s+videos/i,
+      /^mais\s+cifras/i,
+      /^mais\s+músicas/i,
+      /^mais\s+musicas/i,
+      /^vídeos\s+de/i,
+      /^videos\s+de/i,
+      /^comentários/i,
+      /^comentarios/i,
+      /^aprenda\s+a\s+tocar/i
+    ];
+
+    let endIndex = lines.length;
+    for (let i = startIndex; i < lines.length; i++) {
+      const compact = lines[i].trim();
+      if (compact && endPatterns.some(pattern => pattern.test(compact))) {
+        endIndex = i;
+        break;
+      }
+    }
+
+    return lines
+      .slice(startIndex, endIndex)
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\n+|\n+$/g, '');
   };
 
   const elementToReadableText = (element: Element) => {
@@ -803,7 +879,7 @@ export default function PromptLabPage() {
       if (!response.ok) return "";
 
       const data = await response.json();
-      const imported = typeof data?.content === 'string' ? cleanupImportedLyrics(data.content) : "";
+      const imported = typeof data?.content === 'string' ? cleanupImportedChords(data.content) : "";
       return imported && scoreLyricsCandidate(imported) > 0 ? imported : "";
     } catch (error) {
       console.warn('Falha ao importar cifra pela API interna:', error);
@@ -824,7 +900,7 @@ export default function PromptLabPage() {
 
     for (const url of directUrls) {
       const content = await tryImportFromPageUrl(url);
-      if (content) return content;
+      if (content) return cleanupImportedChords(content);
     }
 
     if (query) {
@@ -835,7 +911,7 @@ export default function PromptLabPage() {
 
       for (const search of siteSearches) {
         const content = await trySearchSiteAndImport(search.url, search.site);
-        if (content) return content;
+        if (content) return cleanupImportedChords(content);
       }
     }
 
