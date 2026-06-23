@@ -58,6 +58,30 @@ const isChordLine = (line: string) => {
   return words.length > 0 && chordCount / words.length >= 0.7
 }
 
+
+const isSiteUiOrControlText = (text: string) => {
+  const compact = text.replace(/\s+/g, ' ').trim()
+  if (!compact) return true
+
+  const uiPhrases = [
+    /Adicionar aos favoritos/i,
+    /Tamanho do texto/i,
+    /Rolagem autom[aá]tica/i,
+    /Anota[cç][oõ]es\s+Ativadas\s+Desativadas/i,
+    /Curta mais m[uú]sicas com op[cç][oõ]es exclusivas/i,
+    /Assine e libere benef[ií]cios/i,
+    /Explore\s*M[uú]sicas/i,
+    /Prote[cç][aã]o de Dados/i,
+    /Corre[cç][oõ]es de letras/i
+  ]
+
+  const hits = uiPhrases.filter(pattern => pattern.test(compact)).length
+  if (hits >= 2) return true
+  if (compact.length < 260 && /(Adicionar aos favoritos|Tamanho do texto|Rolagem autom[aá]tica|Anota[cç][oõ]es)/i.test(compact)) return true
+
+  return false
+}
+
 const cleanupContent = (raw: string) => {
   const decoded = decodeHtmlEntities(raw)
     .replace(/\r\n/g, '\n')
@@ -78,6 +102,12 @@ const cleanupContent = (raw: string) => {
     /^selo cifra club/i,
     /^imprimir/i,
     /^corrigir/i,
+    /^adicionar aos favoritos$/i,
+    /^tamanho do texto$/i,
+    /^rolagem autom[aá]tica$/i,
+    /^anota[cç][oõ]es(\s+ativadas\s+desativadas)?$/i,
+    /^ativadas$/i,
+    /^desativadas$/i,
     /^compartilhar/i,
     /^favoritar/i,
     /^tom:?/i,
@@ -132,11 +162,13 @@ const cleanupContent = (raw: string) => {
       return !noisePatterns.some(pattern => pattern.test(compact))
     })
 
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '')
+  const cleaned = lines.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '')
+  return isSiteUiOrControlText(cleaned) ? '' : cleaned
 }
 
 const cleanupChordContent = (raw: string) => {
   const base = cleanupContent(raw)
+  if (!base || isSiteUiOrControlText(base)) return ''
   const lines = base.split('\n')
 
   const nextNonEmptyIndex = (from: number) => {
@@ -147,6 +179,7 @@ const cleanupChordContent = (raw: string) => {
   }
 
   let startIndex = 0
+  let foundChordStart = false
   for (let i = 0; i < lines.length; i++) {
     const current = lines[i]
     if (!current.trim()) continue
@@ -154,9 +187,12 @@ const cleanupChordContent = (raw: string) => {
     const nextLine = nextIndex >= 0 ? lines[nextIndex] : ''
     if (isChordLine(current) && nextLine.trim() && !isChordLine(nextLine)) {
       startIndex = i
+      foundChordStart = true
       break
     }
   }
+
+  if (!foundChordStart) return ''
 
   const endPatterns = [
     /^repetir\s+modo\s+teatro/i,
@@ -199,11 +235,13 @@ const stripHtmlToText = (html: string) => {
 
 const scoreCandidate = (text: string) => {
   const clean = cleanupContent(text)
+  if (!clean || isSiteUiOrControlText(clean)) return 0
   const usefulLines = clean.split('\n').map(line => line.trim()).filter(Boolean)
   if (clean.length < 80 || usefulLines.length < 4) return 0
   if (clean.length > 20000) return 0
 
   const chordLines = usefulLines.filter(isChordLine).length
+  if (chordLines < 1) return 0
   const chordBonus = chordLines * 350
   const usefulBonus = usefulLines.length * 15
   const noisePenalty = /(cookie|privacidade|cadastro|assinatura|premium|comentários|comentarios|menu|login|blog)/i.test(clean) ? 1200 : 0
