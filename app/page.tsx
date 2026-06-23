@@ -548,6 +548,30 @@ export default function PromptLabPage() {
     }
   };
 
+
+  const isSiteUiOrControlText = (text: string) => {
+    const compact = text.replace(/\s+/g, ' ').trim();
+    if (!compact) return true;
+
+    const uiPhrases = [
+      /Adicionar aos favoritos/i,
+      /Tamanho do texto/i,
+      /Rolagem autom[aá]tica/i,
+      /Anota[cç][oõ]es\s+Ativadas\s+Desativadas/i,
+      /Curta mais m[uú]sicas com op[cç][oõ]es exclusivas/i,
+      /Assine e libere benef[ií]cios/i,
+      /Explore\s*M[uú]sicas/i,
+      /Prote[cç][aã]o de Dados/i,
+      /Corre[cç][oõ]es de letras/i
+    ];
+
+    const hits = uiPhrases.filter(pattern => pattern.test(compact)).length;
+    if (hits >= 2) return true;
+    if (compact.length < 260 && /(Adicionar aos favoritos|Tamanho do texto|Rolagem autom[aá]tica|Anota[cç][oõ]es)/i.test(compact)) return true;
+
+    return false;
+  };
+
   const isDefinitelyNavigationText = (text: string) => {
     const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
     if (lines.length === 0) return true;
@@ -557,6 +581,7 @@ export default function PromptLabPage() {
     if (/Assine\s+e\s+libere\s+benef[ií]cios/i.test(compactText)) return true;
     if (/Explore\s*M[uú]sicas/i.test(compactText)) return true;
     if (/Prote[cç][aã]o\s+de\s+Dados/i.test(compactText) && /Corre[cç][oõ]es\s+de\s+letras/i.test(compactText)) return true;
+    if (isSiteUiOrControlText(compactText)) return true;
 
     const singleAlphabetLines = lines.filter(line => /^[A-Z#]$/i.test(line)).length;
     if (singleAlphabetLines >= 5) return true;
@@ -590,6 +615,13 @@ export default function PromptLabPage() {
       /^compartilhar$/i,
       /^imprimir$/i,
       /^corrigir letra$/i,
+      /^corrigir$/i,
+      /^adicionar aos favoritos$/i,
+      /^tamanho do texto$/i,
+      /^rolagem autom[aá]tica$/i,
+      /^anota[cç][oõ]es(\s+ativadas\s+desativadas)?$/i,
+      /^ativadas$/i,
+      /^desativadas$/i,
       /^favoritar/i,
       /^adicionar à playlist/i,
       /^adicionar a playlist/i,
@@ -675,14 +707,17 @@ export default function PromptLabPage() {
         return !noisePatterns.some(pattern => pattern.test(compact));
       });
 
-    return lines
+    const cleaned = lines
       .join('\n')
       .replace(/\n{3,}/g, '\n\n')
       .replace(/^\n+|\n+$/g, '');
+
+    return isSiteUiOrControlText(cleaned) ? '' : cleaned;
   };
 
   const cleanupImportedChords = (rawText: string) => {
     const base = cleanupImportedLyrics(rawText);
+    if (!base || isSiteUiOrControlText(base)) return '';
     const lines = base.split('\n');
 
     const nextNonEmptyIndex = (from: number) => {
@@ -693,6 +728,7 @@ export default function PromptLabPage() {
     };
 
     let startIndex = 0;
+    let foundChordStart = false;
     for (let i = 0; i < lines.length; i++) {
       const current = lines[i];
       if (!current.trim()) continue;
@@ -704,9 +740,12 @@ export default function PromptLabPage() {
       // Cortamos tudo que vem antes disso: menus, título duplicado, artista, aviso do Cifra Club etc.
       if (isChordLine(current) && nextLine.trim() && !isChordLine(nextLine)) {
         startIndex = i;
+        foundChordStart = true;
         break;
       }
     }
+
+    if (!foundChordStart) return '';
 
     const endPatterns = [
       /^repetir\s+modo\s+teatro/i,
@@ -750,7 +789,7 @@ export default function PromptLabPage() {
 
   const scoreLyricsCandidate = (text: string) => {
     const clean = cleanupImportedLyrics(text);
-    if (!clean || isDefinitelyNavigationText(clean)) return 0;
+    if (!clean || isDefinitelyNavigationText(clean) || isSiteUiOrControlText(clean)) return 0;
 
     const usefulLines = clean.split('\n').map(line => line.trim()).filter(Boolean);
     if (clean.length < 90 || usefulLines.length < 4) return 0;
