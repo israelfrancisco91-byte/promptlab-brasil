@@ -231,11 +231,24 @@ export default function PromptLabPage() {
     }
   };
 
-  // --- FUNÇÃO PARA PEGAR A LETRA FINAL NO VAGALUME ---
+  // --- FUNÇÃO PARA PEGAR A LETRA FINAL NO VAGALUME (COM BYPASS E FALLBACK) ---
   const handleFetchLyrics = async (artist: string, song: string) => {
     setIsVagalumeLoading(true);
     try {
-      const res = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(song)}`);
+      // 1. Limpeza Inteligente: O iTunes traz "Ao Vivo", "Remastered" que o Vagalume não entende.
+      const cleanArtist = artist.split(/ feat\. | & | , /i)[0].trim();
+      const cleanSong = song.split(/ - | \(| \[/)[0].trim();
+
+      // 2. Chamar a API usando a chave pública do Vagalume para evitar bloqueio de CORS
+      const apiKey = "660a4395f992ff67786584e238f501aa";
+      const url = `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(cleanArtist)}&mus=${encodeURIComponent(cleanSong)}&apikey=${apiKey}`;
+
+      const res = await fetch(url);
+      
+      if (!res.ok) {
+        throw new Error("Falha na conexão com o Vagalume");
+      }
+
       const data = await res.json();
 
       if (data.type === 'exact' || data.type === 'aprox') {
@@ -247,7 +260,7 @@ export default function PromptLabPage() {
           updateSong(vagalumeModalIndex, 'content', newContent);
           
           if (!songs[vagalumeModalIndex].title) {
-            updateSong(vagalumeModalIndex, 'title', `${data.art.name} - ${data.mus[0].name}`);
+            updateSong(vagalumeModalIndex, 'title', `${cleanArtist} - ${cleanSong}`);
           }
         }
         
@@ -255,10 +268,42 @@ export default function PromptLabPage() {
         setVagalumeQuery("");
         setVagalumeResults([]);
       } else {
-        alert(`🎵 A letra exata não foi encontrada no banco de dados do Vagalume para esta versão.`);
+        // 3. Plano B: Tentar buscar em outra API pública (Lyrics.ovh) se o Vagalume não tiver a música
+        try {
+          const fallbackRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanSong)}`);
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            if (fallbackData.lyrics) {
+              if (vagalumeModalIndex !== null) {
+                const currentContent = songs[vagalumeModalIndex].content;
+                const newContent = currentContent ? currentContent + "\n\n" + fallbackData.lyrics : fallbackData.lyrics;
+                updateSong(vagalumeModalIndex, 'content', newContent);
+                if (!songs[vagalumeModalIndex].title) {
+                  updateSong(vagalumeModalIndex, 'title', `${cleanArtist} - ${cleanSong}`);
+                }
+              }
+              setVagalumeModalIndex(null);
+              setVagalumeQuery("");
+              setVagalumeResults([]);
+              return;
+            }
+          }
+        } catch (fallbackError) {
+          console.log("Fallback também falhou.");
+        }
+
+        alert(`🎵 Letra não encontrada nos bancos de dados para: ${cleanArtist} - ${cleanSong}. Tente buscar manualmente.`);
       }
     } catch (err) {
-      alert("⚠️ Erro ao buscar a letra. Verifique sua conexão com a internet ou tente novamente mais tarde.");
+      console.error("Erro na busca:", err);
+      alert("⚠️ O servidor bloqueou o acesso temporariamente. O nome da música será preenchido para você colar a cifra manualmente.");
+      // Pelo menos preenche o título para ajudar o usuário
+      if (vagalumeModalIndex !== null && !songs[vagalumeModalIndex].title) {
+        const cleanArtist = artist.split(/ feat\. | & | , /i)[0].trim();
+        const cleanSong = song.split(/ - | \(| \[/)[0].trim();
+        updateSong(vagalumeModalIndex, 'title', `${cleanArtist} - ${cleanSong}`);
+      }
+      setVagalumeModalIndex(null);
     } finally {
       setIsVagalumeLoading(false);
     }
