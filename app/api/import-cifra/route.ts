@@ -64,12 +64,18 @@ const cleanupContent = (raw: string) => {
     .replace(/\r/g, '\n')
     .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
     .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n[ \t]+/g, '\n')
 
   const noisePatterns = [
-    /^cifra club/i,
+    /^cifra club$/i,
+    /^cifra club pro/i,
     /^entre para o cifra club/i,
     /^blog do cifra club/i,
+    /^cifra club:?\s+esta cifra/i,
+    /^esta cifra foi revisada/i,
+    /^atender aos critérios/i,
+    /^atender aos criterios/i,
+    /^equipe de qualidade/i,
+    /^selo cifra club/i,
     /^imprimir/i,
     /^corrigir/i,
     /^compartilhar/i,
@@ -84,7 +90,10 @@ const cleanupContent = (raw: string) => {
     /^publicidade/i,
     /^letra$/i,
     /^cifra$/i,
+    /^cifra:\s*principal/i,
+    /^cifra:\s*simplificada/i,
     /^ver mais/i,
+    /^veja mais/i,
     /^mais acessadas/i,
     /^termos de uso/i,
     /^política de privacidade/i,
@@ -100,7 +109,18 @@ const cleanupContent = (raw: string) => {
     /^login/i,
     /^músicas para missa/i,
     /^musicas para missa/i,
-    /^salmo responsorial/i
+    /^salmo responsorial/i,
+    /^listas?aprenda/i,
+    /^enviar\s+cifra/i,
+    /^p\s*[áa]\s*g\s*i\s*n\s*a\s+i\s*n\s*i\s*c\s*i\s*a\s*l/i,
+    /^g\s*o\s*s\s*p\s*e\s*l\s*\/\s*r\s*e\s*l\s*i\s*g\s*i\s*o\s*s\s*o/i,
+    /^frei\s+gilson\s*%/i,
+    /^%+$/i,
+    /^repetir\s+modo\s+teatro/i,
+    /^visualização\s+padrão/i,
+    /^visualizacao\s+padrao/i,
+    /^outros\s+vídeos/i,
+    /^outros\s+videos/i
   ]
 
   const lines = decoded
@@ -112,7 +132,57 @@ const cleanupContent = (raw: string) => {
       return !noisePatterns.some(pattern => pattern.test(compact))
     })
 
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '')
+}
+
+const cleanupChordContent = (raw: string) => {
+  const base = cleanupContent(raw)
+  const lines = base.split('\n')
+
+  const nextNonEmptyIndex = (from: number) => {
+    for (let i = from; i < lines.length; i++) {
+      if (lines[i].trim()) return i
+    }
+    return -1
+  }
+
+  let startIndex = 0
+  for (let i = 0; i < lines.length; i++) {
+    const current = lines[i]
+    if (!current.trim()) continue
+    const nextIndex = nextNonEmptyIndex(i + 1)
+    const nextLine = nextIndex >= 0 ? lines[nextIndex] : ''
+    if (isChordLine(current) && nextLine.trim() && !isChordLine(nextLine)) {
+      startIndex = i
+      break
+    }
+  }
+
+  const endPatterns = [
+    /^repetir\s+modo\s+teatro/i,
+    /^outros\s+vídeos/i,
+    /^outros\s+videos/i,
+    /^mais\s+cifras/i,
+    /^mais\s+músicas/i,
+    /^mais\s+musicas/i,
+    /^vídeos\s+de/i,
+    /^videos\s+de/i,
+    /^comentários/i,
+    /^comentarios/i,
+    /^aprenda\s+a\s+tocar/i,
+    /^acordes\s+para/i
+  ]
+
+  let endIndex = lines.length
+  for (let i = startIndex; i < lines.length; i++) {
+    const compact = lines[i].trim()
+    if (compact && endPatterns.some(pattern => pattern.test(compact))) {
+      endIndex = i
+      break
+    }
+  }
+
+  return lines.slice(startIndex, endIndex).join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '')
 }
 
 const stripHtmlToText = (html: string) => {
@@ -168,28 +238,32 @@ const extractJsonContent = (html: string) => {
 }
 
 const extractContentFromHtml = (html: string) => {
-  const candidates: string[] = []
+  const candidates: { text: string; score: number; source: string }[] = []
+
+  const addCandidate = (text: string, source: string, bonus = 0) => {
+    const clean = cleanupChordContent(text)
+    const score = scoreCandidate(clean) + bonus
+    if (clean && score > 0) candidates.push({ text: clean, score, source })
+  }
+
   const jsonContent = extractJsonContent(html)
-  if (jsonContent) candidates.push(jsonContent)
+  if (jsonContent) addCandidate(jsonContent, 'json', 12000)
 
+  // O bloco <pre> é o mais confiável para cifra, porque preserva espaços e alinhamento.
   const preBlocks = Array.from(html.matchAll(/<pre[^>]*>([\s\S]*?)<\/pre>/gi)).map(match => stripHtmlToText(match[1]))
-  candidates.push(...preBlocks)
+  preBlocks.forEach(text => addCandidate(text, 'pre', 15000))
 
-  const targetedBlocks = Array.from(html.matchAll(/<([a-z0-9]+)[^>]*(class|id)=["'][^"']*(cifra|cipher|letra|lyrics|music|content)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi))
+  const targetedBlocks = Array.from(html.matchAll(/<([a-z0-9]+)[^>]*(class|id)=["'][^"']*(cifra|cipher|letra|lyrics|music|content|cnt)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi))
     .map(match => stripHtmlToText(match[4]))
-  candidates.push(...targetedBlocks)
+  targetedBlocks.forEach(text => addCandidate(text, 'targeted', 6000))
 
   const articleBlocks = Array.from(html.matchAll(/<(article|main)[^>]*>([\s\S]*?)<\/\1>/gi)).map(match => stripHtmlToText(match[2]))
-  candidates.push(...articleBlocks)
+  articleBlocks.forEach(text => addCandidate(text, 'article', 1000))
 
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-  if (bodyMatch?.[1]) candidates.push(stripHtmlToText(bodyMatch[1]))
+  if (bodyMatch?.[1]) addCandidate(stripHtmlToText(bodyMatch[1]), 'body', -6000)
 
-  const ranked = candidates
-    .map(text => ({ text: cleanupContent(text), score: scoreCandidate(text) }))
-    .filter(item => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-
+  const ranked = candidates.sort((a, b) => b.score - a.score)
   if (!ranked.length) return ''
 
   let best = ranked[0].text
@@ -202,11 +276,14 @@ const extractContentFromHtml = (html: string) => {
     /\n\s*Veja também[\s\S]*$/i,
     /\n\s*Veja tambem[\s\S]*$/i,
     /\n\s*Comentários[\s\S]*$/i,
-    /\n\s*Comentarios[\s\S]*$/i
+    /\n\s*Comentarios[\s\S]*$/i,
+    /\n\s*Outros vídeos[\s\S]*$/i,
+    /\n\s*Outros videos[\s\S]*$/i,
+    /\n\s*Repetir\s+Modo\s+teatro[\s\S]*$/i
   ]
   endMarkers.forEach(marker => { best = best.replace(marker, '') })
 
-  return cleanupContent(best.slice(0, 12000))
+  return cleanupChordContent(best.slice(0, 12000))
 }
 
 const fetchHtml = async (url: string) => {
