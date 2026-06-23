@@ -286,9 +286,9 @@ const extractContentFromHtml = (html: string) => {
   return cleanupChordContent(best.slice(0, 12000))
 }
 
-const fetchHtml = async (url: string) => {
+const fetchHtml = async (url: string, timeoutMs = 4500) => {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 10000)
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const response = await fetch(url, {
@@ -378,6 +378,44 @@ const buildCandidates = (artist: string, song: string, query: string) => {
   }
 }
 
+
+const pickBestContent = (contents: string[]) => {
+  return contents
+    .map(content => cleanupChordContent(content || ''))
+    .filter(content => content && scoreCandidate(content) > 0)
+    .sort((a, b) => scoreCandidate(b) - scoreCandidate(a))[0] || ''
+}
+
+const tryUrlsInParallel = async (urls: string[]) => {
+  const uniqueUrls = Array.from(new Set(urls.filter(Boolean))).slice(0, 6)
+
+  const settled = await Promise.allSettled(uniqueUrls.map(async (url) => {
+    const content = await tryUrl(url)
+    return content || ''
+  }))
+
+  const contents = settled
+    .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
+    .map(result => result.value)
+
+  return pickBestContent(contents)
+}
+
+const trySearchesInParallel = async (urls: string[]) => {
+  const uniqueUrls = Array.from(new Set(urls.filter(Boolean))).slice(0, 5)
+
+  const settled = await Promise.allSettled(uniqueUrls.map(async (url) => {
+    const content = await trySearchPage(url)
+    return content || ''
+  }))
+
+  const contents = settled
+    .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
+    .map(result => result.value)
+
+  return pickBestContent(contents)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ImportRequest
@@ -392,25 +430,17 @@ export async function POST(request: NextRequest) {
     const candidates = buildCandidates(artist, song || query, query || `${artist} ${song}`.trim())
     const errors: string[] = []
 
-    for (const url of candidates.direct) {
-      try {
-        const content = await tryUrl(url)
-        if (content) return NextResponse.json({ ok: true, source: url, content })
-      } catch (error: any) {
-        errors.push(`${url}: ${error?.message || 'falhou'}`)
-      }
+    const directContent = await tryUrlsInParallel(candidates.direct)
+    if (directContent) {
+      return NextResponse.json({ ok: true, source: 'direct-fast', content: directContent })
     }
 
-    for (const url of candidates.searches) {
-      try {
-        const content = await trySearchPage(url)
-        if (content) return NextResponse.json({ ok: true, source: url, content })
-      } catch (error: any) {
-        errors.push(`${url}: ${error?.message || 'falhou'}`)
-      }
+    const searchContent = await trySearchesInParallel(candidates.searches)
+    if (searchContent) {
+      return NextResponse.json({ ok: true, source: 'search-fast', content: searchContent })
     }
 
-    return NextResponse.json({ ok: false, error: 'Cifra não encontrada automaticamente.', errors }, { status: 404 })
+    return NextResponse.json({ ok: false, error: 'Cifra não encontrada automaticamente em fontes liberadas.', errors }, { status: 404 })
   } catch (error: any) {
     return NextResponse.json({ ok: false, error: error?.message || 'Erro interno.' }, { status: 500 })
   }
