@@ -52,6 +52,21 @@ const normalizeInput = (artist: string, song: string, query: string) => {
     cleanSong = cleanSong || parts.slice(1).join(' - ').trim()
   }
 
+  // Ajuda em buscas digitadas como: "Em Teu Altar de Walmir Alencar".
+  // Só aplica quando a parte depois de "de/do/da" parece nome de artista (2+ palavras),
+  // para não quebrar títulos como "Nada Além de Ti".
+  if (!cleanArtist && !cleanSong && cleanQuery) {
+    const byArtistMatch = cleanQuery.match(/^(.+?)\s+(?:de|do|da|dos|das)\s+([A-Za-zÀ-ÿ0-9'.&\s]{5,})$/i)
+    if (byArtistMatch) {
+      const possibleSong = byArtistMatch[1].trim()
+      const possibleArtist = byArtistMatch[2].trim()
+      if (possibleArtist.split(/\s+/).length >= 2 && possibleSong.split(/\s+/).length >= 2) {
+        cleanSong = possibleSong
+        cleanArtist = possibleArtist
+      }
+    }
+  }
+
   if (!cleanSong) cleanSong = cleanQuery
 
   cleanArtist = cleanArtist
@@ -87,6 +102,33 @@ const isChordLine = (line: string) => {
   const strictChordRegex = /^[A-G][B#]?(M|MIN|MAJ|DIM|AUG|SUS|ADD|[\d]+)*(\/[A-G][B#]?)?$/
   const chordCount = words.filter(w => strictChordRegex.test(w)).length
   return words.length > 0 && chordCount / words.length >= 0.7
+}
+
+
+const isDefinitelyNavigationText = (text: string) => {
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean)
+  if (lines.length === 0) return true
+
+  const compactText = lines.join(' ')
+  if (/Curta\s+mais\s+m[uú]sicas\s+com\s+op[cç][oõ]es\s+exclusivas/i.test(compactText)) return true
+  if (/Assine\s+e\s+libere\s+benef[ií]cios/i.test(compactText)) return true
+  if (/Explore\s*M[uú]sicas/i.test(compactText)) return true
+  if (/Prote[cç][aã]o\s+de\s+Dados/i.test(compactText) && /Corre[cç][oõ]es\s+de\s+letras/i.test(compactText)) return true
+
+  const singleAlphabetLines = lines.filter(line => /^[A-Z#]$/i.test(line)).length
+  if (singleAlphabetLines >= 5) return true
+
+  const navWords = [
+    'artistas', 'álbuns', 'albuns', 'playlists', 'atualizações', 'atualizacoes',
+    'lançamentos', 'lancamentos', 'participe', 'envie letra', 'envie letras',
+    'correções de letras', 'correcoes de letras', 'sobre o letras', 'proteção de dados',
+    'protecao de dados', 'blog', 'login', 'cadastro', 'assine'
+  ]
+  const navCount = lines.filter(line => navWords.some(word => line.toLowerCase() === word || line.toLowerCase().includes(word))).length
+  if (navCount >= 5 && singleAlphabetLines >= 2) return true
+  if (navCount >= 8) return true
+
+  return false
 }
 
 const cleanupLyrics = (raw: string) => {
@@ -164,7 +206,23 @@ const cleanupLyrics = (raw: string) => {
     /^tom\s*½/i,
     /^músicas para missa/i,
     /^musicas para missa/i,
-    /^salmo responsorial/i
+    /^salmo responsorial/i,
+    /^curta\s+mais\s+m[uú]sicas/i,
+    /^assine(\s+e\s+libere)?/i,
+    /^benef[ií]cios/i,
+    /^explorar\s*m[uú]sicas/i,
+    /^explorem[uú]sicas/i,
+    /^artistas$/i,
+    /^[áa]lbuns$/i,
+    /^playlists$/i,
+    /^atualiza[cç][oõ]es$/i,
+    /^lan[cç]amentos$/i,
+    /^participe$/i,
+    /^envie letras?$/i,
+    /^corre[cç][oõ]es de letras$/i,
+    /^sobre o letras$/i,
+    /^prote[cç][aã]o de dados$/i,
+    /^[a-z#]$/i
   ]
 
   let lines = decoded
@@ -187,6 +245,8 @@ const cleanupLyrics = (raw: string) => {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/^\n+|\n+$/g, '')
 
+  if (isDefinitelyNavigationText(text)) return ''
+
   const endMarkers = [
     /\n\s*Composição de[\s\S]*$/i,
     /\n\s*Composicao de[\s\S]*$/i,
@@ -201,18 +261,32 @@ const cleanupLyrics = (raw: string) => {
     /\n\s*Veja tambem[\s\S]*$/i
   ]
 
-  return endMarkers.reduce((acc, marker) => acc.replace(marker, ''), text).replace(/^\n+|\n+$/g, '')
+  const cleaned = endMarkers.reduce((acc, marker) => acc.replace(marker, ''), text).replace(/^\n+|\n+$/g, '')
+  return isDefinitelyNavigationText(cleaned) ? '' : cleaned
 }
 
 const scoreLyrics = (text: string) => {
   const clean = cleanupLyrics(text)
+  if (!clean || isDefinitelyNavigationText(clean)) return 0
+
   const usefulLines = clean.split('\n').map(line => line.trim()).filter(Boolean)
   if (clean.length < 90 || usefulLines.length < 4) return 0
   if (clean.length > 18000) return 0
 
+  const letterLikeLines = usefulLines.filter(line => {
+    if (isChordLine(line)) return false
+    if (/^[A-Z#]$/i.test(line)) return false
+    return /[a-záàâãéêíóôõúç]{2,}/i.test(line)
+  })
+
+  if (letterLikeLines.length < 4) return 0
+
+  const navIndicators = usefulLines.filter(line => /^(assine|artistas|álbuns|albuns|playlists|lançamentos|lancamentos|participe|envie|correções|correcoes|proteção|protecao|sobre o letras)$/i.test(line)).length
+  if (navIndicators >= 4) return 0
+
   const chordLines = usefulLines.filter(isChordLine).length
-  const noisePenalty = /(blog|comentários|comentarios|privacidade|cookie|assinatura|aplicativo|login|cadastro|premium|pro|newsletter)/i.test(clean) ? 1200 : 0
-  return Math.min(clean.length, 7000) + usefulLines.length * 40 - chordLines * 150 - noisePenalty
+  const noisePenalty = /(blog|comentários|comentarios|privacidade|cookie|assinatura|aplicativo|login|cadastro|premium|pro|newsletter|curta mais músicas|curta mais musicas|exploremúsicas|explorar músicas)/i.test(clean) ? 6000 : 0
+  return Math.min(clean.length, 7000) + letterLikeLines.length * 80 - chordLines * 250 - noisePenalty
 }
 
 const fetchText = async (url: string, timeoutMs = 4500) => {
@@ -364,9 +438,10 @@ const extractLyricsFromHtml = (html: string) => {
   const jsonLyrics = extractJsonEmbeddedLyrics(html)
   if (jsonLyrics) addCandidate(jsonLyrics, 'json', 10000)
 
-  const targetedBlocks = Array.from(html.matchAll(/<([a-z0-9]+)[^>]*(class|id)=["'][^"']*(cnt-letra|letra|lyrics|lyric|entry-content|post-content|content|article)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi))
+  // Importante: não usar classes genéricas como "content", porque elas podem trazer menu inteiro do site.
+  const targetedBlocks = Array.from(html.matchAll(/<([a-z0-9]+)[^>]*(class|id)=["'][^"']*(cnt-letra|cnt_traducao|letra-cnt|lyrics?|lyric|song-lyrics?|songtext|song-text|letra__content|musica-letra)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi))
     .map(match => stripHtmlToText(match[4]))
-  targetedBlocks.forEach(text => addCandidate(text, 'targeted', 7000))
+  targetedBlocks.forEach(text => addCandidate(text, 'targeted', 9000))
 
   const articleBlocks = Array.from(html.matchAll(/<(article|main)[^>]*>([\s\S]*?)<\/\1>/gi))
     .map(match => stripHtmlToText(match[2]))
@@ -377,8 +452,8 @@ const extractLyricsFromHtml = (html: string) => {
     .filter(Boolean)
   if (paragraphGroups.length >= 4) addCandidate(paragraphGroups.join('\n'), 'paragraphs', 1000)
 
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-  if (bodyMatch?.[1]) addCandidate(stripHtmlToText(bodyMatch[1]), 'body', -5000)
+  // Não usamos o <body> inteiro como candidato. Em sites como Letras.mus isso pode trazer
+  // menus, alfabeto de artistas e chamadas de assinatura no lugar da letra.
 
   const best = candidates.sort((a, b) => b.score - a.score)[0]?.text || ''
   return cleanupLyrics(best.slice(0, 9000))
