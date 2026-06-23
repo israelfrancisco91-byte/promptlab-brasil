@@ -295,14 +295,20 @@ export default function PromptLabPage() {
     });
   };
 
-  const fetchJsonWithTimeout = async (url: string, timeoutMs = 12000) => {
+  const fetchJsonWithTimeout = async (url: string, timeoutMs = 7000) => {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(url, {
+      const separator = url.includes('?') ? '&' : '?';
+      const cacheFreeUrl = `${url}${separator}_=${Date.now()}`;
+
+      const response = await fetch(cacheFreeUrl, {
         signal: controller.signal,
-        cache: 'no-store'
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json, text/plain, */*'
+        }
       });
 
       if (!response.ok) {
@@ -320,14 +326,115 @@ export default function PromptLabPage() {
     }
   };
 
+  const makeProxiedUrls = (targetUrl: string) => {
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    const targetWithCacheBuster = `${targetUrl}${separator}cacheBust=${Date.now()}`;
+
+    return [
+      targetWithCacheBuster,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetWithCacheBuster)}`,
+      `https://corsproxy.io/?${encodeURIComponent(targetWithCacheBuster)}`
+    ];
+  };
+
   const extractLyricsFromResponse = (data: any) => {
     if ((data?.type === 'exact' || data?.type === 'aprox') && Array.isArray(data?.mus)) {
       const lyrics = data.mus.find((item: any) => typeof item?.text === 'string' && item.text.trim())?.text;
       if (lyrics) return lyrics.trim();
     }
 
+    if (Array.isArray(data?.mus)) {
+      const lyrics = data.mus.find((item: any) => typeof item?.text === 'string' && item.text.trim())?.text;
+      if (lyrics) return lyrics.trim();
+    }
+
     if (typeof data?.lyrics === 'string' && data.lyrics.trim()) {
       return data.lyrics.trim();
+    }
+
+    if (typeof data?.text === 'string' && data.text.trim()) {
+      return data.text.trim();
+    }
+
+    return "";
+  };
+
+  const extractCandidatesFromVagalumeSearch = (data: any) => {
+    const docs = data?.response?.docs || data?.docs || data?.results || data?.mus || [];
+    if (!Array.isArray(docs)) return [];
+
+    return docs
+      .map((item: any) => ({
+        artist: String(item?.band || item?.artist || item?.art || item?.band_name || item?.name || "").trim(),
+        song: String(item?.title || item?.song || item?.mus || item?.music || item?.name || "").trim(),
+        lyrics: String(item?.lyrics || item?.text || item?.content || "").trim()
+      }))
+      .filter((item: any) => item.song || item.artist || item.lyrics);
+  };
+
+  const tryExactLyrics = async (cleanArtist: string, cleanSong: string) => {
+    const apiKey = "660a4395f992ff67786584e238f501aa";
+    const urls: string[] = [];
+
+    if (cleanArtist && cleanSong) {
+      const exactWithKey = `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(cleanArtist)}&mus=${encodeURIComponent(cleanSong)}&apikey=${apiKey}`;
+      const exactWithoutKey = `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(cleanArtist)}&mus=${encodeURIComponent(cleanSong)}`;
+      urls.push(...makeProxiedUrls(exactWithKey), ...makeProxiedUrls(exactWithoutKey));
+    }
+
+    if (cleanArtist && cleanSong) {
+      urls.push(`https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanSong)}`);
+    }
+
+    const uniqueUrls = Array.from(new Set(urls));
+
+    for (const url of uniqueUrls) {
+      try {
+        const data = await fetchJsonWithTimeout(url);
+        const lyrics = extractLyricsFromResponse(data);
+        if (lyrics) return lyrics;
+      } catch (error) {
+        console.warn("Falha ao tentar importar letra por esta fonte:", error);
+      }
+    }
+
+    return "";
+  };
+
+  const trySearchLyricsByQuery = async (cleanArtist: string, cleanSong: string) => {
+    const apiKey = "660a4395f992ff67786584e238f501aa";
+    const queryVariants = Array.from(new Set([
+      `${cleanArtist} ${cleanSong}`.trim(),
+      cleanSong.trim()
+    ].filter(Boolean)));
+
+    for (const query of queryVariants) {
+      const excerptWithKey = `https://api.vagalume.com.br/search.excerpt.php?q=${encodeURIComponent(query)}&limit=5&apikey=${apiKey}`;
+      const excerptWithoutKey = `https://api.vagalume.com.br/search.excerpt.php?q=${encodeURIComponent(query)}&limit=5`;
+      const urls = Array.from(new Set([
+        ...makeProxiedUrls(excerptWithKey),
+        ...makeProxiedUrls(excerptWithoutKey)
+      ]));
+
+      for (const url of urls) {
+        try {
+          const data = await fetchJsonWithTimeout(url);
+          const directLyrics = extractLyricsFromResponse(data);
+          if (directLyrics) return directLyrics;
+
+          const candidates = extractCandidatesFromVagalumeSearch(data);
+          for (const candidate of candidates.slice(0, 4)) {
+            if (candidate.lyrics && candidate.lyrics.length > 160) {
+              return candidate.lyrics;
+            }
+
+            const candidateLyrics = await tryExactLyrics(candidate.artist || cleanArtist, candidate.song || cleanSong);
+            if (candidateLyrics) return candidateLyrics;
+          }
+        } catch (error) {
+          console.warn("Falha na busca aproximada do Vagalume:", error);
+        }
+      }
     }
 
     return "";
@@ -353,37 +460,18 @@ export default function PromptLabPage() {
     setLyricsImportNotice("");
 
     const { cleanArtist, cleanSong } = cleanSongInfo(artist, song);
-    const fallbackTitle = `${cleanArtist} - ${cleanSong}`;
+    const fallbackTitle = cleanArtist ? `${cleanArtist} - ${cleanSong}` : cleanSong;
 
     try {
-      const apiKey = "660a4395f992ff67786584e238f501aa";
-      const vagalumeUrl = `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(cleanArtist)}&mus=${encodeURIComponent(cleanSong)}&apikey=${apiKey}`;
+      let importedLyrics = await tryExactLyrics(cleanArtist, cleanSong);
 
-      const urlsToTry = [
-        vagalumeUrl,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(vagalumeUrl)}`,
-        `https://corsproxy.io/?${encodeURIComponent(vagalumeUrl)}`,
-        `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanSong)}`
-      ];
-
-      let importedLyrics = "";
-      let lastError: unknown = null;
-
-      for (const url of urlsToTry) {
-        try {
-          const data = await fetchJsonWithTimeout(url);
-          importedLyrics = extractLyricsFromResponse(data);
-          if (importedLyrics) break;
-        } catch (error) {
-          lastError = error;
-          console.warn("Falha ao tentar importar letra por esta fonte:", error);
-        }
+      if (!importedLyrics) {
+        importedLyrics = await trySearchLyricsByQuery(cleanArtist, cleanSong);
       }
 
       if (!importedLyrics) {
-        console.warn("Nenhuma fonte retornou letra válida.", lastError);
         fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
-        setLyricsImportNotice(`Não consegui importar automaticamente agora. Preenchi o título como "${fallbackTitle}". Use o botão de busca manual, copie a letra/cifra e cole no card.`);
+        setLyricsImportNotice(`Ainda não encontrei essa letra automaticamente. Preenchi o título como "${fallbackTitle}". Você pode tentar outra opção da lista ou abrir a busca manual, copiar a letra/cifra e colar no card.`);
         return;
       }
 
@@ -392,7 +480,7 @@ export default function PromptLabPage() {
     } catch (err) {
       console.error("Erro na importação da letra:", err);
       fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
-      setLyricsImportNotice(`Não consegui importar automaticamente agora. Preenchi o título como "${fallbackTitle}". Use o botão de busca manual, copie a letra/cifra e cole no card.`);
+      setLyricsImportNotice(`Ainda não encontrei essa letra automaticamente. Preenchi o título como "${fallbackTitle}". Você pode tentar outra opção da lista ou abrir a busca manual, copiar a letra/cifra e colar no card.`);
     } finally {
       setIsVagalumeLoading(false);
     }
@@ -1313,11 +1401,20 @@ export default function PromptLabPage() {
                 value={vagalumeQuery} 
                 onChange={(e) => { setVagalumeQuery(e.target.value); setLyricsImportNotice(""); }} 
                 placeholder="Ex: Te Louvarei Diante do Trono" 
-                className="!mb-0 w-full pl-10 py-3 text-lg"
+                className="!mb-0 w-full py-3 text-lg"
                 autoFocus
               />
-              <div className="absolute left-3 top-3.5 text-slate-400 text-lg">🔎</div>
             </div>
+
+            {vagalumeQuery.trim().length > 2 && (
+              <button
+                onClick={() => handleFetchLyrics('', vagalumeQuery.trim())}
+                disabled={isVagalumeLoading}
+                className="w-full mb-3 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/30 text-xs font-bold rounded-lg py-3 px-4 transition-colors text-left disabled:opacity-60"
+              >
+                🔎 Buscar/importar exatamente: <span className="text-white">{vagalumeQuery.trim()}</span>
+              </button>
+            )}
 
             {/* Lista de Resultados Sugeridos */}
             <div className="flex-1 overflow-y-auto custom-scroll min-h-[150px] max-h-[300px] mb-4 bg-[#1e293b] rounded-lg border border-slate-700">
