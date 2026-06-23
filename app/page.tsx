@@ -439,8 +439,347 @@ export default function PromptLabPage() {
 
     return "";
   };
+  const slugifyMusicUrl = (value: string) => {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/&/g, ' e ')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
 
-  const handleManualLyricSearch = () => {
+  const decodeHtmlEntities = (value: string) => {
+    if (typeof window === 'undefined') return value;
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = value;
+    return textarea.value;
+  };
+
+  const fetchTextWithTimeout = async (url: string, timeoutMs = 9000) => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        cache: 'no-store',
+        headers: {
+          Accept: 'text/html,application/xhtml+xml,text/plain,*/*'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const text = await response.text();
+      if (!text.trim()) {
+        throw new Error('Resposta vazia');
+      }
+
+      return text;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
+
+  const cleanupImportedLyrics = (rawText: string) => {
+    const decoded = decodeHtmlEntities(rawText)
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/[ \t]{2,}/g, ' ');
+
+    const noisePatterns = [
+      /^letra$/i,
+      /^cifra$/i,
+      /^informações$/i,
+      /^informacoes$/i,
+      /^publicidade$/i,
+      /^compartilhar$/i,
+      /^imprimir$/i,
+      /^corrigir letra$/i,
+      /^favoritar/i,
+      /^adicionar à playlist/i,
+      /^adicionar a playlist/i,
+      /^ouvir no/i,
+      /^modo teatro/i,
+      /^visualização padrão/i,
+      /^visualizacao padrao/i,
+      /^auto rolagem/i,
+      /^repetir$/i,
+      /^fechar/i,
+      /^cancelar ok$/i,
+      /^criar$/i,
+      /^acordes para/i,
+      /^afinação/i,
+      /^afinacao/i,
+      /^dificuldade/i,
+      /^exibições/i,
+      /^exibicoes/i,
+      /^contribuições/i,
+      /^contribuicoes/i,
+      /^cifra club pro/i,
+      /^entre para o cifra club/i,
+      /^blog do cifra club/i,
+      /^veja mais/i,
+      /^todos os artistas/i,
+      /^aplicativos/i,
+      /^siga-nos/i,
+      /^termos de uso/i,
+      /^política de privacidade/i,
+      /^politica de privacidade/i,
+      /^esta informação está errada/i,
+      /^esta informacao esta errada/i,
+      /^colaboração/i,
+      /^colaboracao/i,
+      /^composição de/i,
+      /^composicao de/i,
+      /^\d+(\.\d+)?\s+em\s+\d+\s+votos/i,
+      /^½\s*tom/i,
+      /^tom\s*½/i
+    ];
+
+    const lines = decoded
+      .split('\n')
+      .map(line => line.trimEnd())
+      .filter(line => {
+        const compact = line.trim();
+        if (!compact) return true;
+        return !noisePatterns.some(pattern => pattern.test(compact));
+      });
+
+    return lines
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
+  const elementToReadableText = (element: Element) => {
+    const clone = element.cloneNode(true) as HTMLElement;
+
+    clone.querySelectorAll('script, style, noscript, svg, iframe, form, button, header, footer, nav, aside').forEach(el => el.remove());
+    clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    clone.querySelectorAll('p, div, pre, li, h1, h2, h3, h4, section').forEach(el => el.append('\n'));
+
+    return cleanupImportedLyrics(clone.textContent || '');
+  };
+
+  const scoreLyricsCandidate = (text: string) => {
+    const clean = cleanupImportedLyrics(text);
+    const usefulLines = clean.split('\n').map(line => line.trim()).filter(Boolean);
+
+    if (clean.length < 90 || usefulLines.length < 4) return 0;
+    if (clean.length > 18000) return 0;
+
+    const chordLikeLines = usefulLines.filter(line => isChordLine(line)).length;
+    const lyricLikeLines = usefulLines.length - chordLikeLines;
+    const noisePenalty = /(blog|comentários|comentarios|privacidade|cookie|assinatura|aplicativo|login|cadastro|premium|pro)/i.test(clean) ? 600 : 0;
+
+    return Math.min(clean.length, 6000) + lyricLikeLines * 35 + chordLikeLines * 20 - noisePenalty;
+  };
+
+  const extractJsonEmbeddedLyrics = (html: string) => {
+    const patterns = [
+      /"lyrics"\s*:\s*"([\s\S]{120,}?)"\s*[,}]/i,
+      /"lyric"\s*:\s*"([\s\S]{120,}?)"\s*[,}]/i,
+      /"text"\s*:\s*"([\s\S]{120,}?)"\s*[,}]/i
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        try {
+          const parsed = JSON.parse(`"${match[1]}"`);
+          const clean = cleanupImportedLyrics(parsed);
+          if (scoreLyricsCandidate(clean) > 0) return clean;
+        } catch {
+          const clean = cleanupImportedLyrics(match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'));
+          if (scoreLyricsCandidate(clean) > 0) return clean;
+        }
+      }
+    }
+
+    return '';
+  };
+
+  const extractLyricsFromHtmlPage = (html: string) => {
+    const jsonLyrics = extractJsonEmbeddedLyrics(html);
+    if (jsonLyrics) return jsonLyrics;
+
+    if (typeof window === 'undefined') return '';
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    doc.querySelectorAll('script, style, noscript, svg, iframe, form, button').forEach(el => el.remove());
+
+    const selectors = [
+      '.cnt-letra',
+      '[class*="cnt-letra"]',
+      '[class*="letra"]',
+      '[id*="letra"]',
+      '[class*="lyrics"]',
+      '[id*="lyrics"]',
+      '[class*="cifra"]',
+      '[id*="cifra"]',
+      '.entry-content',
+      '.post-content',
+      'article',
+      'main'
+    ];
+
+    const candidates: string[] = [];
+
+    selectors.forEach(selector => {
+      doc.querySelectorAll(selector).forEach(element => {
+        const candidate = elementToReadableText(element);
+        if (candidate) candidates.push(candidate);
+      });
+    });
+
+    const bodyText = doc.body ? elementToReadableText(doc.body) : '';
+    if (bodyText) candidates.push(bodyText);
+
+    const ranked = candidates
+      .map(text => ({ text: cleanupImportedLyrics(text), score: scoreLyricsCandidate(text) }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    if (!ranked.length) return '';
+
+    let best = ranked[0].text;
+
+    const endMarkers = [
+      /\n\s*Composição de[\s\S]*$/i,
+      /\n\s*Composicao de[\s\S]*$/i,
+      /\n\s*Colaboração[\s\S]*$/i,
+      /\n\s*Colaboracao[\s\S]*$/i,
+      /\n\s*Outros vídeos[\s\S]*$/i,
+      /\n\s*Outros videos[\s\S]*$/i,
+      /\n\s*Mais acessadas[\s\S]*$/i,
+      /\n\s*Comentários[\s\S]*$/i,
+      /\n\s*Comentarios[\s\S]*$/i,
+      /\n\s*Veja também[\s\S]*$/i,
+      /\n\s*Veja tambem[\s\S]*$/i
+    ];
+
+    endMarkers.forEach(marker => {
+      best = best.replace(marker, '');
+    });
+
+    if (best.length > 9000) {
+      best = best.slice(0, 9000).trim();
+    }
+
+    return cleanupImportedLyrics(best);
+  };
+
+  const tryImportFromPageUrl = async (targetUrl: string) => {
+    const urls = Array.from(new Set(makeProxiedUrls(targetUrl)));
+
+    for (const url of urls) {
+      try {
+        const html = await fetchTextWithTimeout(url);
+        const lyrics = extractLyricsFromHtmlPage(html);
+        if (lyrics && scoreLyricsCandidate(lyrics) > 0) return lyrics;
+      } catch (error) {
+        console.warn('Falha ao tentar importar por página HTML:', targetUrl, error);
+      }
+    }
+
+    return '';
+  };
+
+  const extractFirstMusicLinkFromSearchHtml = (html: string, baseUrl: string, site: 'letras' | 'missa') => {
+    const links = Array.from(html.matchAll(/href=["']([^"']+)["']/gi))
+      .map(match => match[1])
+      .map(href => {
+        try {
+          return new URL(href, baseUrl).href;
+        } catch {
+          return '';
+        }
+      })
+      .filter(Boolean);
+
+    const uniqueLinks = Array.from(new Set(links));
+
+    if (site === 'missa') {
+      return uniqueLinks.find(link => /^https:\/\/musicasparamissa\.com\.br\/musica\/[a-z0-9-]+\/?/i.test(link)) || '';
+    }
+
+    return uniqueLinks.find(link => {
+      try {
+        const url = new URL(link);
+        if (!/letras\.mus\.br$/i.test(url.hostname.replace(/^www\./, ''))) return false;
+        const parts = url.pathname.split('/').filter(Boolean);
+        if (parts.length < 2) return false;
+        const blocked = ['blog', 'playlist', 'playlists', 'mais-acessadas', 'estilos', 'traducao', 'ranking', 'top', 'artistas'];
+        return !blocked.some(item => parts.includes(item));
+      } catch {
+        return false;
+      }
+    }) || '';
+  };
+
+  const trySearchSiteAndImport = async (searchUrl: string, site: 'letras' | 'missa') => {
+    const urls = Array.from(new Set(makeProxiedUrls(searchUrl)));
+
+    for (const url of urls) {
+      try {
+        const html = await fetchTextWithTimeout(url);
+        const foundLink = extractFirstMusicLinkFromSearchHtml(html, searchUrl, site);
+        if (!foundLink) continue;
+
+        const lyrics = await tryImportFromPageUrl(foundLink);
+        if (lyrics) return lyrics;
+      } catch (error) {
+        console.warn('Falha ao pesquisar fonte HTML:', searchUrl, error);
+      }
+    }
+
+    return '';
+  };
+
+  const tryKnownWebLyrics = async (cleanArtist: string, cleanSong: string) => {
+    const artistSlug = slugifyMusicUrl(cleanArtist);
+    const songSlug = slugifyMusicUrl(cleanSong);
+    const query = `${cleanArtist} ${cleanSong}`.trim() || cleanSong.trim();
+
+    const directUrls = Array.from(new Set([
+      artistSlug && songSlug ? `https://www.letras.mus.br/${artistSlug}/${songSlug}/` : '',
+      artistSlug && songSlug ? `https://www.cifraclub.com.br/${artistSlug}/${songSlug}/letra/` : '',
+      artistSlug && songSlug ? `https://www.cifraclub.com.br/${artistSlug}/${songSlug}/` : '',
+      songSlug ? `https://musicasparamissa.com.br/musica/${songSlug}/` : ''
+    ].filter(Boolean)));
+
+    for (const url of directUrls) {
+      const lyrics = await tryImportFromPageUrl(url);
+      if (lyrics) return lyrics;
+    }
+
+    if (query) {
+      const siteSearches: { url: string; site: 'letras' | 'missa' }[] = [
+        { url: `https://www.letras.mus.br/?q=${encodeURIComponent(query)}`, site: 'letras' },
+        { url: `https://www.letras.mus.br/?q=${encodeURIComponent(cleanSong || query)}`, site: 'letras' },
+        { url: `https://musicasparamissa.com.br/?s=${encodeURIComponent(query)}`, site: 'missa' },
+        { url: `https://musicasparamissa.com.br/?s=${encodeURIComponent(cleanSong || query)}`, site: 'missa' }
+      ];
+
+      for (const search of siteSearches) {
+        const lyrics = await trySearchSiteAndImport(search.url, search.site);
+        if (lyrics) return lyrics;
+      }
+    }
+
+    return '';
+  };
+
+  const handleManualLyricSearch = (source: 'google' | 'letras' | 'missa' = 'google') => {
     const typedQuery = vagalumeQuery.trim();
     const currentTitle = vagalumeModalIndex !== null ? songs[vagalumeModalIndex]?.title?.trim() : "";
     const query = typedQuery || currentTitle;
@@ -450,7 +789,13 @@ export default function PromptLabPage() {
       return;
     }
 
-    window.open(`https://www.google.com/search?q=${encodeURIComponent(`${query} letra cifra`)}`, '_blank');
+    const urls = {
+      google: `https://www.google.com/search?q=${encodeURIComponent(`${query} letra cifra`)}`,
+      letras: `https://www.google.com/search?q=${encodeURIComponent(`site:letras.mus.br ${query} letra`)}`,
+      missa: `https://www.google.com/search?q=${encodeURIComponent(`site:musicasparamissa.com.br/musica ${query} letra cifra`)}`
+    };
+
+    window.open(urls[source], '_blank');
   };
 
   const handleFetchLyrics = async (artist: string, song: string) => {
@@ -470,8 +815,12 @@ export default function PromptLabPage() {
       }
 
       if (!importedLyrics) {
+        importedLyrics = await tryKnownWebLyrics(cleanArtist, cleanSong);
+      }
+
+      if (!importedLyrics) {
         fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
-        setLyricsImportNotice(`Ainda não encontrei essa letra automaticamente. Preenchi o título como "${fallbackTitle}". Você pode tentar outra opção da lista ou abrir a busca manual, copiar a letra/cifra e colar no card.`);
+        setLyricsImportNotice(`Ainda não encontrei essa letra automaticamente. Tentei Vagalume, Lyrics.ovh, Letras.mus, Cifra Club e Músicas para Missa. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra/cifra e colar no card.`);
         return;
       }
 
@@ -480,7 +829,7 @@ export default function PromptLabPage() {
     } catch (err) {
       console.error("Erro na importação da letra:", err);
       fillSongTitleIfEmpty(vagalumeModalIndex, fallbackTitle);
-      setLyricsImportNotice(`Ainda não encontrei essa letra automaticamente. Preenchi o título como "${fallbackTitle}". Você pode tentar outra opção da lista ou abrir a busca manual, copiar a letra/cifra e colar no card.`);
+      setLyricsImportNotice(`Ainda não encontrei essa letra automaticamente. Tentei Vagalume, Lyrics.ovh, Letras.mus, Cifra Club e Músicas para Missa. Preenchi o título como "${fallbackTitle}". Você pode abrir uma busca manual abaixo, copiar a letra/cifra e colar no card.`);
     } finally {
       setIsVagalumeLoading(false);
     }
@@ -1463,12 +1812,26 @@ export default function PromptLabPage() {
               )}
 
               {lyricsImportNotice && (
-                <button
-                  onClick={handleManualLyricSearch}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-xs py-3 px-4 rounded-lg transition-colors uppercase tracking-wider"
-                >
-                  🌐 Abrir busca manual
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleManualLyricSearch('google')}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-xs py-3 px-3 rounded-lg transition-colors uppercase tracking-wider"
+                  >
+                    🌐 Google
+                  </button>
+                  <button
+                    onClick={() => handleManualLyricSearch('letras')}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-3 px-3 rounded-lg transition-colors uppercase tracking-wider"
+                  >
+                    🎵 Letras.mus
+                  </button>
+                  <button
+                    onClick={() => handleManualLyricSearch('missa')}
+                    className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black text-xs py-3 px-3 rounded-lg transition-colors uppercase tracking-wider"
+                  >
+                    ⛪ Missa
+                  </button>
+                </div>
               )}
 
               {isVagalumeLoading && (
