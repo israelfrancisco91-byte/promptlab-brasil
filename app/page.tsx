@@ -48,11 +48,48 @@ export default function PromptLabPage() {
   const [isPrompterPlaying, setIsPrompterPlaying] = useState(false)
   const prompterRef = useRef<HTMLDivElement>(null)
 
-  // --- ESTADOS PARA A API DO VAGALUME ---
+  // --- ESTADOS PARA A BUSCA INTELIGENTE (ITUNES + VAGALUME) ---
   const [vagalumeModalIndex, setVagalumeModalIndex] = useState<number | null>(null)
-  const [vagalumeArtist, setVagalumeArtist] = useState("")
-  const [vagalumeSong, setVagalumeSong] = useState("")
+  const [vagalumeQuery, setVagalumeQuery] = useState("")
+  const [vagalumeResults, setVagalumeResults] = useState<{artist: string, song: string, thumb: string}[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [isVagalumeLoading, setIsVagalumeLoading] = useState(false)
+
+  // --- EFEITO DE AUTOCOMPLETAR (DEBOUNCE) ---
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (vagalumeQuery.trim().length > 2) {
+        searchSuggestions(vagalumeQuery);
+      } else {
+        setVagalumeResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [vagalumeQuery]);
+
+  const searchSuggestions = async (query: string) => {
+    setIsSearching(true);
+    try {
+      // Usamos a API do iTunes para sugestões ultra-rápidas e com capa de álbum
+      const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=6`);
+      const data = await res.json();
+      if (data.results) {
+        const mapped = data.results.map((item: any) => ({
+          artist: item.artistName,
+          song: item.trackName,
+          thumb: item.artworkUrl60
+        }));
+        // Remove duplicatas
+        const unique = mapped.filter((v: any, i: number, a: any[]) => a.findIndex(t => (t.artist === v.artist && t.song === v.song)) === i);
+        setVagalumeResults(unique);
+      }
+    } catch (e) {
+      console.error("Erro na busca de sugestões", e);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   useEffect(() => {
     let loadedFromUrl = false;
@@ -194,21 +231,16 @@ export default function PromptLabPage() {
     }
   };
 
-  // --- FUNÇÃO DE BUSCA NA API VAGALUME ---
-  const handleFetchLyrics = async () => {
-    if (!vagalumeArtist.trim() || !vagalumeSong.trim()) {
-      return alert("Preencha o nome do artista e da música.");
-    }
-    
+  // --- FUNÇÃO PARA PEGAR A LETRA FINAL NO VAGALUME ---
+  const handleFetchLyrics = async (artist: string, song: string) => {
     setIsVagalumeLoading(true);
     try {
-      const res = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(vagalumeArtist.trim())}&mus=${encodeURIComponent(vagalumeSong.trim())}`);
+      const res = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(song)}`);
       const data = await res.json();
 
       if (data.type === 'exact' || data.type === 'aprox') {
         const lyrics = data.mus[0].text;
         
-        // Garante que o index existe e foi setado
         if (vagalumeModalIndex !== null) {
           const currentContent = songs[vagalumeModalIndex].content;
           const newContent = currentContent ? currentContent + "\n\n" + lyrics : lyrics;
@@ -220,10 +252,10 @@ export default function PromptLabPage() {
         }
         
         setVagalumeModalIndex(null);
-        setVagalumeArtist("");
-        setVagalumeSong("");
+        setVagalumeQuery("");
+        setVagalumeResults([]);
       } else {
-        alert("🎵 Letra não encontrada. Verifique se o nome do artista e da música estão corretos.");
+        alert(`🎵 A letra exata não foi encontrada no banco de dados do Vagalume para esta versão.`);
       }
     } catch (err) {
       alert("⚠️ Erro ao buscar a letra. Verifique sua conexão com a internet ou tente novamente mais tarde.");
@@ -311,15 +343,12 @@ export default function PromptLabPage() {
     let finalText = tempDiv.textContent || textData;
     finalText = finalText.replace(/\n{3,}/g, '\n\n').trim();
 
-    // --- NOVA LÓGICA DE LIMPEZA DE NEGRITO NAS CIFRAS ---
-    // Removemos os asteriscos (**) de qualquer linha que for identificada como cifra
     finalText = finalText.split('\n').map(line => {
       if (isChordLine(line)) {
         return line.replace(/\*\*/g, ''); 
       }
       return line;
     }).join('\n');
-    // ----------------------------------------------------
 
     const textarea = e.currentTarget;
     const start = textarea.selectionStart;
@@ -598,7 +627,6 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   };
 
-  // --- PDF ENGINE ATUALIZADA (FONTES 100% ESPELHADAS) ---
   const processPDF = async (action: 'download' | 'share') => {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
@@ -753,11 +781,8 @@ export default function PromptLabPage() {
       
       {/* BACKGROUND TEMA SÃO JOÃO SOFISTICADO */}
       <div className="fixed inset-0 z-[-1] bg-[#020617]">
-        {/* Textura de estrelas/ruído suave */}
         <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
-        {/* Degradê Lilás vindo de baixo (Cores da sua logo) */}
         <div className="absolute bottom-0 left-0 right-0 h-[80vh] bg-gradient-to-t from-purple-900/30 to-transparent"></div>
-        {/* Reflexo quente da Fogueira no canto superior direito */}
         <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-orange-600/10 blur-[120px] pointer-events-none"></div>
       </div>
 
@@ -884,7 +909,7 @@ export default function PromptLabPage() {
                         <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
                       </div>
                       
-                      {/* TOOLBAR DESKTOP (Invisível no Mobile) */}
+                      {/* TOOLBAR DESKTOP */}
                       <div className="hidden sm:flex flex-wrap items-center gap-2 mb-3 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50">
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
@@ -894,7 +919,7 @@ export default function PromptLabPage() {
                         <div className="w-px h-5 bg-slate-700 mx-1"></div>
                         
                         {/* NOVO BOTÃO API VAGALUME DESKTOP */}
-                        <button onClick={() => setVagalumeModalIndex(index)} className="h-8 px-3 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Importar letra automaticamente do Vagalume">
+                        <button onClick={() => setVagalumeModalIndex(index)} className="h-8 px-3 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Importar letra automaticamente da internet">
                           🔍 Letra
                         </button>
                         
@@ -918,7 +943,7 @@ export default function PromptLabPage() {
                         </div>
                       </div>
 
-                      {/* TOOLBAR MOBILE: PARTE SUPERIOR (Invisível no Desktop) */}
+                      {/* TOOLBAR MOBILE: PARTE SUPERIOR */}
                       <div className="flex sm:hidden flex-col gap-3 mb-3 bg-[#0f172a] p-3 rounded-lg border border-slate-700/50">
                         <button onClick={() => openPrompter(song)} className="btn-play !m-0 w-full justify-center whitespace-nowrap !h-10 text-sm" title="Modo Palco: Rolar letra automaticamente">
                           ▶️ Prompter
@@ -950,7 +975,7 @@ export default function PromptLabPage() {
                         />
                       </div>
 
-                      {/* TOOLBAR MOBILE: PARTE INFERIOR (Invisível no Desktop) */}
+                      {/* TOOLBAR MOBILE: PARTE INFERIOR */}
                       <div className="flex sm:hidden items-center gap-2 mt-2 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50 w-full overflow-x-auto custom-scroll">
                         <button onClick={() => handleToggleCase(index)} className="h-8 px-5 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors shrink-0" title="Alternar Maiúsculas/Minúsculas">Aa</button>
                         <button onClick={() => handleToggleBold(index)} className="h-8 px-5 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors shrink-0" title="Selecionar texto e aplicar Negrito">B</button>
@@ -1137,52 +1162,76 @@ export default function PromptLabPage() {
         </footer>
       )}
 
-      {/* ================= MODAL API VAGALUME ================= */}
+      {/* ================= MODAL API VAGALUME (AUTOCOMPLETE) ================= */}
       {vagalumeModalIndex !== null && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
-            <button onClick={() => setVagalumeModalIndex(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <button onClick={() => { setVagalumeModalIndex(null); setVagalumeQuery(""); setVagalumeResults([]); }} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
             
             <div className="text-center mb-6">
               <div className="text-4xl mb-2">🔍</div>
-              <h3 className="text-lg font-black text-white uppercase tracking-wider">Importar Letra</h3>
-              <p className="text-slate-400 text-xs mt-1">Busque a letra original diretamente da internet.</p>
+              <h3 className="text-lg font-black text-white uppercase tracking-wider">Buscar Música</h3>
+              <p className="text-slate-400 text-xs mt-1">Digite o nome da música e do artista.</p>
             </div>
 
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="text-indigo-400">Nome do Artista / Banda</label>
-                <input 
-                  value={vagalumeArtist} 
-                  onChange={(e) => setVagalumeArtist(e.target.value)} 
-                  placeholder="Ex: Aline Barros" 
-                  className="!mb-0"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="text-indigo-400">Nome da Música</label>
-                <input 
-                  value={vagalumeSong} 
-                  onChange={(e) => setVagalumeSong(e.target.value)} 
-                  placeholder="Ex: Ressuscita-me" 
-                  className="!mb-0"
-                  onKeyDown={(e) => e.key === 'Enter' && handleFetchLyrics()}
-                />
-              </div>
+            <div className="mb-4 relative">
+              <input 
+                value={vagalumeQuery} 
+                onChange={(e) => setVagalumeQuery(e.target.value)} 
+                placeholder="Ex: Te Louvarei Diante do Trono" 
+                className="!mb-0 w-full pl-10 py-3 text-lg"
+                autoFocus
+              />
+              <div className="absolute left-3 top-3.5 text-slate-400 text-lg">🔎</div>
             </div>
 
-            <div className="space-y-2">
+            {/* Lista de Resultados Sugeridos */}
+            <div className="flex-1 overflow-y-auto custom-scroll min-h-[150px] max-h-[300px] mb-4 bg-[#1e293b] rounded-lg border border-slate-700">
+              {isSearching ? (
+                <div className="flex items-center justify-center h-full text-slate-400 text-sm py-10">
+                  ⏳ Buscando...
+                </div>
+              ) : vagalumeQuery.length > 2 && vagalumeResults.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm py-10 px-4 text-center">
+                  <span>Nenhuma música encontrada.</span>
+                  <span className="text-xs mt-2 opacity-70">Tente incluir o nome do cantor junto.</span>
+                </div>
+              ) : vagalumeResults.length > 0 ? (
+                <div className="flex flex-col">
+                  {vagalumeResults.map((item, idx) => (
+                    <button 
+                      key={idx}
+                      onClick={() => handleFetchLyrics(item.artist, item.song)}
+                      className="flex items-center gap-4 p-3 hover:bg-slate-700/50 border-b border-slate-700/50 transition-colors text-left"
+                    >
+                      {item.thumb ? (
+                        <img src={item.thumb} alt={item.song} className="w-10 h-10 rounded shadow-sm object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-slate-500 shrink-0">🎵</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-white text-sm truncate">{item.song}</div>
+                        <div className="text-slate-400 text-xs truncate">{item.artist}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-500 text-xs py-10 px-4 text-center">
+                  Comece a digitar para ver as sugestões de músicas...
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 mt-auto">
+              {isVagalumeLoading && (
+                <div className="w-full bg-indigo-600/50 text-white font-black text-xs py-3 px-4 rounded-lg flex items-center justify-center gap-2 uppercase tracking-wider mb-2 animate-pulse">
+                  ⏳ Importando Letra...
+                </div>
+              )}
               <button 
-                onClick={handleFetchLyrics}
-                disabled={isVagalumeLoading}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors uppercase tracking-wider shadow-[0_4px_12px_rgba(79,70,229,0.2)] disabled:opacity-50"
-              >
-                {isVagalumeLoading ? "⏳ Buscando Letra..." : "📥 Importar para o Card"}
-              </button>
-              <button 
-                onClick={() => setVagalumeModalIndex(null)}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors uppercase"
+                onClick={() => { setVagalumeModalIndex(null); setVagalumeQuery(""); setVagalumeResults([]); }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-3 px-4 rounded-lg transition-colors uppercase"
               >
                 Cancelar
               </button>
@@ -1299,6 +1348,6 @@ export default function PromptLabPage() {
           </div>
         </div>
       )}
-</div>
+    </div>
   )
 }
