@@ -794,13 +794,54 @@ export default function PromptLabPage() {
         .prompter-lyric { color: #ffffff; }
       `}</style>
 
+      {/* NAVEGAÇÃO INSTITUCIONAL */}
+      {!prompterSong && (
+        <nav className="max-w-5xl mx-auto bg-[#0f172a]/90 border border-slate-800 rounded-xl px-5 py-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+          <a href="/" className="font-black text-xl tracking-tighter text-white hover:opacity-80 transition-opacity">
+            PromptLab<span className="text-purple-500">.</span>
+          </a>
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
+            <a href="#ferramenta" className="hover:text-blue-400 transition-colors">Ferramenta</a>
+            <a href="#guias" className="hover:text-blue-400 transition-colors">Guias</a>
+            <a href="/blog" className="hover:text-blue-400 transition-colors">Blog</a>
+            <a href="/privacidade" className="hover:text-blue-400 transition-colors">Privacidade</a>
+            <a href="/termos" className="hover:text-blue-400 transition-colors">Termos</a>
+          </div>
+        </nav>
+      )}
+
       {/* CABEÇALHO PADRÃO */}
       {!prompterSong && (
-        <header className="max-w-3xl mx-auto text-center py-8">
-          <h1 className="text-5xl font-black tracking-tighter mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
-          <p className="text-slate-400 font-medium mb-8">Ferramentas Profissionais para Músicos</p>
+        <header className="max-w-5xl mx-auto text-center py-8">
+          <div className="max-w-3xl mx-auto">
+            <span className="inline-flex items-center gap-2 mb-4 rounded-full border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-purple-200">
+              Organizador de repertório para músicos, ministérios e bandas
+            </span>
+            <h1 className="text-5xl sm:text-6xl font-black tracking-tighter mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
+            <p className="text-slate-300 text-base sm:text-lg leading-relaxed mb-4">
+              Monte repertórios, organize cifras, ajuste tons, use teleprompter e gere PDFs limpos para ensaios, missas, apresentações, grupos de oração, corais e bandas.
+            </p>
+            <p className="text-slate-500 text-sm leading-relaxed mb-8">
+              A ferramenta não publica letras ou cifras de terceiros: o conteúdo é inserido pelo próprio usuário, que deve utilizar apenas materiais próprios, autorizados ou de uso permitido.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8 text-left">
+            <div className="bg-[#0f172a]/80 border border-slate-800 rounded-xl p-4">
+              <h2 className="font-black text-white mb-1 text-sm">📄 PDF organizado</h2>
+              <p className="text-slate-400 text-xs leading-relaxed">Gere repertórios em colunas, com cabeçalho, cifras destacadas e leitura fácil.</p>
+            </div>
+            <div className="bg-[#0f172a]/80 border border-slate-800 rounded-xl p-4">
+              <h2 className="font-black text-white mb-1 text-sm">🎸 Transposição rápida</h2>
+              <p className="text-slate-400 text-xs leading-relaxed">Suba ou desça meio tom sem mexer na letra da música.</p>
+            </div>
+            <div className="bg-[#0f172a]/80 border border-slate-800 rounded-xl p-4">
+              <h2 className="font-black text-white mb-1 text-sm">▶️ Modo palco</h2>
+              <p className="text-slate-400 text-xs leading-relaxed">Use o teleprompter para acompanhar a música durante ensaios e apresentações.</p>
+            </div>
+          </div>
           
-          <div className="grid grid-cols-2 sm:flex sm:flex-row bg-[#0f172a] p-2 rounded-xl border border-slate-800 gap-2">
+          <div id="ferramenta" className="grid grid-cols-2 sm:flex sm:flex-row bg-[#0f172a] p-2 rounded-xl border border-slate-800 gap-2">
             <button className={`nav-tab flex-1 ${activeTab === 'setlist' ? 'active' : 'inactive'}`} onClick={() => setActiveTab('setlist')}>📚 Repertório</button>
             <button className={`nav-tab flex-1 ${activeTab === 'library' ? 'active' : 'inactive'}`} onClick={() => setActiveTab('library')}>📂 Salvos</button>
             <button className={`nav-tab flex-1 ${activeTab === 'capo' ? 'active' : 'inactive'}`} onClick={() => setActiveTab('capo')}>🎸 Capo</button>
@@ -1067,21 +1108,123 @@ export default function PromptLabPage() {
         </main>
       )}
 
-      {/* ================= TEXTO DE SEO ================= */}
+      {/* ================= CONTEÚDO EDITORIAL / QUALIDADE PARA ADSENSE ================= */}
       {!prompterSong && (
-        <section className="max-w-3xl mx-auto mt-16 p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
-          <h2 className="text-2xl font-black text-white mb-4">Gerador de Repertório Musical e Cifras em PDF</h2>
-          <p className="mb-6">O <strong>PromptLab Brasil</strong> é a ferramenta definitiva para músicos, ministérios de louvor, corais e bandas que precisam organizar setlists de forma rápida e totalmente profissional. Chega de sofrer com formatação bagunçada ou letras que não cabem na tela na hora do show. Aqui, você cola as suas cifras, altera o tom com a nossa ferramenta de transposição automática e gera um PDF limpo, pronto para impressão ou leitura em tablets e celulares, sem poluição visual.</p>
-          
-          <h3 className="text-lg font-bold text-white mb-2">Como transpor cifras e alterar o tom da música?</h3>
-          <p className="mb-6">Mudar o tom de uma música nunca foi tão fácil. Basta colar o texto cifrado no nosso construtor de cards e usar os botões de <strong>+½ Tom</strong> ou <strong>-½ Tom</strong>. O nosso sistema inteligente, desenvolvido para atender a necessidade real dos músicos, reconhece apenas os acordes musicais, mantendo a letra da música intacta. É o recurso ideal para ajustar a música à extensão vocal do cantor na hora do ensaio.</p>
-          
-          <h3 className="text-lg font-bold text-white mb-2">Calculadora de Capotraste Online</h3>
-          <p className="mb-6">Tem dificuldades com pestanas ou acordes complexos? A nossa <strong>Calculadora de Capotraste</strong> ajuda violonistas e guitarristas a encontrarem a casa exata para colocar o acessório no braço do instrumento. Você seleciona o tom original da gravação e o "shape" (formato de acordes fáceis) que acha melhor tocar. O sistema revela instantaneamente a posição correta, facilitando o seu play.</p>
+        <div id="guias" className="max-w-5xl mx-auto mt-16 space-y-8">
+          <section className="p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-blue-400">Guia principal</span>
+            <h2 className="text-3xl font-black text-white mt-2 mb-4">Gerador de repertório musical e cifras em PDF</h2>
+            <p className="mb-5">
+              O <strong>PromptLab Brasil</strong> é uma ferramenta online criada para músicos que precisam preparar repertórios de forma rápida, organizada e legível. A ideia é simples: você monta a lista de músicas, cola suas letras ou cifras autorizadas, ajusta o tom quando necessário e gera um PDF pronto para ensaio, celebração, apresentação ou estudo pessoal.
+            </p>
+            <p className="mb-5">
+              A proposta não é substituir o trabalho musical nem publicar acervos de letras protegidas. O foco é resolver um problema prático de organização: transformar textos soltos, anotações, cifras desalinhadas e arquivos improvisados em um repertório limpo, padronizado e fácil de consultar.
+            </p>
+            <div className="grid md:grid-cols-3 gap-4 mt-6">
+              <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+                <h3 className="font-black text-white mb-2">Para ministérios</h3>
+                <p>Organize cantos de entrada, ofertório, comunhão, final e momentos de oração sem depender de folhas soltas.</p>
+              </div>
+              <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+                <h3 className="font-black text-white mb-2">Para bandas</h3>
+                <p>Monte setlists, salve versões diferentes e compartilhe com os integrantes antes do ensaio.</p>
+              </div>
+              <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+                <h3 className="font-black text-white mb-2">Para estudos</h3>
+                <p>Use a calculadora de capotraste, altere tons e leia as músicas no modo teleprompter.</p>
+              </div>
+            </div>
+          </section>
 
-          <h3 className="text-lg font-bold text-white mb-2">Crie Setlists e Compartilhe com a Banda</h3>
-          <p>Além de gerar arquivos PDF em alta qualidade e formatados em colunas automáticas, a plataforma permite a reordenação rápida das faixas com o simples clique de um botão. Adicione músicas, ajuste o cabeçalho com o nome do evento e clique em gerar. Você pode fazer o download do documento ou compartilhar o arquivo .promptlab no WhatsApp dos integrantes do seu ministério ou banda. Otimize seu tempo fora dos palcos e foque no que realmente importa: fazer música com excelência!</p>
-        </section>
+          <section className="grid lg:grid-cols-2 gap-6">
+            <article className="p-7 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+              <h2 className="text-2xl font-black text-white mb-4">Como montar um repertório de missa ou culto sem se perder</h2>
+              <p className="mb-4">
+                O primeiro passo é separar o repertório por momento. Em vez de jogar todas as músicas em uma lista única, divida por abertura, aclamação, ofertório, comunhão, ação de graças e encerramento. Essa organização ajuda o músico a entender a função de cada canção e evita mudanças de última hora sem critério.
+              </p>
+              <p>
+                Depois, confira o tom de cada música com antecedência. Um repertório bonito pode ficar difícil se cada canto exigir uma região vocal muito diferente. Use a transposição com cuidado e teste os tons com o cantor antes de gerar o PDF final.
+              </p>
+            </article>
+
+            <article className="p-7 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+              <h2 className="text-2xl font-black text-white mb-4">Por que gerar PDF em vez de mandar prints no grupo?</h2>
+              <p className="mb-4">
+                Prints parecem práticos, mas costumam ficar pequenos, cortados ou fora de ordem. O PDF mantém o repertório em um único arquivo, facilita impressão, abre bem no celular e evita que cada integrante receba uma versão diferente da mesma lista.
+              </p>
+              <p>
+                Para ensaios, o PDF também ajuda a padronizar a comunicação. Todos olham para o mesmo material, com a mesma sequência, o mesmo cabeçalho e as mesmas observações de arranjo.
+              </p>
+            </article>
+          </section>
+
+          <section className="p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+            <h2 className="text-2xl font-black text-white mb-4">Guias rápidos para músicos</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <a href="/blog" className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
+                <h3 className="font-black text-white mb-2">Como transpor cifras sem alterar a letra</h3>
+                <p>Entenda por que é importante mexer apenas nos acordes e preservar o texto original da música.</p>
+              </a>
+              <a href="/blog" className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
+                <h3 className="font-black text-white mb-2">Como usar capotraste na prática</h3>
+                <p>Veja como escolher o shape mais confortável e encontrar a casa correta para tocar no tom desejado.</p>
+              </a>
+              <a href="/blog" className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
+                <h3 className="font-black text-white mb-2">Checklist de ensaio para ministério de música</h3>
+                <p>Uma rotina simples para evitar correria, tom errado, música faltando e arquivo desatualizado.</p>
+              </a>
+              <a href="/blog" className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
+                <h3 className="font-black text-white mb-2">Diferença entre letra, cifra e setlist</h3>
+                <p>Aprenda a organizar cada tipo de material e quando usar cada formato no ensaio ou apresentação.</p>
+              </a>
+            </div>
+          </section>
+
+          <section className="grid lg:grid-cols-2 gap-6">
+            <article className="p-7 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+              <h2 className="text-2xl font-black text-white mb-4">Boas práticas para repertórios compartilhados</h2>
+              <ul className="space-y-3 list-disc pl-5">
+                <li>Defina um cabeçalho claro, com nome do evento, data ou tipo de celebração.</li>
+                <li>Evite colocar músicas duplicadas com tons diferentes sem identificação.</li>
+                <li>Use observações curtas, como “refrão 2x”, “entrada suave” ou “subir meio tom no final”.</li>
+                <li>Revise o PDF no celular antes de enviar para a banda.</li>
+                <li>Guarde versões salvas para eventos recorrentes e adapte apenas o que mudou.</li>
+              </ul>
+            </article>
+
+            <article className="p-7 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+              <h2 className="text-2xl font-black text-white mb-4">Uso responsável de letras e cifras</h2>
+              <p className="mb-4">
+                O PromptLab Brasil funciona como editor e organizador. O usuário é responsável pelo conteúdo que cola no card, incluindo letras, cifras, anotações e repertórios compartilhados. Sempre que possível, use materiais próprios, autorizados, licenciados ou de uso permitido.
+              </p>
+              <p>
+                Para manter a ferramenta segura e útil, evite publicar repertórios com conteúdo protegido de forma aberta na internet. Use os links compartilhados apenas com o grupo ou equipe que precisa acessar o material.
+              </p>
+            </article>
+          </section>
+
+          <section className="p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+            <h2 className="text-2xl font-black text-white mb-6">Perguntas frequentes</h2>
+            <div className="space-y-5">
+              <div>
+                <h3 className="font-black text-white mb-1">O PromptLab salva minhas músicas?</h3>
+                <p>Os repertórios salvos ficam armazenados no navegador do próprio usuário. Isso facilita o uso diário sem transformar o site em um banco público de letras ou cifras.</p>
+              </div>
+              <div>
+                <h3 className="font-black text-white mb-1">A transposição altera a letra?</h3>
+                <p>Não. A função de transposição foi criada para identificar linhas de acordes e alterar apenas as notas musicais, mantendo a letra preservada.</p>
+              </div>
+              <div>
+                <h3 className="font-black text-white mb-1">Posso usar no celular?</h3>
+                <p>Sim. A interface foi pensada para computador e celular. No celular, os botões ficam reorganizados para facilitar o uso durante ensaio ou apresentação.</p>
+              </div>
+              <div>
+                <h3 className="font-black text-white mb-1">O site fornece letras automaticamente?</h3>
+                <p>Esta versão prioriza a organização manual e responsável do repertório. O usuário pode pesquisar referências em fontes externas, mas deve conferir permissões e qualidade do conteúdo antes de usar.</p>
+              </div>
+            </div>
+          </section>
+        </div>
       )}
 
       {/* RODAPÉ */}
@@ -1089,6 +1232,7 @@ export default function PromptLabPage() {
         <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
           <nav className="flex flex-wrap items-center justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
             <a href="/blog" className="hover:text-white text-blue-400 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-md transition-colors">Blog do Músico</a>
+            <a href="#guias" className="hover:text-blue-400">Guias</a>
             <a href="/privacidade" className="hover:text-blue-400">Política de Privacidade</a>
             <a href="/termos" className="hover:text-blue-400">Termos de Uso</a>
           </nav>
