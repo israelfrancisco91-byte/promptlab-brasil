@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from "react"
 import { jsPDF } from "jspdf"
+import QRCode from "qrcode"
 
 interface Song {
   id: string;
   title: string;
   content: string;
+  link?: string;
 }
 
 interface SavedRepertoire {
@@ -24,6 +26,7 @@ export default function PromptLabPage() {
   const [repertoireHeader, setRepertoireHeader] = useState("")
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null)
   const [songs, setSongs] = useState<Song[]>([{ id: 'init-1', title: "", content: "" }])
+  const [pdfLinkMode, setPdfLinkMode] = useState<'button' | 'qrcode'>('button')
 
   const [originalTone, setOriginalTone] = useState('F')
   const [shapeTone, setShapeTone] = useState('D')
@@ -67,7 +70,8 @@ export default function PromptLabPage() {
                 const expandedSongs = parsed.s.map((song: any, idx: number) => ({
                   id: `shared-${Date.now()}-${idx}`,
                   title: song.t || "",
-                  content: song.c || ""
+                  content: song.c || "",
+                  link: song.l || ""
                 }));
                 setSongs(expandedSongs);
               } else {
@@ -99,8 +103,14 @@ export default function PromptLabPage() {
       if (savedLibrary) {
         try { setSavedRepertoires(JSON.parse(savedLibrary)) } catch (e) { console.error(e) }
       }
+      const savedLinkMode = localStorage.getItem('promptlab_pdf_link_mode');
+      if (savedLinkMode === 'button' || savedLinkMode === 'qrcode') setPdfLinkMode(savedLinkMode);
     }
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('promptlab_pdf_link_mode', pdfLinkMode)
+  }, [pdfLinkMode])
 
   useEffect(() => {
     localStorage.setItem('promptlab_songs', JSON.stringify(songs))
@@ -146,7 +156,8 @@ export default function PromptLabPage() {
     try {
       const minifiedSongs = songs.map(s => ({
         t: s.title,
-        c: s.content
+        c: s.content,
+        ...(s.link ? { l: s.link } : {})
       }));
       
       const dataObj = {
@@ -329,6 +340,26 @@ export default function PromptLabPage() {
       .replace(/\r/g, '\n')
       .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
       .replace(/\t/g, '    ');
+  }
+
+  // --- DETECÇÃO DE PLATAFORMA A PARTIR DO LINK (ícone + rótulo) ---
+  const detectPlatform = (url: string): { icon: string; label: string } => {
+    if (!url || !url.trim()) return { icon: '🔗', label: 'Ouvir' };
+    const u = url.toLowerCase();
+    if (u.includes('youtube.com') || u.includes('youtu.be')) return { icon: '▶️', label: 'YouTube' };
+    if (u.includes('spotify.com')) return { icon: '🎧', label: 'Spotify' };
+    if (u.includes('deezer.com')) return { icon: '🎵', label: 'Deezer' };
+    if (u.includes('music.apple.com')) return { icon: '🍎', label: 'Apple Music' };
+    if (u.includes('soundcloud.com')) return { icon: '☁️', label: 'SoundCloud' };
+    return { icon: '🔗', label: 'Ouvir' };
+  }
+
+  // Validação simples de URL (aceita apenas http/https)
+  const isValidLink = (url?: string): boolean => {
+    if (!url) return false;
+    const trimmed = url.trim();
+    if (!trimmed) return false;
+    return /^https?:\/\/.+/i.test(trimmed);
   }
 
   useEffect(() => {
@@ -540,7 +571,7 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   }
 
-  const updateSong = (index: number, field: 'title' | 'content', value: string) => {
+  const updateSong = (index: number, field: 'title' | 'content' | 'link', value: string) => {
     const newSongs = [...songs]; newSongs[index][field] = value; setSongs(newSongs);
   }
   
@@ -623,13 +654,42 @@ export default function PromptLabPage() {
 
       drawFixedElements(doc);
 
-      songs.forEach((song) => {
-        if (!song.title.trim() && !song.content.trim()) return;
+      for (const song of songs) {
+        if (!song.title.trim() && !song.content.trim()) continue;
 
         if (song.title.trim() !== "") {
           doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(0, 0, 0);
           const wrappedTitle = doc.splitTextToSize(cleanText(song.title.trim()), 85);
           wrappedTitle.forEach((t: string) => { checkSpace(8); doc.text(t.trim(), currentX, currentY); currentY += 8; });
+        }
+
+        // --- BOTÃO "OUVIR" OU QR CODE (só aparece se houver link válido) ---
+        if (isValidLink(song.link)) {
+          const link = song.link!.trim();
+          const platform = detectPlatform(link);
+
+          if (pdfLinkMode === 'qrcode') {
+            const qrSize = 16; // mm
+            checkSpace(qrSize + 3);
+            try {
+              const qrDataUrl = await QRCode.toDataURL(link, { margin: 0, width: 200 });
+              doc.addImage(qrDataUrl, 'PNG', currentX, currentY, qrSize, qrSize);
+              doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+              const labelLines = doc.splitTextToSize(`${platform.icon} ${platform.label}`, 60);
+              doc.text(labelLines, currentX + qrSize + 3, currentY + 6);
+              doc.setTextColor(0, 0, 0);
+              currentY += qrSize + 4;
+            } catch (qrErr) {
+              console.error("Erro ao gerar QR Code:", qrErr);
+            }
+          } else {
+            checkSpace(8);
+            const label = `${platform.icon} Ouvir no ${platform.label}`;
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(37, 99, 235);
+            doc.textWithLink(label, currentX, currentY, { url: link });
+            doc.setTextColor(0, 0, 0);
+            currentY += 7;
+          }
         }
 
         const lines = cleanText(song.content).split('\n');
@@ -712,7 +772,7 @@ export default function PromptLabPage() {
           }
         }
         currentY += 6;
-      });
+      }
 
       const fName = "repertorio.pdf";
       if (action === 'download') doc.save(fName);
@@ -882,9 +942,34 @@ export default function PromptLabPage() {
                 </div>
               )}
               
-              <div className="mb-6">
-                <label>Cabeçalho do PDF (Título da Página)</label>
-                <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo, Show de Rock..." className="bg-[#0f172a]" />
+              <div className="mb-6 flex flex-col sm:flex-row gap-4 sm:items-end">
+                <div className="flex-1">
+                  <label>Cabeçalho do PDF (Título da Página)</label>
+                  <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo, Show de Rock..." className="bg-[#0f172a]" />
+                </div>
+                <div className="shrink-0">
+                  <label className="block mb-1 text-slate-400 text-sm" title="Escolha como o link de referência (quando adicionado) vai aparecer no PDF">
+                    Link no PDF, exibir como:
+                  </label>
+                  <div className="flex bg-[#0f172a] border border-slate-700 rounded-lg p-1 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPdfLinkMode('button')}
+                      className={`text-xs font-bold py-2 px-3 rounded-md transition-colors ${pdfLinkMode === 'button' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                      title="Ideal para quem lê o PDF na tela (celular/computador)"
+                    >
+                      🔘 Botão clicável
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPdfLinkMode('qrcode')}
+                      className={`text-xs font-bold py-2 px-3 rounded-md transition-colors ${pdfLinkMode === 'qrcode' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                      title="Ideal para quem imprime o PDF em papel"
+                    >
+                      🔳 QR Code
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* LISTA DE MÚSICAS */}
@@ -896,6 +981,22 @@ export default function PromptLabPage() {
                       <div className="mb-3">
                         <label className="!mb-1 text-slate-400">Título da Música {index + 1}</label>
                         <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
+                      </div>
+
+                      <div className="mb-3">
+                        <label className="!mb-1 text-slate-400">Link de referência (opcional)</label>
+                        <div className="flex items-center gap-2 bg-[#0f172a] border border-slate-700/50 rounded-lg px-3 focus-within:border-blue-500 transition-colors">
+                          <span className="text-base shrink-0" title={detectPlatform(song.link || '').label}>
+                            {detectPlatform(song.link || '').icon}
+                          </span>
+                          <input
+                            type="url"
+                            value={song.link || ''}
+                            onChange={(e) => updateSong(index, 'link', e.target.value)}
+                            placeholder="Cole aqui o link do YouTube, Spotify, etc."
+                            className="!mb-0 !bg-transparent !border-0 !px-0 text-xs flex-1"
+                          />
+                        </div>
                       </div>
                       
                       {/* TOOLBAR DESKTOP (Invisível no Mobile) */}
