@@ -928,17 +928,17 @@ export default function PromptLabPage() {
           {/* ================= ABA 1: REPERTÓRIO ================= */}
           {activeTab === 'setlist' && (
             <section className="panel border-l-4 border-green-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-800 pb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-800 pb-6">
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-black">📚 Construtor de PDF</h2>
                   <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs text-slate-400 hover:text-white underline ml-2">
                     {showInstructions ? "Ocultar" : "Como usar"}
                   </button>
                 </div>
-                <div className="flex flex-wrap w-full sm:w-auto gap-2">
-                  <button onClick={() => setShowSongBankModal(true)} className="btn-icon !w-auto px-4 !bg-purple-600 hover:!bg-purple-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(168,85,247,0.3)]" title="Inserir música do seu Banco de Músicas Frequentes">📂 Inserir do Banco</button>
-                  <button onClick={clearCurrentSetlist} className="btn-icon !w-auto px-4 !bg-slate-800 hover:!bg-slate-700 text-xs font-bold uppercase" title="Apagar tudo e começar do zero">📄 Novo</button>
-                  <button onClick={saveToLibrary} className="btn-icon !w-auto px-4 !bg-blue-600 hover:!bg-blue-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(37,99,235,0.4)]" title="Salvar este repertório na sua biblioteca">💾 Salvar Repertório</button>
+                <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
+                  <button onClick={() => setShowSongBankModal(true)} className="h-9 px-3.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-colors flex items-center gap-1.5 whitespace-nowrap" title="Inserir música do seu Banco de Músicas Frequentes">📂 Inserir do Banco</button>
+                  <button onClick={clearCurrentSetlist} className="h-9 px-3.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap" title="Apagar tudo e começar do zero">📄 Novo</button>
+                  <button onClick={saveToLibrary} className="h-9 px-3.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-colors flex items-center gap-1.5 whitespace-nowrap" title="Salvar este repertório na sua biblioteca">💾 Salvar</button>
                 </div>
               </div>
               
@@ -971,33 +971,36 @@ export default function PromptLabPage() {
                       </div>
                       
                       {/* TOOLBAR DESKTOP (Invisível no Mobile) */}
-                      <div className="hidden sm:flex flex-wrap items-center gap-2 mb-3 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
-                          <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                      <div className="hidden sm:flex flex-wrap items-center justify-between gap-2 mb-3 bg-[#0f172a] p-2.5 rounded-lg border border-slate-700/50">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
+                            <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                          </div>
+                          
+                          <div className="w-px h-5 bg-slate-700 mx-0.5"></div>
+                          
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0">-½ Tom</button>
+                            <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0">+½ Tom</button>
+                          </div>
+
+                          <div className="w-px h-5 bg-slate-700 mx-0.5"></div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
+                              ▶️ Prompter
+                            </button>
+                            <button onClick={() => saveSongToBank(song)} className="h-8 px-3 bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Salvar esta música no seu Banco de Músicas Frequentes">
+                              ⭐ Salvar no Banco
+                            </button>
+                          </div>
                         </div>
-                        
-                        <div className="w-px h-5 bg-slate-700 mx-1"></div>
-                        
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0">-½ Tom</button>
-                          <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0">+½ Tom</button>
-                        </div>
 
-                        <div className="w-px h-5 bg-slate-700 mx-1"></div>
-
-                        <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
-                          ▶️ Prompter
-                        </button>
-
-                        <button onClick={() => saveSongToBank(song)} className="h-8 px-3 bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold rounded-md transition-colors flex items-center gap-1 ml-2" title="Salvar esta música no seu Banco de Músicas Frequentes">
-                          ⭐ Salvar no Banco
-                        </button>
-
-                        <div className="flex items-center gap-1 ml-auto justify-end border-l border-slate-700 pl-3">
-                          <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬆️</button>
-                          <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬇️</button>
-                          <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-8 !w-9">🗑️</button>
+                        <div className="flex items-center gap-1 border-l border-slate-700 pl-3">
+                          <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9" title="Subir">⬆️</button>
+                          <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9" title="Descer">⬇️️</button>
+                          <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-8 !w-9" title="Excluir">🗑️</button>
                         </div>
                       </div>
 
