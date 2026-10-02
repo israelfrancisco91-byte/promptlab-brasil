@@ -229,10 +229,7 @@ export default function PromptLabPage() {
     const selected = text.substring(start, end);
 
     const applyBoldToLine = (line: string) => {
-      // Linhas vazias permanecem vazias.
       if (line.trim() === "") return line;
-
-      // Cifras já aparecem em negrito/azul no PDF. Evita colocar ** em acordes.
       if (isChordLine(line)) return line;
 
       const match = line.match(/^(\s*)([\s\S]*?)(\s*)$/);
@@ -243,8 +240,6 @@ export default function PromptLabPage() {
       const trailing = match[3] || "";
 
       if (!core.trim()) return line;
-
-      // Evita duplicar ** quando a linha selecionada já estiver inteira em negrito.
       if (core.startsWith("**") && core.endsWith("**")) return line;
 
       return `${leading}**${core}**${trailing}`;
@@ -253,8 +248,6 @@ export default function PromptLabPage() {
     let formattedSelected = "";
 
     if (/\r?\n/.test(selected)) {
-      // Quando a seleção tem várias linhas, aplica ** em cada linha individualmente.
-      // Isso evita o erro em que só a primeira e a última linha ficavam em negrito.
       formattedSelected = selected
         .split(/(\r?\n)/)
         .map(part => (/^\r?\n$/.test(part) ? part : applyBoldToLine(part)))
@@ -272,51 +265,77 @@ export default function PromptLabPage() {
     }, 10);
   };
 
+  // --- MOTOR INTELIGENTE DE COLAGEM POR ÁRVORE DOM (RESPEITA QUALQUER SITE) ---
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, index: number) => {
     e.preventDefault();
-
+    
     const htmlData = e.clipboardData.getData('text/html');
     const textData = e.clipboardData.getData('text/plain');
 
-    // Começamos com o texto puro (que já traz as quebras de linha perfeitas nativas do seu computador)
     let finalText = textData;
 
     if (htmlData) {
-      let cleanHtml = htmlData
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-        .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n') // Adicionado suporte para linhas de tabelas (tr)
-        .replace(/<br\s*[\/]?>/gi, '\n'); 
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlData, 'text/html');
 
-      cleanHtml = cleanHtml.replace(/<(b|strong)\b[^>]*>([\s\S]*?)<\/\1>/gi, (match, tag, inner) => {
-        return inner.split('\n').map((line: string) => {
-          if (line.trim() === '') return line;
-          return `**${line}**`;
-        }).join('\n');
-      });
+        const extractTextWithNewlines = (node: Node): string => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent || "";
+          }
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as HTMLElement;
+            const tag = el.tagName.toLowerCase();
+            
+            if (tag === 'br') {
+              return '\n';
+            }
 
-      // Removemos todas as outras tags HTML de forma agressiva
-      cleanHtml = cleanHtml.replace(/<[^>]+>/g, '');
+            let innerText = '';
+            for (let i = 0; i < el.childNodes.length; i++) {
+              innerText += extractTextWithNewlines(el.childNodes[i]);
+            }
 
-      // O SEGREDO: Usar um textarea em vez de div para preservar os \n perfeitamente!
-      const tempTextArea = document.createElement('textarea');
-      tempTextArea.innerHTML = cleanHtml;
-      let decodedText = tempTextArea.value;
+            // Elementos estruturais geram quebras de linha limpas
+            const blockTags = ['p', 'div', 'tr', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section', 'article', 'header', 'footer', 'blockquote'];
+            if (blockTags.includes(tag)) {
+              return '\n' + innerText.trim() + '\n';
+            }
 
-      if (decodedText.trim().length > 0) {
-        finalText = decodedText;
+            // Preserva negritos copiados de sites
+            if ((tag === 'b' || tag === 'strong') && innerText.trim()) {
+              return `**${innerText.trim()}**`;
+            }
+
+            return innerText;
+          }
+          return '';
+        };
+
+        const parsedHtmlText = extractTextWithNewlines(doc.body);
+        if (parsedHtmlText.trim().length > 0) {
+          finalText = parsedHtmlText;
+        }
+      } catch (err) {
+        console.error("Erro ao analisar HTML colado:", err);
       }
     }
 
     if (!finalText) return;
 
-    // Limpa excesso de parágrafos vazios (mais de 3 \n viram 2)
+    // Padroniza quebras de linha
+    finalText = finalText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
+    // Remove espaços supérfluos nas extremidades de cada linha
+    finalText = finalText.split('\n').map(line => line.trim()).join('\n');
+
+    // Substitui múltiplos saltos de linha vazios por espaçamento padrão de estrofes (2 saltos)
     finalText = finalText.replace(/\n{3,}/g, '\n\n').trim();
 
-    // Remove os negritos apenas das linhas que são de cifra
+    // Garante que linhas identificadas como cifras musicais fiquem livres de asteriscos de negrito
     finalText = finalText.split('\n').map(line => {
       if (isChordLine(line)) {
-        return line.replace(/\*\*/g, ''); 
+        return line.replace(/\*\*/g, '');
       }
       return line;
     }).join('\n');
@@ -334,6 +353,7 @@ export default function PromptLabPage() {
       textarea.setSelectionRange(start + finalText.length, start + finalText.length);
     }, 10);
   };
+  // -----------------------------------------------------------------------------------------
 
   const cleanText = (text: string) => {
     if (!text) return "";
@@ -598,7 +618,6 @@ export default function PromptLabPage() {
     setSongs(newSongs);
   };
 
-  // --- PDF ENGINE ATUALIZADA (FONTES 100% ESPELHADAS) ---
   const processPDF = async (action: 'download' | 'share') => {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
@@ -753,11 +772,8 @@ export default function PromptLabPage() {
       
       {/* BACKGROUND TEMA SÃO JOÃO SOFISTICADO */}
       <div className="fixed inset-0 z-[-1] bg-[#020617]">
-        {/* Textura de estrelas/ruído suave */}
         <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
-        {/* Degradê Lilás vindo de baixo (Cores da sua logo) */}
         <div className="absolute bottom-0 left-0 right-0 h-[80vh] bg-gradient-to-t from-purple-900/30 to-transparent"></div>
-        {/* Reflexo quente da Fogueira no canto superior direito */}
         <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-orange-600/10 blur-[120px] pointer-events-none"></div>
       </div>
 
