@@ -17,13 +17,23 @@ interface SavedRepertoire {
   songs: Song[];
 }
 
+interface BankSong {
+  id: string;
+  title: string;
+  content: string;
+}
+
 export default function PromptLabPage() {
   const [activeTab, setActiveTab] = useState<'setlist' | 'capo' | 'library' | 'search'>('setlist')
 
   const [showInstructions, setShowInstructions] = useState(false)
   const [repertoireHeader, setRepertoireHeader] = useState("")
-  const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null)
   const [songs, setSongs] = useState<Song[]>([{ id: 'init-1', title: "", content: "" }])
+
+  // --- BANCO DE MÚSICAS FREQUENTES ---
+  const [songBank, setSongBank] = useState<BankSong[]>([])
+  const [showSongBankModal, setShowSongBankModal] = useState(false)
+  const [bankSearchQuery, setBankSearchQuery] = useState("")
 
   const [originalTone, setOriginalTone] = useState('F')
   const [shapeTone, setShapeTone] = useState('D')
@@ -91,6 +101,7 @@ export default function PromptLabPage() {
       const savedSongs = localStorage.getItem('promptlab_songs')
       const savedHeader = localStorage.getItem('promptlab_header')
       const savedLibrary = localStorage.getItem('promptlab_library')
+      const savedBank = localStorage.getItem('promptlab_song_bank')
       
       if (savedSongs) {
         try { setSongs(JSON.parse(savedSongs)) } catch (e) { console.error(e) }
@@ -98,6 +109,9 @@ export default function PromptLabPage() {
       if (savedHeader) setRepertoireHeader(savedHeader)
       if (savedLibrary) {
         try { setSavedRepertoires(JSON.parse(savedLibrary)) } catch (e) { console.error(e) }
+      }
+      if (savedBank) {
+        try { setSongBank(JSON.parse(savedBank)) } catch (e) { console.error(e) }
       }
     }
   }, [])
@@ -114,6 +128,43 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_library', JSON.stringify(savedRepertoires))
   }, [savedRepertoires])
 
+  useEffect(() => {
+    localStorage.setItem('promptlab_song_bank', JSON.stringify(songBank))
+  }, [songBank])
+
+  // --- FUNÇÕES DO BANCO DE MÚSICAS ---
+  const saveSongToBank = (song: Song) => {
+    if (!song.title.trim()) {
+      alert("Dê um título à música antes de salvá-la no banco!");
+      return;
+    }
+    if (!song.content.trim()) {
+      alert("A música está vazia! Adicione a letra/cifra antes de salvar.");
+      return;
+    }
+
+    const existingIndex = songBank.findIndex(s => s.title.toLowerCase() === song.title.toLowerCase());
+    if (existingIndex >= 0) {
+      if (!window.confirm(`A música "${song.title}" já existe no seu Banco. Deseja atualizar o conteúdo dela?`)) return;
+      const updated = [...songBank];
+      updated[existingIndex] = { id: updated[existingIndex].id, title: song.title, content: song.content };
+      setSongBank(updated);
+    } else {
+      setSongBank([...songBank, { id: Date.now().toString(), title: song.title, content: song.content }]);
+    }
+    alert(`⭐ Música "${song.title}" salva no Banco com sucesso!`);
+  };
+
+  const insertSongFromBank = (bankSong: BankSong) => {
+    setSongs([...songs, { id: Date.now().toString(), title: bankSong.title, content: bankSong.content }]);
+    setShowSongBankModal(false);
+  };
+
+  const deleteFromSongBank = (id: string, title: string) => {
+    if (window.confirm(`Deseja remover "${title}" do seu Banco de Músicas?`)) {
+      setSongBank(songBank.filter(s => s.id !== id));
+    }
+  };
 
   const isChordLine = (line: string) => {
     const trimmed = line.trim();
@@ -296,13 +347,11 @@ export default function PromptLabPage() {
               innerText += extractTextWithNewlines(el.childNodes[i]);
             }
 
-            // Elementos estruturais geram quebras de linha limpas
             const blockTags = ['p', 'div', 'tr', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section', 'article', 'header', 'footer', 'blockquote'];
             if (blockTags.includes(tag)) {
               return '\n' + innerText.trim() + '\n';
             }
 
-            // Preserva negritos copiados de sites
             if ((tag === 'b' || tag === 'strong') && innerText.trim()) {
               return `**${innerText.trim()}**`;
             }
@@ -323,16 +372,10 @@ export default function PromptLabPage() {
 
     if (!finalText) return;
 
-    // Padroniza quebras de linha
     finalText = finalText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // Remove espaços supérfluos nas extremidades de cada linha
     finalText = finalText.split('\n').map(line => line.trim()).join('\n');
-
-    // Substitui múltiplos saltos de linha vazios por espaçamento padrão de estrofes (2 saltos)
     finalText = finalText.replace(/\n{3,}/g, '\n\n').trim();
 
-    // Garante que linhas identificadas como cifras musicais fiquem livres de asteriscos de negrito
     finalText = finalText.split('\n').map(line => {
       if (isChordLine(line)) {
         return line.replace(/\*\*/g, '');
@@ -353,7 +396,6 @@ export default function PromptLabPage() {
       textarea.setSelectionRange(start + finalText.length, start + finalText.length);
     }, 10);
   };
-  // -----------------------------------------------------------------------------------------
 
   const cleanText = (text: string) => {
     if (!text) return "";
@@ -893,7 +935,8 @@ export default function PromptLabPage() {
                     {showInstructions ? "Ocultar" : "Como usar"}
                   </button>
                 </div>
-                <div className="flex w-full sm:w-auto gap-2">
+                <div className="flex flex-wrap w-full sm:w-auto gap-2">
+                  <button onClick={() => setShowSongBankModal(true)} className="btn-icon !w-auto px-4 !bg-purple-600 hover:!bg-purple-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(168,85,247,0.3)]" title="Inserir música do seu Banco de Músicas Frequentes">📂 Inserir do Banco</button>
                   <button onClick={clearCurrentSetlist} className="btn-icon !w-auto px-4 !bg-slate-800 hover:!bg-slate-700 text-xs font-bold uppercase" title="Apagar tudo e começar do zero">📄 Novo</button>
                   <button onClick={saveToLibrary} className="btn-icon !w-auto px-4 !bg-blue-600 hover:!bg-blue-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(37,99,235,0.4)]" title="Salvar este repertório na sua biblioteca">💾 Salvar Repertório</button>
                 </div>
@@ -904,9 +947,9 @@ export default function PromptLabPage() {
                   <h3 className="font-bold text-white text-base mb-2 border-b border-slate-700 pb-2">Guia Rápido de Uso</h3>
                   <ul className="space-y-3">
                     <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-blue-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">⭐</span><div><strong className="text-purple-400">Banco de Músicas:</strong> Clique em "Salvar no Banco" em qualquer música para guardá-la e reutilizá-la depois em futuros repertórios.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-purple-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">✏️</span><div><strong className="text-yellow-400">Edição:</strong> Use <span className="bg-slate-700 px-1 rounded">Aa</span> para alterar Maiúsculas/Minúsculas e <span className="bg-slate-700 px-1 rounded">B</span> para negrito.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-blue-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
                   </ul>
                 </div>
               )}
@@ -947,6 +990,10 @@ export default function PromptLabPage() {
                           ▶️ Prompter
                         </button>
 
+                        <button onClick={() => saveSongToBank(song)} className="h-8 px-3 bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold rounded-md transition-colors flex items-center gap-1 ml-2" title="Salvar esta música no seu Banco de Músicas Frequentes">
+                          ⭐ Salvar no Banco
+                        </button>
+
                         <div className="flex items-center gap-1 ml-auto justify-end border-l border-slate-700 pl-3">
                           <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬆️</button>
                           <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9">⬇️</button>
@@ -956,9 +1003,14 @@ export default function PromptLabPage() {
 
                       {/* TOOLBAR MOBILE: PARTE SUPERIOR (Invisível no Desktop) */}
                       <div className="flex sm:hidden flex-col gap-3 mb-3 bg-[#0f172a] p-3 rounded-lg border border-slate-700/50">
-                        <button onClick={() => openPrompter(song)} className="btn-play !m-0 w-full justify-center whitespace-nowrap !h-10 text-sm" title="Modo Palco: Rolar letra automaticamente">
-                          ▶️ Prompter
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-1 justify-center whitespace-nowrap !h-10 text-xs" title="Modo Palco">
+                            ▶️ Prompter
+                          </button>
+                          <button onClick={() => saveSongToBank(song)} className="h-10 px-3 bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold rounded-md transition-colors flex items-center justify-center gap-1">
+                            ⭐ Salvar
+                          </button>
+                        </div>
 
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
@@ -1135,6 +1187,72 @@ export default function PromptLabPage() {
             </section>
           )}
         </main>
+      )}
+
+      {/* ================= MODAL DO BANCO DE MÚSICAS ================= */}
+      {showSongBankModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
+            <button onClick={() => setShowSongBankModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            
+            <div className="text-center mb-4">
+              <div className="text-3xl mb-1">⭐</div>
+              <h3 className="text-lg font-black text-white uppercase tracking-wider">Banco de Músicas Frequentes</h3>
+              <p className="text-slate-400 text-xs mt-1">Selecione uma música guardada para inseri-la instantaneamente no seu repertório.</p>
+            </div>
+
+            {songBank.length > 0 && (
+              <div className="mb-4">
+                <input 
+                  type="text" 
+                  value={bankSearchQuery} 
+                  onChange={(e) => setBankSearchQuery(e.target.value)} 
+                  placeholder="🔍 Pesquisar no banco..." 
+                  className="!bg-[#1e293b] !border-slate-700 !mb-0 text-xs" 
+                />
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto custom-scroll space-y-2 pr-1 mb-4">
+              {songBank.length === 0 ? (
+                <div className="text-center py-10 border border-slate-800 rounded-xl bg-[#1e293b]/50">
+                  <p className="text-slate-400 text-sm">O seu banco ainda está vazio.</p>
+                  <p className="text-slate-500 text-xs mt-1">Clique em <strong className="text-purple-400">"Salvar no Banco"</strong> em qualquer música do repertório para começar!</p>
+                </div>
+              ) : songBank.filter(s => s.title.toLowerCase().includes(bankSearchQuery.toLowerCase())).length === 0 ? (
+                <div className="text-center py-8 border border-slate-800 rounded-xl bg-[#1e293b]">
+                  <p className="text-slate-400 text-sm">Nenhuma música encontrada com "{bankSearchQuery}"</p>
+                </div>
+              ) : (
+                songBank
+                  .filter(s => s.title.toLowerCase().includes(bankSearchQuery.toLowerCase()))
+                  .map((song) => (
+                    <div key={song.id} className="bg-[#1e293b] border border-slate-700/80 rounded-lg p-3 flex items-center justify-between gap-3 hover:border-purple-500 transition-colors">
+                      <div className="truncate flex-1">
+                        <h4 className="font-bold text-white text-sm truncate">{song.title}</h4>
+                        <p className="text-slate-400 text-[10px] truncate">Prévia: {song.content.substring(0, 40)}...</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => insertSongFromBank(song)} className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs py-1.5 px-3 rounded-md transition-colors">
+                          ➕ Adicionar
+                        </button>
+                        <button onClick={() => deleteFromSongBank(song.id, song.title)} className="bg-slate-800 hover:bg-red-500 text-slate-400 hover:text-white p-1.5 rounded-md transition-colors text-xs" title="Excluir do banco">
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+
+            <button 
+              onClick={() => setShowSongBankModal(false)}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 rounded-lg transition-colors uppercase"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ================= CONTEÚDO EDITORIAL / QUALIDADE PARA ADSENSE ================= */}
