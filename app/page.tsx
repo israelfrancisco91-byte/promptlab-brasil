@@ -276,6 +276,67 @@ export default function PromptLabPage() {
     const htmlData = e.clipboardData.getData('text/html');
     const textData = e.clipboardData.getData('text/plain');
 
+    e.preventDefault();
+
+    // Começamos com o texto puro (que já traz as quebras de linha perfeitas nativas do seu computador)
+    let finalText = textData;
+
+    if (htmlData) {
+      let cleanHtml = htmlData
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n') // Adicionado suporte para linhas de tabelas (tr)
+        .replace(/<br\s*[\/]?>/gi, '\n'); 
+
+      cleanHtml = cleanHtml.replace(/<(b|strong)\b[^>]*>([\s\S]*?)<\/\1>/gi, (match, tag, inner) => {
+        return inner.split('\n').map((line: string) => {
+          if (line.trim() === '') return line;
+          return `**${line}**`;
+        }).join('\n');
+      });
+
+      // Removemos todas as outras tags HTML de forma agressiva
+      cleanHtml = cleanHtml.replace(/<[^>]+>/g, '');
+
+      // O SEGREDO: Usar um textarea em vez de div para preservar os \n perfeitamente!
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.innerHTML = cleanHtml;
+      let decodedText = tempTextArea.value;
+
+      if (decodedText.trim().length > 0) {
+        finalText = decodedText;
+      }
+    }
+
+    if (!finalText) return;
+
+    // Limpa excesso de parágrafos vazios (mais de 3 \n viram 2)
+    finalText = finalText.replace(/\n{3,}/g, '\n\n').trim();
+
+    // Remove os negritos apenas das linhas que são de cifra
+    finalText = finalText.split('\n').map(line => {
+      if (isChordLine(line)) {
+        return line.replace(/\*\*/g, ''); 
+      }
+      return line;
+    }).join('\n');
+
+    const textarea = e.currentTarget;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentContent = songs[index].content;
+
+    const newContent = currentContent.substring(0, start) + finalText + currentContent.substring(end);
+    updateSong(index, 'content', newContent);
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + finalText.length, start + finalText.length);
+    }, 10);
+  };
+    const htmlData = e.clipboardData.getData('text/html');
+    const textData = e.clipboardData.getData('text/plain');
+
     if (!htmlData) return;
     e.preventDefault();
 
