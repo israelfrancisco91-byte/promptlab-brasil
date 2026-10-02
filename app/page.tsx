@@ -935,10 +935,12 @@ export default function PromptLabPage() {
                     {showInstructions ? "Ocultar" : "Como usar"}
                   </button>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
-                  <button onClick={() => setShowSongBankModal(true)} className="h-9 px-3.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-colors flex items-center gap-1.5 whitespace-nowrap" title="Inserir música do seu Banco de Músicas Frequentes">📂 Inserir do Banco</button>
-                  <button onClick={clearCurrentSetlist} className="h-9 px-3.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap" title="Apagar tudo e começar do zero">📄 Novo</button>
-                  <button onClick={saveToLibrary} className="h-9 px-3.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-colors flex items-center gap-1.5 whitespace-nowrap" title="Salvar este repertório na sua biblioteca">💾 Salvar</button>
+                
+                {/* BOTÕES COM LAYOUT RESPONSIVO OTIMIZADO (GRID NO MOBILE, FLEX NO DESKTOP) */}
+                <div className="grid grid-cols-2 sm:flex sm:flex-row items-center gap-2 w-full sm:w-auto">
+                  <button onClick={() => setShowSongBankModal(true)} className="col-span-2 sm:col-span-auto h-9 px-3.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Inserir música do seu Banco de Músicas Frequentes">📂 Inserir do Banco</button>
+                  <button onClick={clearCurrentSetlist} className="h-9 px-3.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Apagar tudo e começar do zero">📄 Novo</button>
+                  <button onClick={saveToLibrary} className="h-9 px-3.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Salvar este repertório na sua biblioteca">💾 Salvar</button>
                 </div>
               </div>
               
@@ -999,7 +1001,7 @@ export default function PromptLabPage() {
 
                         <div className="flex items-center gap-1 border-l border-slate-700 pl-3">
                           <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9" title="Subir">⬆️</button>
-                          <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9" title="Descer">⬇️️</button>
+                          <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9" title="Descer">⬇</button>
                           <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-8 !w-9" title="Excluir">🗑️</button>
                         </div>
                       </div>
@@ -1417,7 +1419,7 @@ export default function PromptLabPage() {
                     : 'bg-green-500/20 text-green-500 border-green-500/50 hover:bg-green-500/30'
                 }`}
               >
-                {isPrompterPlaying ? '⏸ Pausar' : '▶️ Tocar'}
+                {isPrompterPlaying ? '⏸ Pausar' : '▶️️ Tocar'}
               </button>
             </div>
           </div>
