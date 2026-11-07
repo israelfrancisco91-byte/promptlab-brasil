@@ -30,7 +30,6 @@ export default function PromptLabPage() {
   const [repertoireHeader, setRepertoireHeader] = useState("")
   const [songs, setSongs] = useState<Song[]>([{ id: 'init-1', title: "", content: "" }])
 
-  // --- BANCO DE MÚSICAS FREQUENTES ---
   const [songBank, setSongBank] = useState<BankSong[]>([])
   const [showSongBankModal, setShowSongBankModal] = useState(false)
   const [bankSearchQuery, setBankSearchQuery] = useState("")
@@ -132,7 +131,6 @@ export default function PromptLabPage() {
     localStorage.setItem('promptlab_song_bank', JSON.stringify(songBank))
   }, [songBank])
 
-  // --- FUNÇÕES DO BANCO DE MÚSICAS ---
   const saveSongToBank = (song: Song) => {
     if (!song.title.trim()) {
       alert("Dê um título à música antes de salvá-la no banco!");
@@ -152,7 +150,7 @@ export default function PromptLabPage() {
     } else {
       setSongBank([...songBank, { id: Date.now().toString(), title: song.title, content: song.content }]);
     }
-    alert(`⭐ Música "${song.title}" salva no Banco com sucesso!`);
+    alert(`🔥 Música "${song.title}" salva no Banco com sucesso!`);
   };
 
   const insertSongFromBank = (bankSong: BankSong) => {
@@ -316,7 +314,6 @@ export default function PromptLabPage() {
     }, 10);
   };
 
-  // --- MOTOR INTELIGENTE DE COLAGEM POR ÁRVORE DOM COM PRESERVAÇÃO DE ESPAÇOS ---
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, index: number) => {
     e.preventDefault();
     
@@ -332,7 +329,6 @@ export default function PromptLabPage() {
 
         const extractTextWithNewlines = (node: Node): string => {
           if (node.nodeType === Node.TEXT_NODE) {
-            // Substitui non-breaking spaces por espaços normais para garantir o alinhamento 
             return (node.textContent || "").replace(/\u00A0/g, ' ');
           }
           if (node.nodeType === Node.ELEMENT_NODE) {
@@ -350,13 +346,11 @@ export default function PromptLabPage() {
 
             const blockTags = ['p', 'div', 'tr', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section', 'article', 'header', 'footer', 'blockquote'];
             if (blockTags.includes(tag)) {
-              // Removido o trim() daqui para não engolir espaços se a cifra estiver dentro de div/p
               return '\n' + innerText + '\n';
             }
 
             if (tag === 'b' || tag === 'strong') {
               if (innerText.trim()) {
-                // Captura espaços antes e depois para colocar o negrito só na palavra, sem desalinhar
                 const match = innerText.match(/^(\s*)([\s\S]*?)(\s*)$/);
                 if (match) {
                   return `${match[1]}**${match[2]}**${match[3]}`;
@@ -382,14 +376,9 @@ export default function PromptLabPage() {
     if (!finalText) return;
 
     finalText = finalText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // CORREÇÃO MESTRA: trimEnd() em vez de trim(). Assim limpamos lixo do final, mas blindamos os espaços do início!
     finalText = finalText.split('\n').map(line => line.trimEnd()).join('\n');
-    
-    // Removemos quebras triplas e removemos quebras vazias do começo do texto colado
     finalText = finalText.replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '');
 
-    // Limpa tags de negrito que caíram acidentalmente na linha da cifra
     finalText = finalText.split('\n').map(line => {
       if (isChordLine(line)) {
         return line.replace(/\*\*/g, '');
@@ -544,7 +533,7 @@ export default function PromptLabPage() {
       id: Date.now().toString(), name, date: new Date().toLocaleDateString('pt-BR'), header: repertoireHeader, songs: [...songs]
     }
     setSavedRepertoires([...savedRepertoires, newRep])
-    alert("✅ Repertório salvo na sua biblioteca com sucesso!")
+    alert("🔥 Repertório salvo na sua biblioteca com sucesso!")
   }
 
   const loadFromLibrary = (rep: SavedRepertoire) => {
@@ -682,7 +671,6 @@ export default function PromptLabPage() {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
       
-      // Limite expandido de 42 para 44 (acomoda perfeitamente a frase longa sem quebrar errado)
       const charLimit = 44; 
       
       const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
@@ -757,7 +745,9 @@ export default function PromptLabPage() {
               const lChunk = lyricLine.substring(0, breakIdx);
 
               if (cChunk.trim() !== "") {
-                doc.setFont("Courier", "bold"); doc.setFontSize(10); doc.setTextColor(37, 99, 235);
+                doc.setFont("Courier", "bold"); doc.setFontSize(10); 
+                // Cifras no PDF no tom Laranja Escuro/Ferrugem para combinar com o tema
+                doc.setTextColor(234, 88, 12);
                 doc.text(cChunk.replace(/\*\*/g, ''), currentX, currentY); 
               }
               currentY += 4.5;
@@ -789,7 +779,8 @@ export default function PromptLabPage() {
               doc.setFontSize(10); doc.setTextColor(0, 0, 0);
               
               if (isChordLine(line)) { 
-                doc.setFont("Courier", "bold"); doc.setTextColor(37, 99, 235); 
+                doc.setFont("Courier", "bold"); 
+                doc.setTextColor(234, 88, 12); 
                 doc.text(chunk.replace(/\*\*/g, ''), currentX, currentY);
               } else { 
                 if (chunk.includes('**')) {
@@ -834,34 +825,34 @@ export default function PromptLabPage() {
   return (
      <div className="min-h-screen text-white font-sans p-4 relative z-0">
       
-      {/* BACKGROUND TEMA SÃO JOÃO SOFISTICADO */}
-      <div className="fixed inset-0 z-[-1] bg-[#020617]">
+      {/* BACKGROUND TEMA DARK STAGE (PRETO E LARANJA) */}
+      <div className="fixed inset-0 z-[-1] bg-[#09090b]">
         <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
-        <div className="absolute bottom-0 left-0 right-0 h-[80vh] bg-gradient-to-t from-purple-900/30 to-transparent"></div>
-        <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-orange-600/10 blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 right-0 h-[80vh] bg-gradient-to-t from-orange-900/20 to-transparent"></div>
+        <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-orange-600/15 blur-[120px] pointer-events-none"></div>
       </div>
 
       <style jsx global>{`
-        .panel { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(30, 41, 59, 0.8); border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7); }
-        .card { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(8px); border: 1px solid rgba(51, 65, 85, 0.8); border-radius: 12px; padding: 16px; transition: 0.2s; }
-        .card:focus-within { border-color: #a855f7; box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2); }
-        label { color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
+        .panel { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(39, 39, 42, 0.8); border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7); }
+        .card { background: rgba(39, 39, 42, 0.5); backdrop-filter: blur(8px); border: 1px solid rgba(63, 63, 70, 0.8); border-radius: 12px; padding: 16px; transition: 0.2s; }
+        .card:focus-within { border-color: #f97316; box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2); }
+        label { color: #a1a1aa; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em; }
         
-        input { background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
-        textarea { background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; font-family: 'Courier New', Courier, monospace !important; }
-        input:focus, textarea:focus { outline: none; border-color: #a855f7; }
+        input { background: rgba(24, 24, 27, 0.9); border: 1px solid #3f3f46; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; }
+        textarea { background: rgba(24, 24, 27, 0.9); border: 1px solid #3f3f46; color: white; padding: 12px; border-radius: 8px; width: 100%; transition: all 0.2s; margin-bottom: 12px; font-family: 'Courier New', Courier, monospace !important; }
+        input:focus, textarea:focus { outline: none; border-color: #f97316; }
         
         .font-mono { font-family: 'Courier New', Courier, monospace !important; }
 
         .btn { padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; border: none; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; }
         .btn-green { background: #22c55e; color: white; margin-bottom: 10px; }
         .btn-green:hover { background: #16a34a; }
-        .btn-blue { background: #2563eb; color: white; }
-        .btn-blue:hover { background: #1d4ed8; }
-        .btn-icon { background: #334155; color: white; border: none; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
-        .btn-icon:hover { background: #475569; }
-        .btn-transpose { background: #475569; font-size: 0.7rem; font-weight: bold; border-radius: 6px; padding: 0 8px; height: 32px; transition: 0.2s; }
-        .btn-transpose:hover { background: #3b82f6; }
+        .btn-orange { background: #ea580c; color: white; }
+        .btn-orange:hover { background: #c2410c; }
+        .btn-icon { background: #3f3f46; color: white; border: none; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+        .btn-icon:hover { background: #52525b; }
+        .btn-transpose { background: #3f3f46; font-size: 0.7rem; font-weight: bold; border-radius: 6px; padding: 0 8px; height: 32px; transition: 0.2s; }
+        .btn-transpose:hover { background: #ea580c; }
         .btn-danger { background: #ef4444; }
         .btn-danger:hover { background: #b91c1c; }
         .btn-play { background: #10b981; color: white; font-size: 0.75rem; font-weight: bold; border-radius: 6px; padding: 0 12px; height: 32px; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
@@ -869,36 +860,36 @@ export default function PromptLabPage() {
         
         .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; border-radius: 8px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 8px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 8px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
         .nav-tab { padding: 10px 12px; font-weight: 800; text-transform: uppercase; font-size: 0.70rem; border-radius: 8px; cursor: pointer; transition: 0.2s; flex: 1 1 auto; text-align: center; white-space: nowrap; }
         @media (min-width: 640px) { .nav-tab { font-size: 0.80rem; padding: 12px 20px; } }
-        .nav-tab.active { background: linear-gradient(135deg, #3b82f6 0%, #a855f7 100%); color: white; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4); }
-        .nav-tab.inactive { background: transparent; color: #94a3b8; border: 1px solid transparent; }
-        .nav-tab.inactive:hover { background: rgba(30, 41, 59, 0.8); color: white; }
+        .nav-tab.active { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); color: white; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4); }
+        .nav-tab.inactive { background: transparent; color: #a1a1aa; border: 1px solid transparent; }
+        .nav-tab.inactive:hover { background: rgba(39, 39, 42, 0.8); color: white; }
         
-        .note-btn { background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; padding: 12px 0; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; color: #cbd5e1; }
-        .note-btn:hover { background: #475569; }
-        .note-btn.active { background: #a855f7; border-color: #d8b4fe; color: white; box-shadow: 0 0 15px rgba(168, 85, 247, 0.5); }
+        .note-btn { background: rgba(39, 39, 42, 0.8); border: 1px solid #52525b; padding: 12px 0; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; color: #d4d4d8; }
+        .note-btn:hover { background: #52525b; }
+        .note-btn.active { background: #f97316; border-color: #fdba74; color: white; box-shadow: 0 0 15px rgba(249, 115, 22, 0.5); }
 
         .prompter-line { white-space: pre-wrap; min-height: 1.5em; word-break: break-word; }
-        .prompter-chord { color: #d8b4fe; font-weight: bold; }
+        .prompter-chord { color: #fdba74; font-weight: bold; }
         .prompter-lyric { color: #ffffff; }
       `}</style>
 
       {/* NAVEGAÇÃO INSTITUCIONAL */}
       {!prompterSong && (
-        <nav className="max-w-5xl mx-auto bg-[#0f172a]/90 border border-slate-800 rounded-xl px-5 py-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+        <nav className="max-w-5xl mx-auto bg-[#18181b]/90 border border-zinc-800 rounded-xl px-5 py-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
           <a href="/" className="font-black text-xl tracking-tighter text-white hover:opacity-80 transition-opacity">
-            PromptLab<span className="text-purple-500">.</span>
+            PromptLab<span className="text-orange-500">.</span>
           </a>
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
-            <a href="#ferramenta" className="hover:text-blue-400 transition-colors">Ferramenta</a>
-            <a href="#guias" className="hover:text-blue-400 transition-colors">Guias</a>
-            <a href="/blog" className="hover:text-blue-400 transition-colors">Blog</a>
-            <a href="/privacidade" className="hover:text-blue-400 transition-colors">Privacidade</a>
-            <a href="/termos" className="hover:text-blue-400 transition-colors">Termos</a>
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-zinc-400">
+            <a href="#ferramenta" className="hover:text-orange-400 transition-colors">Ferramenta</a>
+            <a href="#guias" className="hover:text-orange-400 transition-colors">Guias</a>
+            <a href="/blog" className="hover:text-orange-400 transition-colors">Blog</a>
+            <a href="/privacidade" className="hover:text-orange-400 transition-colors">Privacidade</a>
+            <a href="/termos" className="hover:text-orange-400 transition-colors">Termos</a>
           </div>
         </nav>
       )}
@@ -907,34 +898,34 @@ export default function PromptLabPage() {
       {!prompterSong && (
         <header className="max-w-5xl mx-auto text-center py-8">
           <div className="max-w-3xl mx-auto">
-            <span className="inline-flex items-center gap-2 mb-4 rounded-full border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-purple-200">
+            <span className="inline-flex items-center gap-2 mb-4 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-orange-200">
               Organizador de repertório para músicos, ministérios e bandas
             </span>
-            <h1 className="text-5xl sm:text-6xl font-black tracking-tighter mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">PromptLab BR</h1>
-            <p className="text-slate-300 text-base sm:text-lg leading-relaxed mb-4">
+            <h1 className="text-5xl sm:text-6xl font-black tracking-tighter mb-4 bg-gradient-to-r from-orange-400 to-amber-500 bg-clip-text text-transparent">PromptLab BR</h1>
+            <p className="text-zinc-300 text-base sm:text-lg leading-relaxed mb-4">
               Monte repertórios, organize cifras, ajuste tons, use teleprompter e gere PDFs limpos para ensaios, missas, apresentações, grupos de oração, corais e bandas.
             </p>
-            <p className="text-slate-500 text-sm leading-relaxed mb-8">
+            <p className="text-zinc-500 text-sm leading-relaxed mb-8">
               A ferramenta não publica letras ou cifras de terceiros: o conteúdo é inserido pelo próprio usuário, que deve utilizar apenas materiais próprios, autorizados ou de uso permitido.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8 text-left">
-            <div className="bg-[#0f172a]/80 border border-slate-800 rounded-xl p-4">
+            <div className="bg-[#18181b]/80 border border-zinc-800/80 rounded-xl p-4">
               <h2 className="font-black text-white mb-1 text-sm">📄 PDF organizado</h2>
-              <p className="text-slate-400 text-xs leading-relaxed">Gere repertórios em colunas, com cabeçalho, cifras destacadas e leitura fácil.</p>
+              <p className="text-zinc-400 text-xs leading-relaxed">Gere repertórios em colunas, com cabeçalho, cifras destacadas e leitura fácil.</p>
             </div>
-            <div className="bg-[#0f172a]/80 border border-slate-800 rounded-xl p-4">
+            <div className="bg-[#18181b]/80 border border-zinc-800/80 rounded-xl p-4">
               <h2 className="font-black text-white mb-1 text-sm">🎸 Transposição rápida</h2>
-              <p className="text-slate-400 text-xs leading-relaxed">Suba ou desça meio tom sem mexer na letra da música.</p>
+              <p className="text-zinc-400 text-xs leading-relaxed">Suba ou desça meio tom sem mexer na letra da música.</p>
             </div>
-            <div className="bg-[#0f172a]/80 border border-slate-800 rounded-xl p-4">
+            <div className="bg-[#18181b]/80 border border-zinc-800/80 rounded-xl p-4">
               <h2 className="font-black text-white mb-1 text-sm">▶️ Modo palco</h2>
-              <p className="text-slate-400 text-xs leading-relaxed">Use o teleprompter para acompanhar a música durante ensaios e apresentações.</p>
+              <p className="text-zinc-400 text-xs leading-relaxed">Use o teleprompter para acompanhar a música durante ensaios e apresentações.</p>
             </div>
           </div>
           
-          <div id="ferramenta" className="grid grid-cols-2 sm:flex sm:flex-row bg-[#0f172a] p-2 rounded-xl border border-slate-800 gap-2">
+          <div id="ferramenta" className="grid grid-cols-2 sm:flex sm:flex-row bg-[#18181b] p-2 rounded-xl border border-zinc-800/80 gap-2">
             <button className={`nav-tab flex-1 ${activeTab === 'setlist' ? 'active' : 'inactive'}`} onClick={() => setActiveTab('setlist')}>📚 Repertório</button>
             <button className={`nav-tab flex-1 ${activeTab === 'library' ? 'active' : 'inactive'}`} onClick={() => setActiveTab('library')}>📂 Salvos</button>
             <button className={`nav-tab flex-1 ${activeTab === 'capo' ? 'active' : 'inactive'}`} onClick={() => setActiveTab('capo')}>🎸 Capo</button>
@@ -949,78 +940,78 @@ export default function PromptLabPage() {
           
           {/* ================= ABA 1: REPERTÓRIO ================= */}
           {activeTab === 'setlist' && (
-            <section className="panel border-l-4 border-green-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-800 pb-6">
+            <section className="panel border-l-4 border-orange-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-zinc-800 pb-6">
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-black">📚 Construtor de PDF</h2>
-                  <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs text-slate-400 hover:text-white underline ml-2">
+                  <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs text-zinc-400 hover:text-white underline ml-2">
                     {showInstructions ? "Ocultar" : "Como usar"}
                   </button>
                 </div>
                 
                 <div className="grid grid-cols-2 sm:flex sm:flex-row items-center gap-2 w-full sm:w-auto">
-                  <button onClick={() => setShowSongBankModal(true)} className="col-span-2 sm:col-span-auto h-9 px-3.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Inserir música do seu Banco de Músicas Frequentes">📂 Inserir do Banco</button>
-                  <button onClick={clearCurrentSetlist} className="h-9 px-3.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Apagar tudo e começar do zero">📄 Novo</button>
-                  <button onClick={saveToLibrary} className="h-9 px-3.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Salvar este repertório na sua biblioteca">💾 Salvar</button>
+                  <button onClick={() => setShowSongBankModal(true)} className="col-span-2 sm:col-span-auto h-9 px-3.5 bg-zinc-800 hover:bg-zinc-700 text-orange-400 text-xs font-bold uppercase rounded-lg border border-zinc-700 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Inserir música do seu Banco de Músicas Frequentes">📂 Inserir do Banco</button>
+                  <button onClick={clearCurrentSetlist} className="h-9 px-3.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Apagar tudo e começar do zero">📄 Novo</button>
+                  <button onClick={saveToLibrary} className="h-9 px-3.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(234,88,12,0.4)] transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Salvar este repertório na sua biblioteca">💾 Salvar</button>
                 </div>
               </div>
               
               {showInstructions && (
-                <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700 text-sm text-slate-300 leading-relaxed space-y-4 mb-8 shadow-inner">
-                  <h3 className="font-bold text-white text-base mb-2 border-b border-slate-700 pb-2">Guia Rápido de Uso</h3>
+                <div className="bg-[#27272a] p-6 rounded-xl border border-zinc-700/80 text-sm text-zinc-300 leading-relaxed space-y-4 mb-8 shadow-inner">
+                  <h3 className="font-bold text-white text-base mb-2 border-b border-zinc-700/80 pb-2">Guia Rápido de Uso</h3>
                   <ul className="space-y-3">
-                    <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-blue-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">⭐</span><div><strong className="text-purple-400">Banco de Músicas:</strong> Clique em "Salvar no Banco" em qualquer música para guardá-la e reutilizá-la depois em futuros repertórios.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">📝</span><div><strong className="text-amber-400">Adicionar Músicas:</strong> Insira o título e cole a cifra. Tudo é salvo automaticamente.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">🔥</span><div><strong className="text-orange-400">Banco de Músicas:</strong> Clique em "Salvar no Banco" em qualquer música para guardá-la e reutilizá-la depois em futuros repertórios.</div></li>
                     <li className="flex items-start gap-3"><span className="text-lg">▶️</span><div><strong className="text-green-400">Teleprompter:</strong> Clique no botão Play verde em qualquer música para entrar no Modo Palco e rolar a tela automaticamente.</div></li>
-                    <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-blue-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
+                    <li className="flex items-start gap-3"><span className="text-lg">🎛️</span><div><strong className="text-amber-400">Transposição:</strong> Altere o tom clicando em -½ Tom e +½ Tom.</div></li>
                   </ul>
                 </div>
               )}
               
               <div className="mb-6">
                 <label>Cabeçalho do PDF (Título da Página)</label>
-                <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo, Show de Rock..." className="bg-[#0f172a]" />
+                <input value={repertoireHeader} onChange={(e) => setRepertoireHeader(e.target.value)} placeholder="Ex: Missa de Domingo, Show de Rock..." className="bg-[#18181b]" />
               </div>
 
               {/* LISTA DE MÚSICAS */}
               <div className="mb-6 space-y-1">
                 {songs.map((song, index) => (
                   <div key={song.id} className="relative">
-                    <div className="card relative group border-l-4 border-l-transparent focus-within:border-l-blue-500 z-10">
+                    <div className="card relative group border-l-4 border-l-transparent focus-within:border-l-orange-500 z-10">
                       
                       <div className="mb-3">
-                        <label className="!mb-1 text-slate-400">Título da Música {index + 1}</label>
-                        <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
+                        <label className="!mb-1 text-zinc-400">Título da Música {index + 1}</label>
+                        <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#18181b] font-bold" />
                       </div>
                       
                       {/* TOOLBAR DESKTOP */}
-                      <div className="hidden sm:flex flex-wrap items-center justify-between gap-2 mb-3 bg-[#0f172a] p-2.5 rounded-lg border border-slate-700/50">
+                      <div className="hidden sm:flex flex-wrap items-center justify-between gap-2 mb-3 bg-[#18181b] p-2.5 rounded-lg border border-zinc-700/50">
                         <div className="flex items-center gap-2 flex-wrap">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
-                            <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                            <button onClick={() => handleToggleCase(index)} className="h-8 px-3 bg-[#3f3f46] hover:bg-[#52525b] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
+                            <button onClick={() => handleToggleBold(index)} className="h-8 px-3 bg-[#3f3f46] hover:bg-[#52525b] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
                           </div>
                           
-                          <div className="w-px h-5 bg-slate-700 mx-0.5"></div>
+                          <div className="w-px h-5 bg-zinc-700 mx-0.5"></div>
                           
                           <div className="flex items-center gap-1">
                             <button onClick={() => transposeSong(index, -1)} className="btn-transpose !m-0">-½ Tom</button>
                             <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0">+½ Tom</button>
                           </div>
 
-                          <div className="w-px h-5 bg-slate-700 mx-0.5"></div>
+                          <div className="w-px h-5 bg-zinc-700 mx-0.5"></div>
 
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-none justify-center whitespace-nowrap" title="Modo Palco: Rolar letra automaticamente">
                               ▶️ Prompter
                             </button>
-                            <button onClick={() => saveSongToBank(song)} className="h-8 px-3 bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Salvar esta música no seu Banco de Músicas Frequentes">
-                              ⭐ Salvar no Banco
+                            <button onClick={() => saveSongToBank(song)} className="h-8 px-3 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white border border-orange-500/30 text-xs font-bold rounded-md transition-colors flex items-center gap-1" title="Salvar esta música no seu Banco de Músicas Frequentes">
+                              🔥 Salvar no Banco
                             </button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 border-l border-slate-700 pl-3">
+                        <div className="flex items-center gap-1 border-l border-zinc-700 pl-3">
                           <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-8 !w-9" title="Subir">⬆️</button>
                           <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-8 !w-9" title="Descer">⬇</button>
                           <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-8 !w-9" title="Excluir">🗑️</button>
@@ -1028,13 +1019,13 @@ export default function PromptLabPage() {
                       </div>
 
                       {/* TOOLBAR MOBILE: PARTE SUPERIOR */}
-                      <div className="flex sm:hidden flex-col gap-3 mb-3 bg-[#0f172a] p-3 rounded-lg border border-slate-700/50">
+                      <div className="flex sm:hidden flex-col gap-3 mb-3 bg-[#18181b] p-3 rounded-lg border border-zinc-700/50">
                         <div className="flex gap-2">
                           <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-1 justify-center whitespace-nowrap !h-10 text-xs" title="Modo Palco">
                             ▶️ Prompter
                           </button>
-                          <button onClick={() => saveSongToBank(song)} className="h-10 px-3 bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold rounded-md transition-colors flex items-center justify-center gap-1">
-                            ⭐ Salvar
+                          <button onClick={() => saveSongToBank(song)} className="h-10 px-3 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white border border-orange-500/30 text-xs font-bold rounded-md transition-colors flex items-center justify-center gap-1">
+                            🔥 Salvar
                           </button>
                         </div>
 
@@ -1044,7 +1035,7 @@ export default function PromptLabPage() {
                             <button onClick={() => transposeSong(index, 1)} className="btn-transpose !m-0 !px-3 !h-9 text-xs">+½ Tom</button>
                           </div>
 
-                          <div className="flex items-center gap-2 border-l border-slate-700 pl-3">
+                          <div className="flex items-center gap-2 border-l border-zinc-700 pl-3">
                             <button onClick={() => moveSong(index, 'up')} disabled={index === 0} className="btn-icon disabled:opacity-30 !h-9 !w-10 text-sm">⬆️</button>
                             <button onClick={() => moveSong(index, 'down')} disabled={index === songs.length - 1} className="btn-icon disabled:opacity-30 !h-9 !w-10 text-sm">⬇️</button>
                             <button onClick={() => removeSong(index)} className="btn-icon btn-danger !h-9 !w-10 text-sm">🗑️</button>
@@ -1060,14 +1051,14 @@ export default function PromptLabPage() {
                           onChange={(e) => updateSong(index, 'content', e.target.value)}
                           onPaste={(e) => handlePaste(e, index)} 
                           placeholder="Cole as estrofes e refrões cifrados aqui..." 
-                          className="!mb-0 text-sm font-mono !bg-[#0f172a]" 
+                          className="!mb-0 text-sm font-mono !bg-[#18181b]" 
                         />
                       </div>
 
                       {/* TOOLBAR MOBILE: PARTE INFERIOR */}
-                      <div className="flex sm:hidden items-center gap-2 mt-2 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50 w-max">
-                        <button onClick={() => handleToggleCase(index)} className="h-8 px-5 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
-                        <button onClick={() => handleToggleBold(index)} className="h-8 px-5 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
+                      <div className="flex sm:hidden items-center gap-2 mt-2 bg-[#18181b] p-2 rounded-lg border border-zinc-700/50 w-max">
+                        <button onClick={() => handleToggleCase(index)} className="h-8 px-5 bg-[#3f3f46] hover:bg-[#52525b] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
+                        <button onClick={() => handleToggleBold(index)} className="h-8 px-5 bg-[#3f3f46] hover:bg-[#52525b] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
                       </div>
 
                     </div>
@@ -1075,7 +1066,7 @@ export default function PromptLabPage() {
                     <div className="flex justify-center my-2 opacity-60 hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => insertSongAfter(index)}
-                        className="bg-[#0f172a] text-slate-400 hover:text-blue-400 text-xs font-bold py-1 px-4 rounded-full border border-dashed border-slate-600 hover:border-blue-500 transition-all flex items-center gap-2 shadow-sm"
+                        className="bg-[#18181b] text-zinc-400 hover:text-orange-400 text-xs font-bold py-1 px-4 rounded-full border border-dashed border-zinc-600 hover:border-orange-500 transition-all flex items-center gap-2 shadow-sm"
                         title="Adicionar uma nova música neste espaço"
                       >
                         ➕ Inserir Abaixo
@@ -1085,19 +1076,19 @@ export default function PromptLabPage() {
                 ))}
               </div>
 
-              <button onClick={addSong} className="w-full p-4 rounded-xl border-2 border-dashed border-slate-600 text-slate-400 font-bold hover:border-blue-500 hover:text-blue-500 transition-colors mb-8 mt-4">➕ Adicionar Nova Música no Final</button>
+              <button onClick={addSong} className="w-full p-4 rounded-xl border-2 border-dashed border-zinc-600 text-zinc-400 font-bold hover:border-orange-500 hover:text-orange-500 transition-colors mb-8 mt-4">➕ Adicionar Nova Música no Final</button>
               
-              <div className="pt-4 border-t border-slate-800 space-y-3">
+              <div className="pt-4 border-t border-zinc-800 space-y-3">
                 <button 
                   onClick={handleGenerateShareLink}
                   disabled={isShareLoading}
-                  className="btn bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black shadow-[0_4px_15px_rgba(147,51,234,0.3)] disabled:opacity-50"
+                  className="btn bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black shadow-[0_4px_15px_rgba(234,88,12,0.3)] disabled:opacity-50"
                 >
                   {isShareLoading ? "⏳ Otimizando Arquivo..." : "🔗 Criar Link de Acesso (WhatsApp)"}
                 </button>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 !mt-2">
                   <button onClick={() => processPDF('download')} className="btn btn-green !mb-0">📄 Gerar PDF</button>
-                  <button onClick={() => processPDF('share')} className="btn btn-blue">📱 Enviar PDF via WhatsApp</button>
+                  <button onClick={() => processPDF('share')} className="btn bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white !mb-0">📱 Enviar PDF via WhatsApp</button>
                 </div>
               </div>
             </section>
@@ -1105,15 +1096,15 @@ export default function PromptLabPage() {
 
           {/* ================= ABA 2: BIBLIOTECA ================= */}
           {activeTab === 'library' && (
-            <section className="panel border-l-4 border-blue-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-slate-800 pb-4 gap-4">
+            <section className="panel border-l-4 border-amber-500 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-zinc-800 pb-4 gap-4">
                 <div>
                   <h2 className="text-xl font-black flex items-center gap-2 mb-1">📂 Meus Repertórios Salvos</h2>
-                  <p className="text-slate-400 text-sm">Suas listas ficam armazenadas no seu aparelho.</p>
+                  <p className="text-zinc-400 text-sm">Suas listas ficam armazenadas no seu aparelho.</p>
                 </div>
                 <div>
                   <input type="file" id="import-file" style={{ display: 'none' }} accept=".promptlab" onChange={handleImport} />
-                  <button onClick={() => document.getElementById('import-file')?.click()} className="btn-icon !w-auto px-4 !bg-emerald-600 hover:!bg-emerald-500 text-xs font-bold uppercase shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                  <button onClick={() => document.getElementById('import-file')?.click()} className="btn-icon !w-auto px-4 !bg-zinc-800 hover:!bg-zinc-700 border border-zinc-700 text-xs font-bold uppercase">
                     📥 Importar
                   </button>
                 </div>
@@ -1126,37 +1117,37 @@ export default function PromptLabPage() {
                     value={librarySearchQuery} 
                     onChange={(e) => setLibrarySearchQuery(e.target.value)} 
                     placeholder="🔍 Pesquisar repertório salvo..." 
-                    className="!bg-[#1e293b] !border-slate-700 !mb-0 shadow-inner" 
+                    className="!bg-[#27272a] !border-zinc-700/80 !mb-0 shadow-inner" 
                   />
                 </div>
               )}
 
               {savedRepertoires.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed border-slate-800 rounded-xl">
+                <div className="text-center py-12 border-2 border-dashed border-zinc-800 rounded-xl">
                   <div className="text-4xl mb-4 opacity-50">📁</div>
-                  <h3 className="text-lg font-bold text-slate-300 mb-2">Sua biblioteca está vazia</h3>
-                  <button onClick={() => setActiveTab('setlist')} className="mt-6 text-blue-400 font-bold hover:underline">Criar meu primeiro repertório &rarr;</button>
+                  <h3 className="text-lg font-bold text-zinc-300 mb-2">Sua biblioteca está vazia</h3>
+                  <button onClick={() => setActiveTab('setlist')} className="mt-6 text-orange-400 font-bold hover:underline">Criar meu primeiro repertório &rarr;</button>
                 </div>
               ) : filteredRepertoires.length === 0 ? (
-                <div className="text-center py-10 border border-slate-800 rounded-xl bg-[#0f172a]">
-                  <p className="text-slate-400">Nenhum repertório encontrado com <strong className="text-white">"{librarySearchQuery}"</strong></p>
+                <div className="text-center py-10 border border-zinc-800 rounded-xl bg-[#18181b]">
+                  <p className="text-zinc-400">Nenhum repertório encontrado com <strong className="text-white">"{librarySearchQuery}"</strong></p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {filteredRepertoires.map((rep) => (
-                    <div key={rep.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors overflow-hidden flex flex-col justify-between">
+                    <div key={rep.id} className="bg-[#27272a] border border-zinc-700/80 rounded-xl p-5 hover:border-orange-500 transition-colors overflow-hidden flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-start mb-2 gap-3">
                           <h3 className="font-bold text-white text-lg truncate flex-1">{rep.name}</h3>
-                          <span className="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded shrink-0 whitespace-nowrap">{rep.date}</span>
+                          <span className="text-xs font-bold text-zinc-500 bg-zinc-900 px-2 py-1 rounded shrink-0 whitespace-nowrap">{rep.date}</span>
                         </div>
-                        <p className="text-slate-400 text-xs mb-4 truncate">Músicas: {rep.songs.length}</p>
+                        <p className="text-zinc-400 text-xs mb-4 truncate">Músicas: {rep.songs.length}</p>
                       </div>
                       
                       <div className="flex gap-2">
-                        <button onClick={() => loadFromLibrary(rep)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-3 rounded-lg transition-colors truncate">Carregar</button>
-                        <button onClick={() => exportRepertoire(rep)} className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg shrink-0" title="Baixar arquivo para enviar no WhatsApp">📤</button>
-                        <button onClick={() => deleteFromLibrary(rep.id)} className="bg-slate-700 hover:bg-red-500 text-white p-2 rounded-lg shrink-0" title="Excluir repertório">🗑️</button>
+                        <button onClick={() => loadFromLibrary(rep)} className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs py-2 px-3 rounded-lg transition-colors truncate">Carregar</button>
+                        <button onClick={() => exportRepertoire(rep)} className="bg-zinc-800 hover:bg-zinc-700 text-white p-2 rounded-lg shrink-0" title="Baixar arquivo para enviar no WhatsApp">📤</button>
+                        <button onClick={() => deleteFromLibrary(rep.id)} className="bg-zinc-800 hover:bg-red-500 text-white p-2 rounded-lg shrink-0" title="Excluir repertório">🗑️</button>
                       </div>
                     </div>
                   ))}
@@ -1167,28 +1158,28 @@ export default function PromptLabPage() {
 
           {/* ================= ABA 3: CAPOTRASTE ================= */}
           {activeTab === 'capo' && (
-            <section className="panel border-l-4 border-purple-500">
-               <div className="mb-6 border-b border-slate-800 pb-4">
+            <section className="panel border-l-4 border-orange-500">
+               <div className="mb-6 border-b border-zinc-800 pb-4">
                 <h2 className="text-xl font-black flex items-center gap-2 mb-2">🎸 Calculadora Capo</h2>
               </div>
               <div className="grid md:grid-cols-2 gap-8 mb-8">
-                <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
-                  <label className="text-blue-400">1. Tom da Música (Cantor)</label>
+                <div className="bg-[#27272a] p-5 rounded-xl border border-zinc-700/80">
+                  <label className="text-amber-400">1. Tom da Música (Cantor)</label>
                   <div className="grid grid-cols-4 gap-2">
                     {notesArray.map(n => <button key={`o-${n}`} onClick={() => setOriginalTone(n)} className={`note-btn ${originalTone === n ? 'active' : ''}`}>{n}</button>)}
                   </div>
                 </div>
-                <div className="bg-[#1e293b] p-5 rounded-xl border border-slate-700">
-                  <label className="text-purple-400">2. Acordes que farei (Shape)</label>
+                <div className="bg-[#27272a] p-5 rounded-xl border border-zinc-700/80">
+                  <label className="text-orange-400">2. Acordes que farei (Shape)</label>
                   <div className="grid grid-cols-4 gap-2">
                     {notesArray.map(n => <button key={`s-${n}`} onClick={() => setShapeTone(n)} className={`note-btn ${shapeTone === n ? 'active' : ''}`}>{n}</button>)}
                   </div>
                 </div>
               </div>
-              <div className={`p-8 rounded-xl text-center border-2 transition-all ${capoResult === 0 ? 'bg-slate-800/50 border-slate-700' : 'bg-gradient-to-br from-blue-900/40 to-purple-900/40 border-purple-500'}`}>
-                <h3 className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2">Resultado</h3>
-                {capoResult === 0 ? <div className="text-3xl font-black text-slate-300">Sem Capotraste</div> : 
-                  <div className="text-4xl md:text-5xl font-black text-white mb-2">Capo na <span className="text-purple-400">{capoResult}ª</span> Casa</div>}
+              <div className={`p-8 rounded-xl text-center border-2 transition-all ${capoResult === 0 ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gradient-to-br from-zinc-900/40 to-orange-900/20 border-orange-500'}`}>
+                <h3 className="text-zinc-400 font-bold uppercase tracking-widest text-sm mb-2">Resultado</h3>
+                {capoResult === 0 ? <div className="text-3xl font-black text-zinc-300">Sem Capotraste</div> : 
+                  <div className="text-4xl md:text-5xl font-black text-white mb-2">Capo na <span className="text-orange-500">{capoResult}ª</span> Casa</div>}
               </div>
             </section>
           )}
@@ -1196,17 +1187,17 @@ export default function PromptLabPage() {
           {/* ================= ABA 4: PESQUISAR ================= */}
           {activeTab === 'search' && (
             <section className="panel border-l-4 border-yellow-500">
-               <div className="mb-6 border-b border-slate-800 pb-4">
+               <div className="mb-6 border-b border-zinc-800 pb-4">
                 <h2 className="text-xl font-black flex items-center gap-2 mb-2">🔍 Encontrar Letras e Cifras</h2>
               </div>
-              <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700 mb-8">
-                <label className="text-yellow-400 text-sm mb-2">Qual música você está procurando?</label>
+              <div className="bg-[#27272a] p-6 rounded-xl border border-zinc-700/80 mb-8">
+                <label className="text-yellow-500 text-sm mb-2">Qual música você está procurando?</label>
                 <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch('google')} placeholder="Ex: Te Louvarei Diante do Trono" className="!mb-4 text-lg py-3 px-4" autoFocus />
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <button onClick={() => handleSearch('cifraclub')} className="bg-[#ff6600]/20 text-[#ff8833] border border-[#ff6600]/50 py-3 rounded-lg font-bold">🎸 Cifra Club</button>
                   <button onClick={() => handleSearch('letras')} className="bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/50 py-3 rounded-lg font-bold">🎵 Letras.mus</button>
-                  <button onClick={() => handleSearch('missa')} className="bg-purple-600/20 text-purple-400 border border-purple-600/50 py-3 rounded-lg font-bold">⛪ Missa</button>
+                  <button onClick={() => handleSearch('missa')} className="bg-orange-600/20 text-orange-400 border border-orange-600/50 py-3 rounded-lg font-bold">⛪ Missa</button>
                   <button onClick={() => handleSearch('google')} className="bg-blue-600/20 text-blue-400 border border-blue-600/50 py-3 rounded-lg font-bold">🌐 Google</button>
                 </div>
               </div>
@@ -1218,13 +1209,13 @@ export default function PromptLabPage() {
       {/* ================= MODAL DO BANCO DE MÚSICAS ================= */}
       {showSongBankModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
-            <button onClick={() => setShowSongBankModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+          <div className="bg-[#18181b] border border-zinc-700 rounded-xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
+            <button onClick={() => setShowSongBankModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-2xl font-bold">&times;</button>
             
             <div className="text-center mb-4">
-              <div className="text-3xl mb-1">⭐</div>
+              <div className="text-3xl mb-1">🔥</div>
               <h3 className="text-lg font-black text-white uppercase tracking-wider">Banco de Músicas Frequentes</h3>
-              <p className="text-slate-400 text-xs mt-1">Selecione uma música guardada para inseri-la instantaneamente no seu repertório.</p>
+              <p className="text-zinc-400 text-xs mt-1">Selecione uma música guardada para inseri-la instantaneamente no seu repertório.</p>
             </div>
 
             {songBank.length > 0 && (
@@ -1234,35 +1225,35 @@ export default function PromptLabPage() {
                   value={bankSearchQuery} 
                   onChange={(e) => setBankSearchQuery(e.target.value)} 
                   placeholder="🔍 Pesquisar no banco..." 
-                  className="!bg-[#1e293b] !border-slate-700 !mb-0 text-xs" 
+                  className="!bg-[#27272a] !border-zinc-700/80 !mb-0 text-xs" 
                 />
               </div>
             )}
 
             <div className="flex-1 overflow-y-auto custom-scroll space-y-2 pr-1 mb-4">
               {songBank.length === 0 ? (
-                <div className="text-center py-10 border border-slate-800 rounded-xl bg-[#1e293b]/50">
-                  <p className="text-slate-400 text-sm">O seu banco ainda está vazio.</p>
-                  <p className="text-slate-500 text-xs mt-1">Clique em <strong className="text-purple-400">"Salvar no Banco"</strong> em qualquer música do repertório para começar!</p>
+                <div className="text-center py-10 border border-zinc-800 rounded-xl bg-[#27272a]/50">
+                  <p className="text-zinc-400 text-sm">O seu banco ainda está vazio.</p>
+                  <p className="text-zinc-500 text-xs mt-1">Clique em <strong className="text-orange-400">"Salvar no Banco"</strong> em qualquer música do repertório para começar!</p>
                 </div>
               ) : songBank.filter(s => s.title.toLowerCase().includes(bankSearchQuery.toLowerCase())).length === 0 ? (
-                <div className="text-center py-8 border border-slate-800 rounded-xl bg-[#1e293b]">
-                  <p className="text-slate-400 text-sm">Nenhuma música encontrada com "{bankSearchQuery}"</p>
+                <div className="text-center py-8 border border-zinc-800 rounded-xl bg-[#27272a]">
+                  <p className="text-zinc-400 text-sm">Nenhuma música encontrada com "{bankSearchQuery}"</p>
                 </div>
               ) : (
                 songBank
                   .filter(s => s.title.toLowerCase().includes(bankSearchQuery.toLowerCase()))
                   .map((song) => (
-                    <div key={song.id} className="bg-[#1e293b] border border-slate-700/80 rounded-lg p-3 flex items-center justify-between gap-3 hover:border-purple-500 transition-colors">
+                    <div key={song.id} className="bg-[#27272a] border border-zinc-700/80 rounded-lg p-3 flex items-center justify-between gap-3 hover:border-orange-500 transition-colors">
                       <div className="truncate flex-1">
                         <h4 className="font-bold text-white text-sm truncate">{song.title}</h4>
-                        <p className="text-slate-400 text-[10px] truncate">Prévia: {song.content.substring(0, 40)}...</p>
+                        <p className="text-zinc-400 text-[10px] truncate">Prévia: {song.content.substring(0, 40)}...</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <button onClick={() => insertSongFromBank(song)} className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs py-1.5 px-3 rounded-md transition-colors">
+                        <button onClick={() => insertSongFromBank(song)} className="bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs py-1.5 px-3 rounded-md transition-colors">
                           ➕ Adicionar
                         </button>
-                        <button onClick={() => deleteFromSongBank(song.id, song.title)} className="bg-slate-800 hover:bg-red-500 text-slate-400 hover:text-white p-1.5 rounded-md transition-colors text-xs" title="Excluir do banco">
+                        <button onClick={() => deleteFromSongBank(song.id, song.title)} className="bg-zinc-800 hover:bg-red-500 text-zinc-400 hover:text-white p-1.5 rounded-md transition-colors text-xs" title="Excluir do banco">
                           🗑️
                         </button>
                       </div>
@@ -1273,7 +1264,7 @@ export default function PromptLabPage() {
 
             <button 
               onClick={() => setShowSongBankModal(false)}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 rounded-lg transition-colors uppercase"
+              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs py-2.5 rounded-lg transition-colors uppercase"
             >
               Fechar
             </button>
@@ -1284,8 +1275,8 @@ export default function PromptLabPage() {
       {/* ================= CONTEÚDO EDITORIAL / QUALIDADE PARA ADSENSE ================= */}
       {!prompterSong && (
         <div id="guias" className="max-w-5xl mx-auto mt-16 space-y-8">
-          <section className="p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-blue-400">Guia principal</span>
+          <section className="p-8 bg-[#18181b] border border-zinc-800 rounded-xl text-zinc-400 text-sm leading-relaxed shadow-lg">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-amber-500">Guia principal</span>
             <h2 className="text-3xl font-black text-white mt-2 mb-4">Gerador de repertório musical e cifras em PDF</h2>
             <p className="mb-5">
               O <strong>PromptLab Brasil</strong> é uma ferramenta online criada para músicos que precisam preparar repertórios de forma rápida, organizada e legível. A ideia é simples: você monta a lista de músicas, cola suas letras ou cifras autorizadas, ajusta o tom quando necessário e gera um PDF pronto para ensaio, celebração, apresentação ou estudo pessoal.
@@ -1294,15 +1285,15 @@ export default function PromptLabPage() {
               A proposta não é substituir o trabalho musical nem publicar acervos de letras protegidas. O foco é resolver um problema prático de organização: transformar textos soltos, anotações, cifras desalinhadas e arquivos improvisados em um repertório limpo, padronizado e fácil de consultar.
             </p>
             <div className="grid md:grid-cols-3 gap-4 mt-6">
-              <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+              <div className="bg-[#27272a] border border-zinc-700/80 rounded-xl p-5">
                 <h3 className="font-black text-white mb-2">Para ministérios</h3>
                 <p>Organize cantos de entrada, ofertório, comunhão, final e momentos de oração sem depender de folhas soltas.</p>
               </div>
-              <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+              <div className="bg-[#27272a] border border-zinc-700/80 rounded-xl p-5">
                 <h3 className="font-black text-white mb-2">Para bandas</h3>
                 <p>Monte setlists, salve versões diferentes e compartilhe com os integrantes antes do ensaio.</p>
               </div>
-              <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+              <div className="bg-[#27272a] border border-zinc-700/80 rounded-xl p-5">
                 <h3 className="font-black text-white mb-2">Para estudos</h3>
                 <p>Use a calculadora de capotraste, altere tons e leia as músicas no modo teleprompter.</p>
               </div>
@@ -1310,7 +1301,7 @@ export default function PromptLabPage() {
           </section>
 
           <section className="grid lg:grid-cols-2 gap-6">
-            <article className="p-7 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+            <article className="p-7 bg-[#18181b] border border-zinc-800 rounded-xl text-zinc-400 text-sm leading-relaxed shadow-lg">
               <h2 className="text-2xl font-black text-white mb-4">Como montar um repertório de missa ou culto sem se perder</h2>
               <p className="mb-4">
                 O primeiro passo é separar o repertório por momento. Em vez de jogar todas as músicas em uma lista única, divida por abertura, aclamação, ofertório, comunhão, ação de graças e encerramento. Essa organização ajuda o músico a entender a função de cada canção e evita mudanças de última hora sem critério.
@@ -1320,7 +1311,7 @@ export default function PromptLabPage() {
               </p>
             </article>
 
-            <article className="p-7 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+            <article className="p-7 bg-[#18181b] border border-zinc-800 rounded-xl text-zinc-400 text-sm leading-relaxed shadow-lg">
               <h2 className="text-2xl font-black text-white mb-4">Por que gerar PDF em vez de mandar prints no grupo?</h2>
               <p className="mb-4">
                 Prints parecem práticos, mas costumam ficar pequenos, cortados ou fora de ordem. O PDF mantém o repertório em um único arquivo, facilita impressão, abre bem no celular e evita que cada integrante receba uma versão diferente da mesma lista.
@@ -1331,22 +1322,22 @@ export default function PromptLabPage() {
             </article>
           </section>
 
-          <section className="p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+          <section className="p-8 bg-[#18181b] border border-zinc-800 rounded-xl text-zinc-400 text-sm leading-relaxed shadow-lg">
             <h2 className="text-2xl font-black text-white mb-4">Guias rápidos para músicos</h2>
             <div className="grid md:grid-cols-2 gap-4">
-              <a href="/blog" className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
+              <a href="/blog" className="block bg-[#27272a] border border-zinc-700/80 rounded-xl p-5 hover:border-orange-500 transition-colors">
                 <h3 className="font-black text-white mb-2">Como transpor cifras sem alterar a letra</h3>
                 <p>Entenda por que é importante mexer apenas nos acordes e preservar o texto original da música.</p>
               </a>
-              <a href="/blog" className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
+              <a href="/blog" className="block bg-[#27272a] border border-zinc-700/80 rounded-xl p-5 hover:border-orange-500 transition-colors">
                 <h3 className="font-black text-white mb-2">Como usar capotraste na prática</h3>
                 <p>Veja como escolher o shape mais confortável e encontrar a casa correta para tocar no tom desejado.</p>
               </a>
-              <a href="/blog" className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
+              <a href="/blog" className="block bg-[#27272a] border border-zinc-700/80 rounded-xl p-5 hover:border-orange-500 transition-colors">
                 <h3 className="font-black text-white mb-2">Checklist de ensaio para ministério de música</h3>
                 <p>Uma rotina simples para evitar correria, tom errado, música faltando e arquivo desatualizado.</p>
               </a>
-              <a href="/blog" className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-blue-500 transition-colors">
+              <a href="/blog" className="block bg-[#27272a] border border-zinc-700/80 rounded-xl p-5 hover:border-orange-500 transition-colors">
                 <h3 className="font-black text-white mb-2">Diferença entre letra, cifra e setlist</h3>
                 <p>Aprenda a organizar cada tipo de material e quando usar cada formato no ensaio ou apresentação.</p>
               </a>
@@ -1354,7 +1345,7 @@ export default function PromptLabPage() {
           </section>
 
           <section className="grid lg:grid-cols-2 gap-6">
-            <article className="p-7 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+            <article className="p-7 bg-[#18181b] border border-zinc-800 rounded-xl text-zinc-400 text-sm leading-relaxed shadow-lg">
               <h2 className="text-2xl font-black text-white mb-4">Boas práticas para repertórios compartilhados</h2>
               <ul className="space-y-3 list-disc pl-5">
                 <li>Defina um cabeçalho claro, com nome do evento, data ou tipo de celebração.</li>
@@ -1365,7 +1356,7 @@ export default function PromptLabPage() {
               </ul>
             </article>
 
-            <article className="p-7 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+            <article className="p-7 bg-[#18181b] border border-zinc-800 rounded-xl text-zinc-400 text-sm leading-relaxed shadow-lg">
               <h2 className="text-2xl font-black text-white mb-4">Uso responsável de letras e cifras</h2>
               <p className="mb-4">
                 O PromptLab Brasil funciona como editor e organizador. O usuário é responsável pelo conteúdo que cola no card, incluindo letras, cifras, anotações e repertórios compartilhados. Sempre que possível, use materiais próprios, autorizados, licenciados ou de uso permitido.
@@ -1376,7 +1367,7 @@ export default function PromptLabPage() {
             </article>
           </section>
 
-          <section className="p-8 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-400 text-sm leading-relaxed shadow-lg">
+          <section className="p-8 bg-[#18181b] border border-zinc-800 rounded-xl text-zinc-400 text-sm leading-relaxed shadow-lg">
             <h2 className="text-2xl font-black text-white mb-6">Perguntas frequentes</h2>
             <div className="space-y-5">
               <div>
@@ -1402,34 +1393,34 @@ export default function PromptLabPage() {
 
       {/* RODAPÉ */}
       {!prompterSong && (
-        <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-slate-800/50">
-          <nav className="flex flex-wrap items-center justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-            <a href="/blog" className="hover:text-white text-blue-400 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-md transition-colors">Blog do Músico</a>
-            <a href="#guias" className="hover:text-blue-400">Guias</a>
-            <a href="/privacidade" className="hover:text-blue-400">Política de Privacidade</a>
-            <a href="/termos" className="hover:text-blue-400">Termos de Uso</a>
+        <footer className="max-w-3xl mx-auto text-center py-10 mt-8 border-t border-zinc-800/50">
+          <nav className="flex flex-wrap items-center justify-center gap-6 mb-4 text-xs font-bold uppercase tracking-wider text-zinc-500">
+            <a href="/blog" className="hover:text-white text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-md transition-colors">Blog do Músico</a>
+            <a href="#guias" className="hover:text-orange-400">Guias</a>
+            <a href="/privacidade" className="hover:text-orange-400">Política de Privacidade</a>
+            <a href="/termos" className="hover:text-orange-400">Termos de Uso</a>
           </nav>
-          <p className="text-xs text-slate-600">© {new Date().getFullYear()} PromptLab Brasil. Todos os direitos reservados.</p>
+          <p className="text-xs text-zinc-600">© {new Date().getFullYear()} PromptLab Brasil. Todos os direitos reservados.</p>
         </footer>
       )}
 
       {/* ================= TELA DO TELEPROMPTER ================= */}
       {prompterSong && (
-        <div className="fixed inset-0 bg-[#020617] z-50 flex flex-col animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-[#09090b] z-50 flex flex-col animate-in fade-in duration-300">
           
-          <div className="bg-[#0f172a] border-b border-slate-800 p-4 flex flex-wrap gap-4 items-center justify-between shadow-2xl z-10">
+          <div className="bg-[#18181b] border-b border-zinc-800 p-4 flex flex-wrap gap-4 items-center justify-between shadow-2xl z-10">
             <div className="flex items-center gap-4">
-              <button onClick={closePrompter} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
+              <button onClick={closePrompter} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
                 &larr; Voltar
               </button>
               <h2 className="text-lg font-black text-white hidden sm:block truncate max-w-xs">{prompterSong.title || "Modo Palco"}</h2>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-6">
-              <div className="flex items-center bg-slate-800 rounded-lg p-1">
-                <button onClick={() => setPrompterSpeed(Math.max(1, prompterSpeed - 1))} className="px-3 py-1 font-bold text-slate-300 hover:text-white">-</button>
-                <span className="px-2 text-sm font-bold text-blue-400 whitespace-nowrap">Vel: {prompterSpeed}</span>
-                <button onClick={() => setPrompterSpeed(Math.min(10, prompterSpeed + 1))} className="px-3 py-1 font-bold text-slate-300 hover:text-white">+</button>
+              <div className="flex items-center bg-zinc-800 rounded-lg p-1">
+                <button onClick={() => setPrompterSpeed(Math.max(1, prompterSpeed - 1))} className="px-3 py-1 font-bold text-zinc-300 hover:text-white">-</button>
+                <span className="px-2 text-sm font-bold text-orange-400 whitespace-nowrap">Vel: {prompterSpeed}</span>
+                <button onClick={() => setPrompterSpeed(Math.min(10, prompterSpeed + 1))} className="px-3 py-1 font-bold text-zinc-300 hover:text-white">+</button>
               </div>
 
               <button 
@@ -1437,7 +1428,7 @@ export default function PromptLabPage() {
                 className={`font-black uppercase py-2 px-6 rounded-lg transition-colors border-2 ${
                   isPrompterPlaying 
                     ? 'bg-amber-500/20 text-amber-500 border-amber-500/50 hover:bg-amber-500/30' 
-                    : 'bg-green-500/20 text-green-500 border-green-500/50 hover:bg-green-500/30'
+                    : 'bg-orange-500/20 text-orange-500 border-orange-500/50 hover:bg-orange-500/30'
                 }`}
               >
                 {isPrompterPlaying ? '⏸ Pausar' : '▶ Tocar'}
@@ -1451,7 +1442,7 @@ export default function PromptLabPage() {
             style={{ fontSize: 'min(3.8vw, 2.5rem)', lineHeight: '1.6' }} 
           >
             <div className="max-w-4xl mx-auto font-mono">
-              <h1 className="text-5xl sm:text-7xl font-black mb-12 text-slate-500 border-b border-slate-800 pb-8">{prompterSong.title}</h1>
+              <h1 className="text-5xl sm:text-7xl font-black mb-12 text-zinc-500 border-b border-zinc-800 pb-8">{prompterSong.title}</h1>
               
               {getPrompterLines(prompterSong.content).map((lineObj, idx) => {
                 if (lineObj.type === 'empty') return <div key={idx} className="h-6 sm:h-8"></div>;
@@ -1466,36 +1457,36 @@ export default function PromptLabPage() {
                 if (lineObj.type === 'chord') {
                   return <div key={idx} className="prompter-line prompter-chord">{displayText}</div>;
                 } else {
-                  return <div key={idx} className={`prompter-line prompter-lyric ${isBold ? 'text-yellow-400 font-bold' : ''}`}>{displayText}</div>;
+                  return <div key={idx} className={`prompter-line prompter-lyric ${isBold ? 'text-amber-500 font-bold' : ''}`}>{displayText}</div>;
                 }
               })}
             </div>
           </div>
           
-          <div className="h-24 bg-gradient-to-t from-[#020617] to-transparent absolute bottom-0 left-0 right-0 pointer-events-none"></div>
+          <div className="h-24 bg-gradient-to-t from-[#09090b] to-transparent absolute bottom-0 left-0 right-0 pointer-events-none"></div>
         </div>
       )}
 
       {/* ================= MODAL DO LINK MÁGICO ================= */}
        {shareModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0f172a] border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
-            <button onClick={() => setShareModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+          <div className="bg-[#18181b] border border-zinc-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button onClick={() => setShareModal(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-2xl font-bold">&times;</button>
             
             <div className="text-center mb-6">
               <div className="text-4xl mb-2">🔗</div>
               <h3 className="text-lg font-black text-white uppercase tracking-wider">Link de Compartilhamento</h3>
-              <p className="text-slate-400 text-xs mt-1">Sua banda pode abrir esse repertório instantaneamente clicando nele!</p>
+              <p className="text-zinc-400 text-xs mt-1">Sua banda pode abrir esse repertório instantaneamente clicando nele!</p>
             </div>
 
-            <div className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 mb-6 flex items-center justify-between gap-2 overflow-hidden">
-              <span className="text-sm text-blue-400 font-mono truncate select-all flex-1">{shareModal}</span>
+            <div className="bg-[#18181b] border border-zinc-700 rounded-lg p-3 mb-6 flex items-center justify-between gap-2 overflow-hidden">
+              <span className="text-sm text-orange-400 font-mono truncate select-all flex-1">{shareModal}</span>
               <button 
                 onClick={() => {
                   navigator.clipboard.writeText(shareModal);
                   alert("📋 Link copiado com sucesso!");
                 }} 
-                className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs py-2 px-3 rounded-md shrink-0 transition-colors"
+                className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs py-2 px-3 rounded-md shrink-0 transition-colors"
               >
                 Copiar
               </button>
@@ -1513,7 +1504,7 @@ export default function PromptLabPage() {
               </button>
               <button 
                 onClick={() => setShareModal(null)}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors uppercase"
+                className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs py-2 px-4 rounded-lg transition-colors uppercase"
               >
                 Fechar
               </button>
