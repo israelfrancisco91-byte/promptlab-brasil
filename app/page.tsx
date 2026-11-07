@@ -316,25 +316,80 @@ export default function PromptLabPage() {
     }, 10);
   };
 
-  // --- MOTOR INTELIGENTE DE COLAGEM ---
+  // --- MOTOR INTELIGENTE DE COLAGEM POR ÁRVORE DOM COM PRESERVAÇÃO DE ESPAÇOS ---
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, index: number) => {
     e.preventDefault();
     
-    // O navegador já entrega o texto perfeitamente formatado na área de transferência (plain text).
-    // Evitamos converter o HTML pois ele colapsa espaços múltiplos e destrói o alinhamento das cifras.
+    const htmlData = e.clipboardData.getData('text/html');
     const textData = e.clipboardData.getData('text/plain');
-    if (!textData) return;
 
-    let finalText = textData.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    let finalText = textData;
 
-    // Remove APENAS os espaços do final da linha.
-    // Preserva rigorosamente os espaços no início da linha, fundamentais para a posição da cifra!
+    if (htmlData) {
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlData, 'text/html');
+
+        const extractTextWithNewlines = (node: Node): string => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            // Substitui non-breaking spaces por espaços normais para garantir o alinhamento 
+            return (node.textContent || "").replace(/\u00A0/g, ' ');
+          }
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as HTMLElement;
+            const tag = el.tagName.toLowerCase();
+            
+            if (tag === 'br') {
+              return '\n';
+            }
+
+            let innerText = '';
+            for (let i = 0; i < el.childNodes.length; i++) {
+              innerText += extractTextWithNewlines(el.childNodes[i]);
+            }
+
+            const blockTags = ['p', 'div', 'tr', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section', 'article', 'header', 'footer', 'blockquote'];
+            if (blockTags.includes(tag)) {
+              // Removido o trim() daqui para não engolir espaços se a cifra estiver dentro de div/p
+              return '\n' + innerText + '\n';
+            }
+
+            if (tag === 'b' || tag === 'strong') {
+              if (innerText.trim()) {
+                // Captura espaços antes e depois para colocar o negrito só na palavra, sem desalinhar
+                const match = innerText.match(/^(\s*)([\s\S]*?)(\s*)$/);
+                if (match) {
+                  return `${match[1]}**${match[2]}**${match[3]}`;
+                }
+                return `**${innerText}**`;
+              }
+            }
+
+            return innerText;
+          }
+          return '';
+        };
+
+        const parsedHtmlText = extractTextWithNewlines(doc.body);
+        if (parsedHtmlText.trim().length > 0) {
+          finalText = parsedHtmlText;
+        }
+      } catch (err) {
+        console.error("Erro ao analisar HTML colado:", err);
+      }
+    }
+
+    if (!finalText) return;
+
+    finalText = finalText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
+    // CORREÇÃO MESTRA: trimEnd() em vez de trim(). Assim limpamos lixo do final, mas blindamos os espaços do início!
     finalText = finalText.split('\n').map(line => line.trimEnd()).join('\n');
     
-    // Evita múltiplas linhas vazias consecutivas
-    finalText = finalText.replace(/\n{3,}/g, '\n\n').trimEnd();
+    // Removemos quebras triplas e removemos quebras vazias do começo do texto colado
+    finalText = finalText.replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '');
 
-    // Removemos os marcadores de negrito (**) das linhas de cifra, caso existam.
+    // Limpa tags de negrito que caíram acidentalmente na linha da cifra
     finalText = finalText.split('\n').map(line => {
       if (isChordLine(line)) {
         return line.replace(/\*\*/g, '');
@@ -627,7 +682,7 @@ export default function PromptLabPage() {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
       
-      // Ampliei para 44 (Ajusta perfeitamente na coluna de 85mm usando Courier tamanho 10)
+      // Limite expandido de 42 para 44 (acomoda perfeitamente a frase longa sem quebrar errado)
       const charLimit = 44; 
       
       const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
