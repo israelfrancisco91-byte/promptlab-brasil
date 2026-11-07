@@ -746,7 +746,6 @@ export default function PromptLabPage() {
 
               if (cChunk.trim() !== "") {
                 doc.setFont("Courier", "bold"); doc.setFontSize(10); 
-                // Cifras no PDF no tom Laranja Escuro/Ferrugem para combinar com o tema
                 doc.setTextColor(234, 88, 12);
                 doc.text(cChunk.replace(/\*\*/g, ''), currentX, currentY); 
               }
@@ -825,11 +824,15 @@ export default function PromptLabPage() {
   return (
      <div className="min-h-screen text-white font-sans p-4 relative z-0">
       
-      {/* BACKGROUND TEMA DARK STAGE (PRETO E LARANJA) */}
+      {/* BACKGROUND TEMA DARK STAGE (PRETO E LARANJA) - ESTILO CLEAN/STUDIO */}
       <div className="fixed inset-0 z-[-1] bg-[#09090b]">
-        <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
-        <div className="absolute bottom-0 left-0 right-0 h-[80vh] bg-gradient-to-t from-orange-900/20 to-transparent"></div>
-        <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-orange-600/15 blur-[120px] pointer-events-none"></div>
+        {/* Padrão de pontilhados sutil (Malha de áudio/estúdio) em vez de ruído */}
+        <div className="absolute inset-0 opacity-[0.2]" style={{ backgroundImage: 'radial-gradient(#52525b 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
+        
+        {/* Luzes de estúdio suaves e sem granulação */}
+        <div className="absolute bottom-0 left-0 right-0 h-[60vh] bg-gradient-to-t from-orange-950/40 to-transparent"></div>
+        <div className="absolute top-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-orange-600/10 blur-[130px] pointer-events-none"></div>
+        <div className="absolute bottom-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-amber-600/10 blur-[100px] pointer-events-none"></div>
       </div>
 
       <style jsx global>{`
