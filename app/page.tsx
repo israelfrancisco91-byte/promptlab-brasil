@@ -316,66 +316,25 @@ export default function PromptLabPage() {
     }, 10);
   };
 
-  // --- MOTOR INTELIGENTE DE COLAGEM POR ÁRVORE DOM (RESPEITA QUALQUER SITE) ---
+  // --- MOTOR INTELIGENTE DE COLAGEM ---
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, index: number) => {
     e.preventDefault();
     
-    const htmlData = e.clipboardData.getData('text/html');
+    // O navegador já entrega o texto perfeitamente formatado na área de transferência (plain text).
+    // Evitamos converter o HTML pois ele colapsa espaços múltiplos e destrói o alinhamento das cifras.
     const textData = e.clipboardData.getData('text/plain');
+    if (!textData) return;
 
-    let finalText = textData;
+    let finalText = textData.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-    if (htmlData) {
-      try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlData, 'text/html');
+    // Remove APENAS os espaços do final da linha.
+    // Preserva rigorosamente os espaços no início da linha, fundamentais para a posição da cifra!
+    finalText = finalText.split('\n').map(line => line.trimEnd()).join('\n');
+    
+    // Evita múltiplas linhas vazias consecutivas
+    finalText = finalText.replace(/\n{3,}/g, '\n\n').trimEnd();
 
-        const extractTextWithNewlines = (node: Node): string => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            return node.textContent || "";
-          }
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            const el = node as HTMLElement;
-            const tag = el.tagName.toLowerCase();
-            
-            if (tag === 'br') {
-              return '\n';
-            }
-
-            let innerText = '';
-            for (let i = 0; i < el.childNodes.length; i++) {
-              innerText += extractTextWithNewlines(el.childNodes[i]);
-            }
-
-            const blockTags = ['p', 'div', 'tr', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section', 'article', 'header', 'footer', 'blockquote'];
-            if (blockTags.includes(tag)) {
-              return '\n' + innerText.trim() + '\n';
-            }
-
-            if ((tag === 'b' || tag === 'strong') && innerText.trim()) {
-              return `**${innerText.trim()}**`;
-            }
-
-            return innerText;
-          }
-          return '';
-        };
-
-        const parsedHtmlText = extractTextWithNewlines(doc.body);
-        if (parsedHtmlText.trim().length > 0) {
-          finalText = parsedHtmlText;
-        }
-      } catch (err) {
-        console.error("Erro ao analisar HTML colado:", err);
-      }
-    }
-
-    if (!finalText) return;
-
-    finalText = finalText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    finalText = finalText.split('\n').map(line => line.trim()).join('\n');
-    finalText = finalText.replace(/\n{3,}/g, '\n\n').trim();
-
+    // Removemos os marcadores de negrito (**) das linhas de cifra, caso existam.
     finalText = finalText.split('\n').map(line => {
       if (isChordLine(line)) {
         return line.replace(/\*\*/g, '');
@@ -473,13 +432,16 @@ export default function PromptLabPage() {
           const maxLen = Math.max(chordLine.length, lyricLine.length);
 
           if (maxLen > charLimit) {
-            let lastSpace = lyricLine.substring(0, charLimit + 1).lastIndexOf(' ');
-            if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; }
-            else {
-              lastSpace = chordLine.substring(0, charLimit + 1).lastIndexOf(' ');
-              if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; }
-              else { breakIdx = charLimit; skipChars = 0; }
+            let foundBreak = false;
+            if (lyricLine.length > charLimit) {
+              let lastSpace = lyricLine.substring(0, charLimit + 1).lastIndexOf(' ');
+              if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; foundBreak = true; }
             }
+            if (!foundBreak && chordLine.length > charLimit) {
+              let lastSpace = chordLine.substring(0, charLimit + 1).lastIndexOf(' ');
+              if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; foundBreak = true; }
+            }
+            if (!foundBreak) { breakIdx = charLimit; skipChars = 0; }
           } else { breakIdx = maxLen; skipChars = 0; }
 
           const cChunk = chordLine.substring(0, breakIdx);
@@ -664,7 +626,9 @@ export default function PromptLabPage() {
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
       const watermark = "PromptLab Brasil";
-      const charLimit = 42; 
+      
+      // Ampliei para 44 (Ajusta perfeitamente na coluna de 85mm usando Courier tamanho 10)
+      const charLimit = 44; 
       
       const hasContent = songs.some(s => s.title.trim() !== "" || s.content.trim() !== "");
       if (!hasContent) return alert("Adicione pelo menos uma música com conteúdo!");
@@ -722,13 +686,16 @@ export default function PromptLabPage() {
               const maxLen = Math.max(chordLine.length, lyricLine.length);
               
               if (maxLen > charLimit) {
-                let lastSpace = lyricLine.substring(0, charLimit + 1).lastIndexOf(' ');
-                if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; }
-                else {
-                  lastSpace = chordLine.substring(0, charLimit + 1).lastIndexOf(' ');
-                  if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; }
-                  else { breakIdx = charLimit; skipChars = 0; }
+                let foundBreak = false;
+                if (lyricLine.length > charLimit) {
+                  let lastSpace = lyricLine.substring(0, charLimit + 1).lastIndexOf(' ');
+                  if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; foundBreak = true; }
                 }
+                if (!foundBreak && chordLine.length > charLimit) {
+                  let lastSpace = chordLine.substring(0, charLimit + 1).lastIndexOf(' ');
+                  if (lastSpace > 0) { breakIdx = lastSpace; skipChars = 1; foundBreak = true; }
+                }
+                if (!foundBreak) { breakIdx = charLimit; skipChars = 0; }
               } else { breakIdx = maxLen; skipChars = 0; }
 
               const cChunk = chordLine.substring(0, breakIdx); 
@@ -936,7 +903,6 @@ export default function PromptLabPage() {
                   </button>
                 </div>
                 
-                {/* BOTÕES COM LAYOUT RESPONSIVO OTIMIZADO (GRID NO MOBILE, FLEX NO DESKTOP) */}
                 <div className="grid grid-cols-2 sm:flex sm:flex-row items-center gap-2 w-full sm:w-auto">
                   <button onClick={() => setShowSongBankModal(true)} className="col-span-2 sm:col-span-auto h-9 px-3.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Inserir música do seu Banco de Músicas Frequentes">📂 Inserir do Banco</button>
                   <button onClick={clearCurrentSetlist} className="h-9 px-3.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" title="Apagar tudo e começar do zero">📄 Novo</button>
@@ -972,7 +938,7 @@ export default function PromptLabPage() {
                         <input value={song.title} onChange={(e) => updateSong(index, 'title', e.target.value)} placeholder="Ex: Te Louvarei" className="!mb-0 !bg-[#0f172a] font-bold" />
                       </div>
                       
-                      {/* TOOLBAR DESKTOP (Invisível no Mobile) */}
+                      {/* TOOLBAR DESKTOP */}
                       <div className="hidden sm:flex flex-wrap items-center justify-between gap-2 mb-3 bg-[#0f172a] p-2.5 rounded-lg border border-slate-700/50">
                         <div className="flex items-center gap-2 flex-wrap">
                           <div className="flex items-center gap-1">
@@ -1006,7 +972,7 @@ export default function PromptLabPage() {
                         </div>
                       </div>
 
-                      {/* TOOLBAR MOBILE: PARTE SUPERIOR (Invisível no Desktop) */}
+                      {/* TOOLBAR MOBILE: PARTE SUPERIOR */}
                       <div className="flex sm:hidden flex-col gap-3 mb-3 bg-[#0f172a] p-3 rounded-lg border border-slate-700/50">
                         <div className="flex gap-2">
                           <button onClick={() => openPrompter(song)} className="btn-play !m-0 flex-1 justify-center whitespace-nowrap !h-10 text-xs" title="Modo Palco">
@@ -1043,7 +1009,7 @@ export default function PromptLabPage() {
                         />
                       </div>
 
-                      {/* TOOLBAR MOBILE: PARTE INFERIOR (Invisível no Desktop) */}
+                      {/* TOOLBAR MOBILE: PARTE INFERIOR */}
                       <div className="flex sm:hidden items-center gap-2 mt-2 bg-[#0f172a] p-2 rounded-lg border border-slate-700/50 w-max">
                         <button onClick={() => handleToggleCase(index)} className="h-8 px-5 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Alternar Maiúsculas/Minúsculas">Aa</button>
                         <button onClick={() => handleToggleBold(index)} className="h-8 px-5 bg-[#334155] hover:bg-[#475569] text-xs font-bold rounded-md text-white transition-colors" title="Selecionar texto e aplicar Negrito">B</button>
@@ -1419,7 +1385,7 @@ export default function PromptLabPage() {
                     : 'bg-green-500/20 text-green-500 border-green-500/50 hover:bg-green-500/30'
                 }`}
               >
-                {isPrompterPlaying ? '⏸ Pausar' : '▶️️ Tocar'}
+                {isPrompterPlaying ? '⏸ Pausar' : '▶ Tocar'}
               </button>
             </div>
           </div>
