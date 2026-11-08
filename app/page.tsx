@@ -335,6 +335,12 @@ export default function PromptLabPage() {
             const el = node as HTMLElement;
             const tag = el.tagName.toLowerCase();
             
+            // 🚨 BLINDAGEM CONTRA CIFRA CLUB: 
+            // Ignora completamente tags de estilo, script ou meta que vazam código para a tela
+            if (tag === 'style' || tag === 'script' || tag === 'noscript' || tag === 'meta') {
+              return '';
+            }
+
             if (tag === 'br') {
               return '\n';
             }
@@ -365,6 +371,8 @@ export default function PromptLabPage() {
         };
 
         const parsedHtmlText = extractTextWithNewlines(doc.body);
+        
+        // Se a extração falhar ou vier vazia, usamos o texto puro por segurança
         if (parsedHtmlText.trim().length > 0) {
           finalText = parsedHtmlText;
         }
@@ -377,6 +385,7 @@ export default function PromptLabPage() {
 
     finalText = finalText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     finalText = finalText.split('\n').map(line => line.trimEnd()).join('\n');
+    // Limpa excesso de quebras de linha geradas pelo Cifra Club
     finalText = finalText.replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '');
 
     finalText = finalText.split('\n').map(line => {
@@ -826,10 +835,7 @@ export default function PromptLabPage() {
       
       {/* BACKGROUND TEMA DARK STAGE (PRETO E LARANJA) - ESTILO CLEAN/STUDIO */}
       <div className="fixed inset-0 z-[-1] bg-[#09090b]">
-        {/* Padrão de pontilhados sutil (Malha de áudio/estúdio) em vez de ruído */}
         <div className="absolute inset-0 opacity-[0.2]" style={{ backgroundImage: 'radial-gradient(#52525b 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
-        
-        {/* Luzes de estúdio suaves e sem granulação */}
         <div className="absolute bottom-0 left-0 right-0 h-[60vh] bg-gradient-to-t from-orange-950/40 to-transparent"></div>
         <div className="absolute top-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-orange-600/10 blur-[130px] pointer-events-none"></div>
         <div className="absolute bottom-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-amber-600/10 blur-[100px] pointer-events-none"></div>
