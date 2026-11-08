@@ -335,8 +335,6 @@ export default function PromptLabPage() {
             const el = node as HTMLElement;
             const tag = el.tagName.toLowerCase();
             
-            // 🚨 BLINDAGEM CONTRA CIFRA CLUB: 
-            // Ignora completamente tags de estilo, script ou meta que vazam código para a tela
             if (tag === 'style' || tag === 'script' || tag === 'noscript' || tag === 'meta') {
               return '';
             }
@@ -371,8 +369,6 @@ export default function PromptLabPage() {
         };
 
         const parsedHtmlText = extractTextWithNewlines(doc.body);
-        
-        // Se a extração falhar ou vier vazia, usamos o texto puro por segurança
         if (parsedHtmlText.trim().length > 0) {
           finalText = parsedHtmlText;
         }
@@ -383,9 +379,29 @@ export default function PromptLabPage() {
 
     if (!finalText) return;
 
+    // Padroniza quebras de linha
     finalText = finalText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    finalText = finalText.split('\n').map(line => line.trimEnd()).join('\n');
-    // Limpa excesso de quebras de linha geradas pelo Cifra Club
+
+    // Remove espaços residuais ao fim das linhas
+    let lines = finalText.split('\n').map(line => line.trimEnd());
+
+    // ELIMINA ESPAÇOS VAZIOS EXTRA ENTRE CIFRA E LETRA (ESPECIAL CIFRA CLUB):
+    // Se a linha atual é uma linha de cifra e a próxima estiver vazia, removemos a linha vazia intermediária.
+    const cleanedLines: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const current = lines[i];
+      const next = lines[i + 1];
+
+      cleanedLines.push(current);
+
+      if (isChordLine(current) && next !== undefined && next.trim() === '') {
+        // Pula a linha vazia desnecessária entre a cifra e o verso
+        i++;
+      }
+    }
+
+    finalText = cleanedLines.join('\n');
+    // Remove múltiplos retornos de linha excessivos
     finalText = finalText.replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '');
 
     finalText = finalText.split('\n').map(line => {
@@ -1288,7 +1304,7 @@ export default function PromptLabPage() {
             <span className="text-xs font-black uppercase tracking-[0.18em] text-amber-500">Guia principal</span>
             <h2 className="text-3xl font-black text-white mt-2 mb-4">Gerador de repertório musical e cifras em PDF</h2>
             <p className="mb-5">
-              O <strong>PromptLab Brasil</strong> é uma ferramenta online criada para músicos que precisam preparar repertórios de forma rápida, organizada e legível. A ideia é simples: você monta a lista de músicas, cola suas letras ou cifras autorizadas, ajusta o tom quando necessário e gera um PDF pronto para ensaio, celebração, apresentação ou estudo pessoal.
+              O <strong>PromptLab Brasil</strong> é uma ferramenta online criada para músicos que precisam preparar repertórios de forma rápida, organizada e legível. A ideia é simples: você monta a lista de músicas, cola suas letras ou cifras autorizadas, ajusta o tom quando necessário e gere um PDF pronto para ensaio, celebração, apresentação ou estudo pessoal.
             </p>
             <p className="mb-5">
               A proposta não é substituir o trabalho musical nem publicar acervos de letras protegidas. O foco é resolver um problema prático de organização: transformar textos soltos, anotações, cifras desalinhadas e arquivos improvisados em um repertório limpo, padronizado e fácil de consultar.
